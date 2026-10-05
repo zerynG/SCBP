@@ -1,0 +1,47 @@
+server {
+    listen 80;
+    server_name scbp.iqnix.tech 85.234.110.140; # домен и IP-адрес сервера
+    
+    # Redirect HTTP to HTTPS
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name scbp.iqnix.tech 85.234.110.140; # домен и IP-адрес сервера
+    
+    # SSL Configuration
+    ssl_certificate /etc/letsencrypt/live/scbp.iqnix.tech/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/scbp.iqnix.tech/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+    
+    access_log  /var/log/nginx/scbp-iqnix-tech.log;
+
+    location /staticfiles/ {
+        alias /home/scbp/staticfiles/;
+        expires 5d;
+    }
+    location /static/ {
+        alias /home/scbp/static/;
+        expires 5d;
+    }
+    location /media/ {
+        alias /home/scbp/media/;
+        expires 5d;
+    }
+
+    # Let's Encrypt ACME challenge - must be before location /
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+        try_files $uri =404;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $server_name;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

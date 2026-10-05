@@ -1,0 +1,806 @@
+{% extends 'base.html' %}
+
+{% block title %}Создание ресурсов - IQNIX TECH{% endblock %}
+
+{% block extra_css %}
+<style>
+    body { background: #1a1a1a !important; color: #e0e0e0; }
+    main, .scrollable { background: #1a1a1a !important; }
+
+    .cr { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    .cr h1 { font-size: 1.6rem; font-weight: 700; color: #fff; margin-bottom: .25rem; }
+    .cr .subtitle { color: #666; font-size: .85rem; margin-bottom: 2rem; }
+
+    /* Tabs */
+    .cr-tabs {
+        display: flex; background: #1a1a1a; border-radius: 10px;
+        padding: .35rem; margin-bottom: 1.5rem; gap: .35rem;
+        border: 1px solid rgba(255,255,255,.06);
+    }
+    .cr-tab {
+        flex: 1; padding: .7rem .5rem; background: transparent !important;
+        border: none !important; outline: none !important; color: #777 !important;
+        border-radius: 8px; cursor: pointer; font-weight: 600;
+        font-size: .85rem; font-family: 'Manrope', sans-serif;
+        transition: all .2s;
+    }
+    .cr-tab.active {
+        background: #8B5CF6 !important; color: #fff !important;
+        box-shadow: 0 2px 10px rgba(139,92,246,.25);
+    }
+    .cr-tab:hover:not(.active) { background: rgba(255,255,255,.04) !important; color: #ccc !important; }
+
+    /* Tab content */
+    .cr-panel { display: none; }
+    .cr-panel.active { display: block; }
+
+    /* Cards */
+    .cr-card {
+        background: #222; border: 1px solid rgba(255,255,255,.06);
+        border-radius: 14px; padding: 1.5rem; margin-bottom: 1.25rem;
+    }
+    .cr-card h3 {
+        font-size: .95rem; font-weight: 700; color: #8B5CF6;
+        margin: 0 0 1.25rem; display: flex; align-items: center; gap: .5rem;
+    }
+    .cr-card h3 i { font-size: .8rem; }
+
+    /* Section inside card */
+    .cr-section {
+        background: #1a1a1a; border: 1px solid rgba(255,255,255,.06);
+        border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1rem;
+    }
+    .cr-section h4 {
+        font-size: .78rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .04em; color: #8B5CF6; margin: 0 0 .75rem;
+    }
+
+    /* Form grid */
+    .cr-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .75rem; }
+    .cr-row + .cr-row { margin-top: .75rem; }
+
+    /* Form fields */
+    .cr-field { display: flex; flex-direction: column; gap: .25rem; }
+    .cr-field label {
+        font-size: .72rem; font-weight: 600; text-transform: uppercase;
+        letter-spacing: .04em; color: #555;
+    }
+    .cr-field input, .cr-field select {
+        width: 100% !important; padding: .55rem .75rem !important;
+        background: #222 !important; border: 1px solid rgba(255,255,255,.08) !important;
+        border-radius: 8px !important; color: #e0e0e0 !important; font-size: .85rem !important;
+        font-family: 'Manrope', sans-serif !important; outline: none !important;
+        transition: border-color .2s !important; box-shadow: none !important;
+    }
+    .cr-field input:focus, .cr-field select:focus {
+        border-color: #8B5CF6 !important;
+        box-shadow: 0 0 0 3px rgba(139,92,246,.1) !important;
+    }
+    .cr-field small { font-size: .72rem; color: #555; }
+
+    /* Buttons */
+    .cr .cr-btn {
+        display: inline-flex !important; align-items: center !important; gap: .35rem !important;
+        padding: .5rem 1rem !important; border-radius: 8px !important;
+        font-size: .8rem !important; font-weight: 600 !important;
+        font-family: 'Manrope', sans-serif !important;
+        border: none !important; outline: none !important; box-shadow: none !important;
+        cursor: pointer !important; transition: all .15s !important;
+        text-decoration: none !important; white-space: nowrap !important;
+        color: #fff !important;
+    }
+    .cr .cr-btn:hover { transform: translateY(-1px); }
+    .cr .cr-btn:focus { box-shadow: none !important; }
+    .cr .cr-btn i { font-size: .72rem; }
+    .cr .cr-btn-primary { background: #8B5CF6 !important; }
+    .cr .cr-btn-primary:hover { box-shadow: 0 4px 16px rgba(139,92,246,.3) !important; }
+    .cr .cr-btn-edit { background: #059669 !important; }
+    .cr .cr-btn-edit:hover { box-shadow: 0 4px 12px rgba(5,150,105,.3) !important; }
+    .cr .cr-btn-danger { background: rgba(239,68,68,.12) !important; color: #f87171 !important; }
+    .cr .cr-btn-danger:hover { background: rgba(239,68,68,.2) !important; }
+    .cr .cr-btn-sm { padding: .35rem .7rem !important; font-size: .75rem !important; }
+
+    /* Resource list */
+    .cr-list { display: grid; gap: .5rem; margin-top: 1rem; }
+    .cr-item {
+        display: flex; align-items: center; gap: 1rem;
+        background: #1a1a1a; border: 1px solid rgba(255,255,255,.06);
+        border-radius: 10px; padding: .85rem 1rem;
+        transition: border-color .2s;
+    }
+    .cr-item:hover { border-color: rgba(139,92,246,.15); }
+    .cr-item-info { flex: 1; min-width: 0; }
+    .cr-item-name { font-weight: 600; color: #fff; font-size: .88rem; }
+    .cr-item-details { font-size: .78rem; color: #777; margin-top: .15rem; }
+    .cr-item-cost {
+        font-weight: 700; color: #8B5CF6; font-size: .95rem;
+        white-space: nowrap; flex-shrink: 0;
+    }
+    .cr-item-actions { display: flex; gap: .35rem; flex-shrink: 0; }
+
+    /* Total cost */
+    .cr-total {
+        background: linear-gradient(135deg, #8B5CF6, #7c3aed);
+        border-radius: 12px; padding: 1.5rem; text-align: center;
+        margin-top: .5rem;
+    }
+    .cr-total-label { font-size: .85rem; color: rgba(255,255,255,.8); margin-bottom: .35rem; }
+    .cr-total-value { font-size: 1.8rem; font-weight: 800; color: #fff; }
+
+    /* Empty state */
+    .cr-empty { text-align: center; padding: 1.5rem; color: #444; font-size: .82rem; }
+
+    /* Conditional field */
+    .cr-hidden { display: none !important; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .cr { padding: 1rem; }
+        .cr-tabs { flex-direction: column; }
+        .cr-row { grid-template-columns: 1fr; }
+        .cr-item { flex-direction: column; align-items: flex-start; }
+        .cr-total-value { font-size: 1.4rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cr">
+    <h1>Создание ресурсов</h1>
+    <p class="subtitle">Создайте базу ресурсов для использования в проектах</p>
+
+    <!-- Tabs -->
+    <div class="cr-tabs">
+        <button class="cr-tab active" data-tab="employees" onclick="showTab(this, 'employees')"><i class="fas fa-users"></i> Сотрудники</button>
+        <button class="cr-tab" data-tab="executors" onclick="showTab(this, 'executors')"><i class="fas fa-user-tie"></i> Исполнители</button>
+        <button class="cr-tab" data-tab="contractors" onclick="showTab(this, 'contractors')"><i class="fas fa-building"></i> Подрядчики</button>
+        <button class="cr-tab" data-tab="equipment" onclick="showTab(this, 'equipment')"><i class="fas fa-server"></i> Оборудование</button>
+    </div>
+
+    <!-- Сотрудники -->
+    <div id="employees" class="cr-panel active">
+        <div class="cr-card">
+            <h3><i class="fas fa-user-plus"></i> <span id="employeeFormTitle">Добавить сотрудника</span></h3>
+            <form id="employeeForm">
+                <div class="cr-section">
+                    <h4>Основная информация</h4>
+                    <div class="cr-row">
+                        <div class="cr-field">
+                            <label>Фамилия *</label>
+                            <input type="text" id="employeeLastName" required>
+                        </div>
+                        <div class="cr-field">
+                            <label>Имя *</label>
+                            <input type="text" id="employeeFirstName" required>
+                        </div>
+                    </div>
+                    <div class="cr-row">
+                        <div class="cr-field">
+                            <label>Отчество</label>
+                            <input type="text" id="employeeMiddleName">
+                        </div>
+                        <div class="cr-field">
+                            <label>Должность *</label>
+                            <input type="text" id="employeePosition" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="cr-section">
+                    <h4>Финансовая информация</h4>
+                    <div class="cr-row">
+                        <div class="cr-field">
+                            <label>Заработная плата в месяц (₽) *</label>
+                            <input type="number" id="employeeSalary" required min="0" step="0.01">
+                        </div>
+                        <div class="cr-field">
+                            <label>Налоговая ставка (%)</label>
+                            <input type="number" id="employeeTaxRate" value="13" step="0.1" required min="0">
+                            <small>Например: 30.2, 13, 7.6</small>
+                        </div>
+                    </div>
+                    <div class="cr-row">
+                        <div class="cr-field">
+                            <label>Маржинальность (%)</label>
+                            <input type="number" id="employeeMargin" value="0" step="0.1" required min="0">
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:.5rem;margin-top:.25rem;">
+                    <button type="submit" class="cr-btn cr-btn-primary"><i class="fas fa-plus"></i> <span id="employeeSubmitText">Добавить</span></button>
+                    <button type="button" class="cr-btn cr-btn-danger" id="employeeCancelEdit" style="display:none" onclick="cancelEdit('employee')">Отмена</button>
+                </div>
+            </form>
+        </div>
+        <div class="cr-card">
+            <h3><i class="fas fa-list"></i> Добавленные сотрудники</h3>
+            <div id="employeesContainer"></div>
+        </div>
+    </div>
+
+    <!-- Исполнители -->
+    <div id="executors" class="cr-panel">
+        <div class="cr-card">
+            <h3><i class="fas fa-user-plus"></i> <span id="executorFormTitle">Добавить исполнителя</span></h3>
+            <form id="executorForm">
+                <div class="cr-section">
+                    <h4>Основная информация</h4>
+                    <div class="cr-row">
+                        <div class="cr-field">
+                            <label>Имя исполнителя *</label>
+                            <input type="text" id="executorName" required>
+                        </div>
+                        <div class="cr-field">
+                            <label>Тип контракта</label>
+                            <select id="executorContractType" required>
+                                <option value="gph">ГПХ</option>
+                                <option value="npd">НПД</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="cr-section">
+                    <h4>Финансовая информация</h4>
+                    <div class="cr-row">
+                        <div class="cr-field">
+                            <label>Тип ценообразования</label>
+                            <select id="executorPricingType" onchange="toggleExecutorPricing()" required>
+                                <option value="fixed">Фиксированная стоимость</option>
+                                <option value="hourly">Почасовая оплата</option>
+                            </select>
+                        </div>
+                        <div class="cr-field">
+                            <label>Налоговая ставка (%)</label>
+                            <input type="number" id="executorTaxRate" value="13" step="0.1" required min="0">
+                        </div>
+                    </div>
+                    <div class="cr-row">
+                        <div class="cr-field" id="executorFixedCostGroup">
+                            <label>Фиксированная стоимость (₽)</label>
+                            <input type="number" id="executorFixedCost" min="0" step="0.01">
+                        </div>
+                        <div class="cr-field cr-hidden" id="executorHourlyCostGroup">
+                            <label>Стоимость за час (₽)</label>
+                            <input type="number" id="executorHourlyCost" min="0" step="0.01">
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:.5rem;margin-top:.25rem;">
+                    <button type="submit" class="cr-btn cr-btn-primary"><i class="fas fa-plus"></i> <span id="executorSubmitText">Добавить</span></button>
+                    <button type="button" class="cr-btn cr-btn-danger" id="executorCancelEdit" style="display:none" onclick="cancelEdit('executor')">Отмена</button>
+                </div>
+            </form>
+        </div>
+        <div class="cr-card">
+            <h3><i class="fas fa-list"></i> Добавленные исполнители</h3>
+            <div id="executorsContainer"></div>
+        </div>
+    </div>
+
+    <!-- Подрядчики -->
+    <div id="contractors" class="cr-panel">
+        <div class="cr-card">
+            <h3><i class="fas fa-user-plus"></i> <span id="contractorFormTitle">Добавить подрядчика</span></h3>
+            <form id="contractorForm">
+                <div class="cr-section">
+                    <h4>Основная информация</h4>
+                    <div class="cr-row">
+                        <div class="cr-field">
+                            <label>Название подрядчика *</label>
+                            <input type="text" id="contractorName" required>
+                        </div>
+                        <div class="cr-field">
+                            <label>Тип лица</label>
+                            <select id="contractorEntityType" required>
+                                <option value="individual">Физическое лицо</option>
+                                <option value="legal">Юридическое лицо</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="cr-section">
+                    <h4>Финансовая информация</h4>
+                    <div class="cr-row">
+                        <div class="cr-field">
+                            <label>Тип ценообразования</label>
+                            <select id="contractorPricingType" onchange="toggleContractorPricing()" required>
+                                <option value="fixed">Фиксированная стоимость</option>
+                                <option value="hourly">Почасовая оплата</option>
+                            </select>
+                        </div>
+                        <div class="cr-field">
+                            <label>Налоговая ставка (%)</label>
+                            <input type="number" id="contractorTaxRate" value="20" step="0.1" required min="0">
+                        </div>
+                    </div>
+                    <div class="cr-row">
+                        <div class="cr-field" id="contractorFixedCostGroup">
+                            <label>Фиксированная стоимость (₽)</label>
+                            <input type="number" id="contractorFixedCost" min="0" step="0.01">
+                        </div>
+                        <div class="cr-field cr-hidden" id="contractorHourlyCostGroup">
+                            <label>Стоимость за час (₽)</label>
+                            <input type="number" id="contractorHourlyCost" min="0" step="0.01">
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:.5rem;margin-top:.25rem;">
+                    <button type="submit" class="cr-btn cr-btn-primary"><i class="fas fa-plus"></i> <span id="contractorSubmitText">Добавить</span></button>
+                    <button type="button" class="cr-btn cr-btn-danger" id="contractorCancelEdit" style="display:none" onclick="cancelEdit('contractor')">Отмена</button>
+                </div>
+            </form>
+        </div>
+        <div class="cr-card">
+            <h3><i class="fas fa-list"></i> Добавленные подрядчики</h3>
+            <div id="contractorsContainer"></div>
+        </div>
+    </div>
+
+    <!-- Оборудование -->
+    <div id="equipment" class="cr-panel">
+        <div class="cr-card">
+            <h3><i class="fas fa-plus-circle"></i> <span id="equipmentFormTitle">Добавить оборудование</span></h3>
+            <form id="equipmentForm">
+                <div class="cr-section">
+                    <h4>Основная информация</h4>
+                    <div class="cr-row">
+                        <div class="cr-field">
+                            <label>Название *</label>
+                            <input type="text" id="equipmentName" required>
+                        </div>
+                        <div class="cr-field">
+                            <label>Тип аренды</label>
+                            <select id="equipmentPricingType" onchange="toggleEquipmentLabel()" required>
+                                <option value="month">Помесячная</option>
+                                <option value="day">Посуточная</option>
+                                <option value="hour">Почасовая</option>
+                                <option value="minute">Поминутная</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="cr-section">
+                    <h4>Финансовая информация</h4>
+                    <div class="cr-row">
+                        <div class="cr-field">
+                            <label id="equipmentCostLabel">Стоимость за час (₽)</label>
+                            <input type="number" id="equipmentOperationalCost" required min="0" step="0.01">
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:.5rem;margin-top:.25rem;">
+                    <button type="submit" class="cr-btn cr-btn-primary"><i class="fas fa-plus"></i> <span id="equipmentSubmitText">Добавить</span></button>
+                    <button type="button" class="cr-btn cr-btn-danger" id="equipmentCancelEdit" style="display:none" onclick="cancelEdit('equipment')">Отмена</button>
+                </div>
+            </form>
+        </div>
+        <div class="cr-card">
+            <h3><i class="fas fa-list"></i> Добавленное оборудование</h3>
+            <div id="equipmentContainer"></div>
+        </div>
+    </div>
+
+    <!-- Total cost -->
+    <div class="cr-total">
+        <div class="cr-total-label">Общая стоимость ресурсов</div>
+        <div class="cr-total-value" id="totalAmount">0 ₽</div>
+    </div>
+</div>
+
+<script>
+// --- XSS protection ---
+function esc(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+// --- Data ---
+let employees = [];
+let executors = [];
+let contractors = [];
+let equipment = [];
+
+let editingEmployee = null;
+let editingExecutor = null;
+let editingContractor = null;
+let editingEquipment = null;
+
+const STORAGE_KEY = 'createProjectResources';
+
+// --- Persistence ---
+function saveResources() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ employees, executors, contractors, equipment }));
+    } catch (e) { console.error('localStorage save error', e); }
+}
+
+function loadResources() {
+    try {
+        document.getElementById('employeeForm').reset();
+        document.getElementById('executorForm').reset();
+        document.getElementById('contractorForm').reset();
+        document.getElementById('equipmentForm').reset();
+        editingEmployee = editingExecutor = editingContractor = editingEquipment = null;
+        toggleExecutorPricing();
+        toggleContractorPricing();
+        toggleEquipmentLabel();
+
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        employees = Array.isArray(data.employees) ? data.employees : [];
+        executors = Array.isArray(data.executors) ? data.executors : [];
+        contractors = Array.isArray(data.contractors) ? data.contractors : [];
+        equipment = Array.isArray(data.equipment) ? data.equipment : [];
+        renderAll();
+    } catch (e) { console.error('localStorage load error', e); }
+}
+
+// --- Tabs ---
+function showTab(btn, tabName) {
+    document.querySelectorAll('.cr-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.cr-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(tabName).classList.add('active');
+    if (btn) {
+        btn.classList.add('active');
+    } else {
+        // Find the correct tab button by data attribute
+        const tab = document.querySelector(`.cr-tab[data-tab="${tabName}"]`);
+        if (tab) tab.classList.add('active');
+    }
+}
+
+// --- Toggle pricing fields ---
+function toggleExecutorPricing() {
+    const type = document.getElementById('executorPricingType').value;
+    document.getElementById('executorFixedCostGroup').classList.toggle('cr-hidden', type !== 'fixed');
+    document.getElementById('executorHourlyCostGroup').classList.toggle('cr-hidden', type !== 'hourly');
+}
+
+function toggleContractorPricing() {
+    const type = document.getElementById('contractorPricingType').value;
+    document.getElementById('contractorFixedCostGroup').classList.toggle('cr-hidden', type !== 'fixed');
+    document.getElementById('contractorHourlyCostGroup').classList.toggle('cr-hidden', type !== 'hourly');
+}
+
+function toggleEquipmentLabel() {
+    const type = document.getElementById('equipmentPricingType').value;
+    const labels = { hour: 'Стоимость за час (₽)', minute: 'Стоимость за минуту (₽)', day: 'Стоимость за день (₽)', month: 'Стоимость в месяц (₽)' };
+    document.getElementById('equipmentCostLabel').textContent = labels[type] || labels.month;
+}
+
+
+// --- Cost calculations (catalog preview) ---
+function calcEmployeeCost(e) {
+    const salary = parseFloat(e.salary) || 0;
+    const tax = (parseFloat(e.taxRate) || 0) / 100;
+    const margin = (parseFloat(e.margin) || 0) / 100;
+    return salary * (1 + tax) * (1 + margin);
+}
+
+function calcExecutorCost(e) {
+    const tax = (parseFloat(e.taxRate) || 0) / 100;
+    if (e.pricingType === 'fixed') {
+        return (parseFloat(e.fixedCost) || 0) * (1 + tax);
+    }
+    return (parseFloat(e.hourlyCost) || 0) * (1 + tax);
+}
+
+function calcContractorCost(c) {
+    const tax = (parseFloat(c.taxRate) || 0) / 100;
+    if (c.pricingType === 'fixed') {
+        return (parseFloat(c.fixedCost) || 0) * (1 + tax);
+    }
+    return (parseFloat(c.hourlyCost) || 0) * (1 + tax);
+}
+
+function calcEquipmentCost(eq) {
+    return parseFloat(eq.operationalCost) || 0;
+}
+
+// --- Add / Update ---
+function addEmployee(data) {
+    data.cost = calcEmployeeCost(data);
+    if (editingEmployee !== null) { employees[editingEmployee] = data; editingEmployee = null; }
+    else employees.push(data);
+    setEditMode('employee', false);
+    renderAll(); saveResources();
+}
+
+function addExecutor(data) {
+    data.cost = calcExecutorCost(data);
+    if (editingExecutor !== null) { executors[editingExecutor] = data; editingExecutor = null; }
+    else executors.push(data);
+    setEditMode('executor', false);
+    renderAll(); saveResources();
+}
+
+function addContractor(data) {
+    data.cost = calcContractorCost(data);
+    if (editingContractor !== null) { contractors[editingContractor] = data; editingContractor = null; }
+    else contractors.push(data);
+    setEditMode('contractor', false);
+    renderAll(); saveResources();
+}
+
+function addEquipment(data) {
+    data.cost = calcEquipmentCost(data);
+    if (editingEquipment !== null) { equipment[editingEquipment] = data; editingEquipment = null; }
+    else equipment.push(data);
+    setEditMode('equipment', false);
+    renderAll(); saveResources();
+}
+
+
+// --- Edit mode UI ---
+function setEditMode(type, editing) {
+    const title = document.getElementById(type + 'FormTitle');
+    const submitText = document.getElementById(type + 'SubmitText');
+    const cancelBtn = document.getElementById(type + 'CancelEdit');
+    const names = { employee: 'сотрудника', executor: 'исполнителя', contractor: 'подрядчика', equipment: 'оборудование' };
+    if (editing) {
+        title.textContent = 'Редактирование: ' + names[type];
+        submitText.textContent = 'Сохранить';
+        cancelBtn.style.display = '';
+    } else {
+        title.textContent = 'Добавить ' + names[type];
+        submitText.textContent = 'Добавить';
+        cancelBtn.style.display = 'none';
+    }
+}
+
+function cancelEdit(type) {
+    if (type === 'employee') { editingEmployee = null; document.getElementById('employeeForm').reset(); }
+    if (type === 'executor') { editingExecutor = null; document.getElementById('executorForm').reset(); toggleExecutorPricing(); }
+    if (type === 'contractor') { editingContractor = null; document.getElementById('contractorForm').reset(); toggleContractorPricing(); }
+    if (type === 'equipment') { editingEquipment = null; document.getElementById('equipmentForm').reset(); toggleEquipmentLabel(); }
+    setEditMode(type, false);
+}
+
+// --- Edit functions ---
+function editEmployee(index) {
+    const e = employees[index];
+    editingEmployee = index;
+    const parts = e.name.split(' ');
+    document.getElementById('employeeLastName').value = parts[0] || '';
+    document.getElementById('employeeFirstName').value = parts[1] || '';
+    document.getElementById('employeeMiddleName').value = parts.slice(2).join(' ');
+    document.getElementById('employeePosition').value = e.position;
+    document.getElementById('employeeSalary').value = e.salary;
+    document.getElementById('employeeTaxRate').value = e.taxRate;
+    document.getElementById('employeeMargin').value = e.margin;
+    setEditMode('employee', true);
+    showTab(null, 'employees');
+    document.getElementById('employeeForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function editExecutor(index) {
+    const e = executors[index];
+    editingExecutor = index;
+    document.getElementById('executorName').value = e.name;
+    document.getElementById('executorContractType').value = e.contractType;
+    document.getElementById('executorPricingType').value = e.pricingType;
+    document.getElementById('executorTaxRate').value = e.taxRate;
+    document.getElementById('executorFixedCost').value = e.fixedCost || '';
+    document.getElementById('executorHourlyCost').value = e.hourlyCost || '';
+    toggleExecutorPricing();
+    setEditMode('executor', true);
+    showTab(null, 'executors');
+    document.getElementById('executorForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function editContractor(index) {
+    const c = contractors[index];
+    editingContractor = index;
+    document.getElementById('contractorName').value = c.name;
+    document.getElementById('contractorEntityType').value = c.entityType;
+    document.getElementById('contractorPricingType').value = c.pricingType;
+    document.getElementById('contractorTaxRate').value = c.taxRate;
+    document.getElementById('contractorFixedCost').value = c.fixedCost || '';
+    document.getElementById('contractorHourlyCost').value = c.hourlyCost || '';
+    toggleContractorPricing();
+    setEditMode('contractor', true);
+    showTab(null, 'contractors');
+    document.getElementById('contractorForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function editEquipment(index) {
+    const eq = equipment[index];
+    editingEquipment = index;
+    document.getElementById('equipmentName').value = eq.name;
+    document.getElementById('equipmentPricingType').value = eq.pricingType;
+    document.getElementById('equipmentOperationalCost').value = eq.operationalCost;
+    toggleEquipmentLabel();
+    setEditMode('equipment', true);
+    showTab(null, 'equipment');
+    document.getElementById('equipmentForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// --- Remove functions ---
+function removeEmployee(index) {
+    employees.splice(index, 1);
+    if (editingEmployee === index) { cancelEdit('employee'); }
+    else if (editingEmployee !== null && editingEmployee > index) editingEmployee--;
+    renderAll(); saveResources();
+}
+
+function removeExecutor(index) {
+    executors.splice(index, 1);
+    if (editingExecutor === index) { cancelEdit('executor'); }
+    else if (editingExecutor !== null && editingExecutor > index) editingExecutor--;
+    renderAll(); saveResources();
+}
+
+function removeContractor(index) {
+    contractors.splice(index, 1);
+    if (editingContractor === index) { cancelEdit('contractor'); }
+    else if (editingContractor !== null && editingContractor > index) editingContractor--;
+    renderAll(); saveResources();
+}
+
+function removeEquipment(index) {
+    equipment.splice(index, 1);
+    if (editingEquipment === index) { cancelEdit('equipment'); }
+    else if (editingEquipment !== null && editingEquipment > index) editingEquipment--;
+    renderAll(); saveResources();
+}
+
+// --- Render ---
+function fmt(n) { return Math.round(n).toLocaleString('ru-RU'); }
+
+function renderEmployees() {
+    const c = document.getElementById('employeesContainer');
+    if (!employees.length) { c.innerHTML = '<div class="cr-empty">Сотрудники не добавлены</div>'; return; }
+    c.innerHTML = '<div class="cr-list">' + employees.map((e, i) => `
+        <div class="cr-item">
+            <div class="cr-item-info">
+                <div class="cr-item-name">${esc(e.name)}</div>
+                <div class="cr-item-details">${esc(e.position)} · ${fmt(parseFloat(e.salary))} ₽/мес · Налог ${esc(e.taxRate)}% · Маржа ${esc(e.margin)}%</div>
+            </div>
+            <div class="cr-item-cost">${fmt(e.cost)} ₽</div>
+            <div class="cr-item-actions">
+                <button class="cr-btn cr-btn-edit cr-btn-sm" onclick="editEmployee(${i})"><i class="fas fa-pen"></i></button>
+                <button class="cr-btn cr-btn-danger cr-btn-sm" onclick="removeEmployee(${i})"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>
+    `).join('') + '</div>';
+}
+
+function renderExecutors() {
+    const c = document.getElementById('executorsContainer');
+    if (!executors.length) { c.innerHTML = '<div class="cr-empty">Исполнители не добавлены</div>'; return; }
+    c.innerHTML = '<div class="cr-list">' + executors.map((e, i) => {
+        const details = e.pricingType === 'fixed'
+            ? `${esc(e.contractType).toUpperCase()} · Фикс: ${fmt(parseFloat(e.fixedCost || 0))} ₽`
+            : `${esc(e.contractType).toUpperCase()} · ${fmt(parseFloat(e.hourlyCost || 0))} ₽/час`;
+        return `
+        <div class="cr-item">
+            <div class="cr-item-info">
+                <div class="cr-item-name">${esc(e.name)}</div>
+                <div class="cr-item-details">${details} · Налог ${esc(e.taxRate)}%</div>
+            </div>
+            <div class="cr-item-cost">${fmt(e.cost)} ₽</div>
+            <div class="cr-item-actions">
+                <button class="cr-btn cr-btn-edit cr-btn-sm" onclick="editExecutor(${i})"><i class="fas fa-pen"></i></button>
+                <button class="cr-btn cr-btn-danger cr-btn-sm" onclick="removeExecutor(${i})"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>`;
+    }).join('') + '</div>';
+}
+
+function renderContractors() {
+    const c = document.getElementById('contractorsContainer');
+    if (!contractors.length) { c.innerHTML = '<div class="cr-empty">Подрядчики не добавлены</div>'; return; }
+    c.innerHTML = '<div class="cr-list">' + contractors.map((ct, i) => {
+        const entity = ct.entityType === 'individual' ? 'Физ. лицо' : 'Юр. лицо';
+        const pricing = ct.pricingType === 'fixed'
+            ? `Фикс: ${fmt(parseFloat(ct.fixedCost || 0))} ₽`
+            : `${fmt(parseFloat(ct.hourlyCost || 0))} ₽/час`;
+        return `
+        <div class="cr-item">
+            <div class="cr-item-info">
+                <div class="cr-item-name">${esc(ct.name)}</div>
+                <div class="cr-item-details">${entity} · ${pricing} · Налог ${esc(ct.taxRate)}%</div>
+            </div>
+            <div class="cr-item-cost">${fmt(ct.cost)} ₽</div>
+            <div class="cr-item-actions">
+                <button class="cr-btn cr-btn-edit cr-btn-sm" onclick="editContractor(${i})"><i class="fas fa-pen"></i></button>
+                <button class="cr-btn cr-btn-danger cr-btn-sm" onclick="removeContractor(${i})"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>`;
+    }).join('') + '</div>';
+}
+
+function renderEquipment() {
+    const c = document.getElementById('equipmentContainer');
+    if (!equipment.length) { c.innerHTML = '<div class="cr-empty">Оборудование не добавлено</div>'; return; }
+    const units = { hour: '/час', minute: '/мин', month: '/мес' };
+    c.innerHTML = '<div class="cr-list">' + equipment.map((eq, i) => `
+        <div class="cr-item">
+            <div class="cr-item-info">
+                <div class="cr-item-name">${esc(eq.name)}</div>
+                <div class="cr-item-details">${fmt(parseFloat(eq.operationalCost))} ₽${units[eq.pricingType] || '/час'}</div>
+            </div>
+            <div class="cr-item-cost">${fmt(eq.cost)} ₽</div>
+            <div class="cr-item-actions">
+                <button class="cr-btn cr-btn-edit cr-btn-sm" onclick="editEquipment(${i})"><i class="fas fa-pen"></i></button>
+                <button class="cr-btn cr-btn-danger cr-btn-sm" onclick="removeEquipment(${i})"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>
+    `).join('') + '</div>';
+}
+
+function updateTotal() {
+    const total = [employees, executors, contractors, equipment]
+        .flat().reduce((s, r) => s + (r.cost || 0), 0);
+    document.getElementById('totalAmount').textContent = fmt(total) + ' ₽';
+}
+
+function renderAll() {
+    renderEmployees();
+    renderExecutors();
+    renderContractors();
+    renderEquipment();
+    updateTotal();
+}
+
+// --- Form handlers ---
+document.getElementById('employeeForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const last = document.getElementById('employeeLastName').value.trim();
+    const first = document.getElementById('employeeFirstName').value.trim();
+    const middle = document.getElementById('employeeMiddleName').value.trim();
+    const name = middle ? `${last} ${first} ${middle}` : `${last} ${first}`;
+    addEmployee({
+        name,
+        position: document.getElementById('employeePosition').value.trim(),
+        salary: document.getElementById('employeeSalary').value,
+        taxRate: document.getElementById('employeeTaxRate').value,
+        margin: document.getElementById('employeeMargin').value
+    });
+    this.reset();
+});
+
+document.getElementById('executorForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    addExecutor({
+        name: document.getElementById('executorName').value.trim(),
+        contractType: document.getElementById('executorContractType').value,
+        pricingType: document.getElementById('executorPricingType').value,
+        taxRate: document.getElementById('executorTaxRate').value,
+        fixedCost: document.getElementById('executorFixedCost').value,
+        hourlyCost: document.getElementById('executorHourlyCost').value
+    });
+    this.reset();
+    toggleExecutorPricing();
+});
+
+document.getElementById('contractorForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    addContractor({
+        name: document.getElementById('contractorName').value.trim(),
+        entityType: document.getElementById('contractorEntityType').value,
+        pricingType: document.getElementById('contractorPricingType').value,
+        taxRate: document.getElementById('contractorTaxRate').value,
+        fixedCost: document.getElementById('contractorFixedCost').value,
+        hourlyCost: document.getElementById('contractorHourlyCost').value
+    });
+    this.reset();
+    toggleContractorPricing();
+});
+
+document.getElementById('equipmentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    addEquipment({
+        name: document.getElementById('equipmentName').value.trim(),
+        pricingType: document.getElementById('equipmentPricingType').value,
+        operationalCost: document.getElementById('equipmentOperationalCost').value
+    });
+    this.reset();
+    toggleEquipmentLabel();
+});
+
+// --- Init ---
+window.addEventListener('DOMContentLoaded', loadResources);
+</script>
+{% endblock %}

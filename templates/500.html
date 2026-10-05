@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Ошибка сервера — IQNIX TECH{% endblock %}
+
+{% block extra_css %}
+<style>
+    .err-page {
+        max-width: 720px;
+        margin: 4rem auto;
+        padding: 3rem 2rem;
+        text-align: center;
+    }
+    .err-code {
+        font-size: 6rem;
+        font-weight: 800;
+        color: var(--danger);
+        letter-spacing: -.04em;
+        margin-bottom: .25rem;
+    }
+    .err-title { font-size: 1.5rem; font-weight: 700; color: var(--text-strong); margin-bottom: .5rem; }
+    .err-text { color: var(--text-soft); margin-bottom: 1.5rem; }
+    .err-actions { display: flex; gap: .5rem; justify-content: center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="err-page">
+    <div class="err-code">500</div>
+    <div class="err-title">Внутренняя ошибка сервера</div>
+    <p class="err-text">Произошла непредвиденная ошибка. Попробуйте обновить страницу или вернуться позже.</p>
+    <div class="err-actions">
+        <a href="/" class="app-btn app-btn-primary"><i class="fas fa-home"></i> На главную</a>
+        <a href="javascript:location.reload()" class="app-btn"><i class="fas fa-redo"></i> Обновить</a>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background:#161616; color:#e0e0e0; font-family:'Manrope',-apple-system,Segoe UI,sans-serif; padding:2rem; }
+  h2 { color:#fff; font-size:1rem; margin:0 0 1rem; font-weight:800; }
+  .lead { color:#777; font-size:.8rem; margin-bottom:2rem; }
+  .variant-tag { display:inline-block; background:rgba(139,92,246,.15); color:#a78bfa; font-size:.7rem;
+    font-weight:700; padding:.25rem .6rem; border-radius:6px; text-transform:uppercase; letter-spacing:.05em; margin-bottom:.9rem; }
+
+  /* === Финансовая сводка === */
+  .finance { display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:1.5rem; }
+  .kpi { background:#1e1e1e; border:1px solid rgba(255,255,255,.06); border-radius:12px; padding:.7rem 1rem; min-width:140px; flex:1; }
+  .kpi .l { font-size:.6rem; text-transform:uppercase; letter-spacing:.05em; color:#888; margin-bottom:.25rem; }
+  .kpi .v { font-size:1.05rem; font-weight:800; color:#fff; }
+  .kpi .v.green { color:#34d399; } .kpi .v.muted { color:#9a9a9a; }
+
+  /* === Variant A: grouped table === */
+  .grp { background:#1b1b1b; border:1px solid rgba(255,255,255,.06); border-radius:14px; overflow:hidden; margin-bottom:1rem; }
+  .grp-head { display:flex; align-items:center; gap:.6rem; padding:.7rem 1rem; background:#202020; border-bottom:1px solid rgba(255,255,255,.05); }
+  .grp-head .ic { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:.85rem; }
+  .grp-head .name { font-weight:700; color:#fff; font-size:.9rem; }
+  .grp-head .cnt { font-size:.7rem; color:#777; background:rgba(255,255,255,.05); padding:.1rem .5rem; border-radius:20px; }
+  .grp-head .sub { margin-left:auto; text-align:right; }
+  .grp-head .sub .sl { font-size:.6rem; color:#777; text-transform:uppercase; }
+  .grp-head .sub .sv { font-size:.95rem; font-weight:800; color:#fff; }
+  .emp { color:#60a5fa; } .emp-bg { background:rgba(59,130,246,.12); }
+  .con { color:#fbbf24; } .con-bg { background:rgba(245,158,11,.12); }
+  .sub { color:#34d399; } .sub-bg { background:rgba(16,185,129,.12); }
+  .equ { color:#a78bfa; } .equ-bg { background:rgba(139,92,246,.12); }
+
+  .rhead, .row { display:grid; grid-template-columns: 2fr 1.6fr .8fr 2fr 1fr 1.4fr 1.4fr 36px; gap:.6rem; align-items:center; padding:.55rem 1rem; }
+  .rhead { font-size:.6rem; text-transform:uppercase; letter-spacing:.04em; color:#666; border-bottom:1px solid rgba(255,255,255,.04); }
+  .row { border-bottom:1px solid rgba(255,255,255,.03); border-left:3px solid transparent; }
+  .row:hover { background:rgba(255,255,255,.02); }
+  .row.emp-l { border-left-color:#60a5fa; } .row.con-l { border-left-color:#fbbf24; }
+  .row.sub-l { border-left-color:#34d399; } .row.equ-l { border-left-color:#a78bfa; }
+  .rname { font-weight:600; color:#eee; font-size:.85rem; }
+  .rname small { display:block; color:#666; font-weight:400; font-size:.68rem; margin-top:.1rem; }
+  .fld { background:#111; border:1px solid rgba(255,255,255,.08); border-radius:7px; color:#ddd; font-size:.78rem; padding:.35rem .5rem; width:100%; }
+  .fld.r { text-align:right; }
+  .per { display:flex; gap:.3rem; align-items:center; }
+  .per .fld { font-size:.72rem; padding:.32rem .4rem; }
+  .comp { font-size:.78rem; color:#bbb; text-align:right; }
+  .cost { font-weight:600; color:#ddd; text-align:right; font-size:.82rem; }
+  .final { font-weight:800; color:#fff; text-align:right; font-size:.85rem; }
+  .del { width:30px; height:30px; border:none; border-radius:7px; background:rgba(255,255,255,.05); color:#888; cursor:pointer; }
+  .del:hover { background:rgba(248,113,113,.15); color:#f87171; }
+
+  /* === Variant B: cards === */
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
+  .card { background:#1b1b1b; border:1px solid rgba(255,255,255,.06); border-left:3px solid #60a5fa; border-radius:12px; padding:.85rem 1rem; }
+  .card.con { border-left-color:#fbbf24; } .card.equ { border-left-color:#a78bfa; }
+  .card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:.7rem; }
+  .card-top .nm { font-weight:700; color:#fff; font-size:.9rem; }
+  .badge { font-size:.62rem; font-weight:700; padding:.12rem .45rem; border-radius:5px; }
+  .card-grid { display:grid; grid-template-columns:1fr 1fr; gap:.5rem .8rem; }
+  .mini .ml { font-size:.58rem; text-transform:uppercase; color:#666; margin-bottom:.15rem; }
+  .card-foot { display:flex; justify-content:space-between; margin-top:.7rem; padding-top:.6rem; border-top:1px solid rgba(255,255,255,.05); }
+  .sechead { display:flex; align-items:center; gap:.5rem; margin:1.2rem 0 .6rem; font-weight:700; color:#fff; font-size:.85rem; }
+  hr { border:none; border-top:1px dashed rgba(255,255,255,.1); margin:3rem 0; }
+  optgroup { color:#888; }
+</style></head>
+<body>
+
+<h2>SCBP — макет переработки сводной таблицы ресурсов</h2>
+<div class="lead">Группировка по типам · подытоги · цветовой акцент · крупнее поля · услуги по категориям. Два варианта на выбор.</div>
+
+<div class="finance">
+  <div class="kpi"><div class="l">Себестоимость</div><div class="v">510 412 ₽</div></div>
+  <div class="kpi"><div class="l">Цена без НДС</div><div class="v">533 756 ₽</div></div>
+  <div class="kpi"><div class="l">НДС 22%</div><div class="v muted">117 426 ₽</div></div>
+  <div class="kpi"><div class="l">Цена с НДС</div><div class="v">651 182 ₽</div></div>
+  <div class="kpi"><div class="l">Чистая прибыль</div><div class="v green">23 343 ₽</div></div>
+</div>
+
+<div class="variant-tag">Вариант A — таблица с группами (рекомендую)</div>
+
+<!-- Сотрудники -->
+<div class="grp">
+  <div class="grp-head">
+    <div class="ic emp-bg emp"><i class="fas fa-user"></i></div>
+    <span class="name">Сотрудники</span><span class="cnt">2</span>
+    <div class="sub"><div class="sl">Подытог</div><div class="sv">227 600 ₽</div></div>
+  </div>
+  <div class="rhead"><div>Ресурс</div><div>Услуга</div><div>Наценка</div><div>Период</div><div>Дни/Часы</div><div>Ставка</div><div>Итого</div><div></div></div>
+  <div class="row emp-l">
+    <div class="rname">Чумаков М. <small>Backend-разработчик</small></div>
+    <div><select class="fld"><optgroup label="Услуги сотрудников"><option>Разработка ПО</option><option>Аналитика</option></optgroup></select></div>
+    <div><input class="fld r" value="7,06"></div>
+    <div class="per"><input class="fld" value="19.12.25"><span>–</span><input class="fld" value="19.04.26"></div>
+    <div class="comp">82 дн · 656 ч</div>
+    <div class="comp">100 100 ₽/мес</div>
+    <div class="final">110 360 ₽</div>
+    <button class="del"><i class="fas fa-trash"></i></button>
+  </div>
+  <div class="row emp-l">
+    <div class="rname">Иванов А. <small>Frontend-разработчик</small></div>
+    <div><select class="fld"><optgroup label="Услуги сотрудников"><option>Разработка ПО</option></optgroup></select></div>
+    <div><input class="fld r" value="0,00"></div>
+    <div class="per"><input class="fld" value="19.12.25"><span>–</span><input class="fld" value=""></div>
+    <div class="comp">— · —</div>
+    <div class="comp">100 100 ₽/мес</div>
+    <div class="final">103 303 ₽</div>
+    <button class="del"><i class="fas fa-trash"></i></button>
+  </div>
+</div>
+
+<!-- Оборудование -->
+<div class="grp">
+  <div class="grp-head">
+    <div class="ic equ-bg equ"><i class="fas fa-server"></i></div>
+    <span class="name">Оборудование</span><span class="cnt">2</span>
+    <div class="sub"><div class="sl">Подытог</div><div class="sv">2 100 ₽</div></div>
+  </div>
+  <div class="rhead"><div>Ресурс</div><div>Услуга</div><div>Наценка</div><div>Период</div><div>Мес/Часы</div><div>Ставка</div><div>Итого</div><div></div></div>
+  <div class="row equ-l">
+    <div class="rname">Сервер Dell <small>помесячно</small></div>
+    <div><select class="fld"><optgroup label="Услуги оборудования"><option>Аренда сервера</option><option>Хостинг</option></optgroup></select></div>
+    <div><input class="fld r" value="0,00"></div>
+    <div class="per"><input class="fld" value="15.03.26"><span>–</span><input class="fld" value="19.04.26"></div>
+    <div class="comp">2 мес</div>
+    <div class="comp">1 000 ₽/мес</div>
+    <div class="final">2 000 ₽</div>
+    <button class="del"><i class="fas fa-trash"></i></button>
+  </div>
+</div>
+
+<hr>
+
+<div class="variant-tag">Вариант B — карточки в секциях</div>
+<div class="sechead"><span class="ic emp-bg emp" style="width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;"><i class="fas fa-user"></i></span> Сотрудники · подытог 227 600 ₽</div>
+<div class="cards">
+  <div class="card">
+    <div class="card-top"><div><div class="nm">Чумаков М.</div><div style="font-size:.7rem;color:#666;">Backend-разработчик</div></div><span class="badge emp-bg emp">СОТРУДНИК</span></div>
+    <div class="card-grid">
+      <div class="mini"><div class="ml">Услуга</div><select class="fld"><option>Разработка ПО</option></select></div>
+      <div class="mini"><div class="ml">Наценка %</div><input class="fld r" value="7,06"></div>
+      <div class="mini"><div class="ml">Начало</div><input class="fld" value="19.12.25"></div>
+      <div class="mini"><div class="ml">Окончание</div><input class="fld" value="19.04.26"></div>
+    </div>
+    <div class="card-foot"><span class="comp">82 дн · 656 ч · 100 100 ₽/мес</span><span class="final">110 360 ₽</span></div>
+  </div>
+  <div class="card">
+    <div class="card-top"><div><div class="nm">Иванов А.</div><div style="font-size:.7rem;color:#666;">Frontend-разработчик</div></div><span class="badge emp-bg emp">СОТРУДНИК</span></div>
+    <div class="card-grid">
+      <div class="mini"><div class="ml">Услуга</div><select class="fld"><option>Разработка ПО</option></select></div>
+      <div class="mini"><div class="ml">Наценка %</div><input class="fld r" value="0,00"></div>
+      <div class="mini"><div class="ml">Начало</div><input class="fld" value="19.12.25"></div>
+      <div class="mini"><div class="ml">Окончание</div><input class="fld" value=""></div>
+    </div>
+    <div class="card-foot"><span class="comp">— · 100 100 ₽/мес</span><span class="final">103 303 ₽</span></div>
+  </div>
+</div>
+
+</body></html>

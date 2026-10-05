@@ -1,0 +1,449 @@
+{% extends 'base.html' %}
+
+{% block title %}Реестр услуг — IQNIX TECH{% endblock %}
+
+{% block extra_css %}
+<style>
+    body { background: #1a1a1a; color: #e0e0e0; padding-top: 96px; }
+    main, .scrollable { background: #1a1a1a !important; min-height: calc(100vh - 96px); }
+
+    .svc-page { max-width: 1100px; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
+
+    /* Header */
+    .svc-page-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 1.5rem; flex-wrap: wrap; gap: .75rem;
+    }
+    .svc-page-header h1 { font-size: 1.4rem; font-weight: 800; color: #fff; margin: 0; }
+    .svc-page-header .back-link {
+        font-size: .82rem; color: #888; text-decoration: none; transition: color .15s;
+    }
+    .svc-page-header .back-link:hover { color: #a78bfa; }
+
+    /* Form panel */
+    .svc-form-panel {
+        background: #1e1e1e; border: 1px solid rgba(255,255,255,.06);
+        border-radius: 14px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+    }
+    .svc-form-panel h3 {
+        font-size: .72rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .06em; color: #666; margin: 0 0 .75rem;
+    }
+    .svc-form-row { display: flex; gap: .75rem; flex-wrap: wrap; align-items: flex-end; }
+    .svc-fm { display: flex; flex-direction: column; gap: .25rem; }
+    .svc-fm label {
+        font-size: .68rem; font-weight: 600; text-transform: uppercase;
+        letter-spacing: .04em; color: #555;
+    }
+    .svc-fm input, .svc-fm textarea, .svc-fm select {
+        background: #111; border: 1px solid rgba(255,255,255,.08);
+        border-radius: 8px; color: #ddd; font-size: .82rem;
+        padding: .45rem .65rem; min-width: 0; font-family: 'Manrope', sans-serif;
+    }
+    .svc-fm input:focus, .svc-fm textarea:focus, .svc-fm select:focus { outline: none; border-color: rgba(139,92,246,.4); }
+    .svc-cat-head td {
+        background: #181818; font-size: .66rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .05em; color: #8b8b8b; padding: .55rem .9rem !important;
+    }
+    .svc-applies-badge {
+        display: inline-block; font-size: .64rem; font-weight: 600; color: #999;
+        background: rgba(255,255,255,.05); padding: .1rem .45rem; border-radius: 5px;
+    }
+    .svc-btn {
+        display: inline-flex; align-items: center; gap: .35rem;
+        padding: .45rem 1rem; border: none; border-radius: 8px;
+        font-size: .82rem; font-weight: 600; cursor: pointer;
+        transition: all .15s; font-family: 'Manrope', sans-serif;
+    }
+    .svc-btn-primary { background: rgba(139,92,246,.15); color: #a78bfa; }
+    .svc-btn-primary:hover { background: rgba(139,92,246,.25); }
+    .svc-btn-ghost { background: rgba(255,255,255,.05); color: #aaa; }
+    .svc-btn-ghost:hover { background: rgba(255,255,255,.1); color: #ddd; }
+    .svc-form-error { color: #f87171; font-size: .75rem; margin-top: .5rem; min-height: 1rem; }
+
+    /* Table */
+    .svc-table-wrap {
+        border-radius: 14px; background: #111;
+        border: 1px solid rgba(255,255,255,.06); overflow: hidden;
+    }
+    .svc-table { width: 100%; border-collapse: collapse; }
+    .svc-table thead th {
+        text-align: left; font-size: .66rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .04em; color: #555;
+        padding: .7rem .9rem; border-bottom: 1px solid rgba(255,255,255,.06);
+        background: #151515;
+    }
+    .svc-table tbody td {
+        padding: .7rem .9rem; border-bottom: 1px solid rgba(255,255,255,.03);
+        font-size: .82rem; color: #ddd; vertical-align: middle;
+    }
+    .svc-table tbody tr:last-child td { border-bottom: none; }
+    .svc-table tbody tr:hover { background: rgba(255,255,255,.02); }
+    .svc-name { font-weight: 600; color: #eee; }
+    .svc-desc { font-size: .72rem; color: #777; margin-top: .15rem; }
+
+    .svc-badge {
+        display: inline-flex; align-items: center; gap: .3rem;
+        padding: .15rem .5rem; border-radius: 6px;
+        font-size: .68rem; font-weight: 700;
+    }
+    .svc-badge.active { background: rgba(16,185,129,.12); color: #34d399; }
+    .svc-badge.hidden { background: rgba(255,255,255,.06); color: #888; }
+    .svc-usage { font-size: .72rem; color: #999; }
+    .svc-usage.none { color: #555; }
+
+    .svc-actions { display: flex; gap: .35rem; justify-content: flex-end; }
+    .svc-icon-btn {
+        width: 30px; height: 30px; display: inline-flex; align-items: center;
+        justify-content: center; border: none; border-radius: 7px; cursor: pointer;
+        background: rgba(255,255,255,.05); color: #999; transition: all .15s; font-size: .8rem;
+    }
+    .svc-icon-btn:hover { background: rgba(255,255,255,.1); color: #ddd; }
+    .svc-icon-btn.danger:hover { background: rgba(248,113,113,.15); color: #f87171; }
+    .svc-icon-btn.toggle.on { color: #34d399; }
+
+    .svc-empty { text-align: center; padding: 3rem 1rem; color: #444; }
+    .svc-empty i { font-size: 2.5rem; margin-bottom: .75rem; display: block; }
+    .svc-empty p { font-size: .85rem; margin: 0; }
+
+    /* Modal */
+    .svc-modal-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,.6);
+        display: none; align-items: center; justify-content: center; z-index: 1000;
+        padding: 1rem;
+    }
+    .svc-modal-overlay.open { display: flex; }
+    .svc-modal {
+        background: #1e1e1e; border: 1px solid rgba(255,255,255,.08);
+        border-radius: 14px; padding: 1.5rem; width: 100%; max-width: 460px;
+    }
+    .svc-modal h3 { font-size: 1rem; font-weight: 700; color: #fff; margin: 0 0 1rem; }
+    .svc-modal .svc-fm { margin-bottom: .9rem; }
+    .svc-modal-check { display: flex; align-items: center; gap: .5rem; font-size: .82rem; color: #bbb; }
+    .svc-modal-actions { display: flex; gap: .6rem; justify-content: flex-end; margin-top: 1.25rem; }
+
+    @media (max-width: 720px) {
+        .svc-page { padding: 1rem; }
+        .svc-form-row { flex-direction: column; align-items: stretch; }
+        .svc-table thead { display: none; }
+        .svc-table tbody td { display: block; border: none; padding: .35rem .9rem; }
+        .svc-table tbody tr { display: block; border-bottom: 1px solid rgba(255,255,255,.06); padding: .6rem 0; }
+        .svc-actions { justify-content: flex-start; padding-top: .4rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="svc-page">
+    <div class="svc-page-header">
+        <div>
+            <h1><i class="fas fa-list-alt" style="color:#a78bfa;margin-right:.5rem;"></i>Реестр услуг</h1>
+            <span style="font-size:.82rem;color:#666;">Глобальный список услуг для назначения ресурсам проектов</span>
+        </div>
+        <a href="{% url 'index' %}" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
+    </div>
+
+    <!-- Add form -->
+    <div class="svc-form-panel">
+        <h3><i class="fas fa-plus-circle"></i> Добавить услугу</h3>
+        <div class="svc-form-row">
+            <div class="svc-fm" style="flex:1.2;min-width:220px;">
+                <label>Название услуги *</label>
+                <input type="text" id="svc-add-name" placeholder="Например: Разработка ПО" maxlength="255">
+            </div>
+            <div class="svc-fm" style="flex:1.5;min-width:200px;">
+                <label>Описание</label>
+                <input type="text" id="svc-add-desc" placeholder="Краткое описание (необязательно)">
+            </div>
+            <div class="svc-fm" style="flex:1;min-width:160px;">
+                <label>Применяется к</label>
+                <select id="svc-add-applies">
+                    {% for val, label in applies_to_choices %}
+                    <option value="{{ val }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="button" class="svc-btn svc-btn-primary" id="svc-add-btn" style="height:34px;">
+                <i class="fas fa-check"></i> Добавить
+            </button>
+        </div>
+        <div class="svc-form-error" id="svc-add-error"></div>
+    </div>
+
+    <!-- Table -->
+    <div class="svc-table-wrap">
+        <table class="svc-table" id="svc-table">
+            <thead>
+                <tr>
+                    <th style="width:38%;">Услуга</th>
+                    <th style="width:18%;">Статус</th>
+                    <th style="width:26%;">Использование</th>
+                    <th style="width:18%;text-align:right;">Действия</th>
+                </tr>
+            </thead>
+            <tbody id="svc-tbody"></tbody>
+        </table>
+        <div class="svc-empty" id="svc-empty" style="display:none;">
+            <i class="fas fa-list-alt"></i>
+            <p>Услуги ещё не добавлены. Создайте первую услугу выше.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Edit modal -->
+<div class="svc-modal-overlay" id="svc-modal-overlay">
+    <div class="svc-modal">
+        <h3>Редактировать услугу</h3>
+        <input type="hidden" id="svc-edit-id">
+        <div class="svc-fm">
+            <label>Название *</label>
+            <input type="text" id="svc-edit-name" maxlength="255">
+        </div>
+        <div class="svc-fm">
+            <label>Описание</label>
+            <textarea id="svc-edit-desc" rows="3"></textarea>
+        </div>
+        <div class="svc-fm">
+            <label>Применяется к</label>
+            <select id="svc-edit-applies">
+                {% for val, label in applies_to_choices %}
+                <option value="{{ val }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <label class="svc-modal-check">
+            <input type="checkbox" id="svc-edit-active"> Активна (доступна для выбора в проектах)
+        </label>
+        <div class="svc-form-error" id="svc-edit-error"></div>
+        <div class="svc-modal-actions">
+            <button type="button" class="svc-btn svc-btn-ghost" id="svc-edit-cancel">Отмена</button>
+            <button type="button" class="svc-btn svc-btn-primary" id="svc-edit-save"><i class="fas fa-check"></i> Сохранить</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const CSRF = '{{ csrf_token }}';
+    let services = JSON.parse('{{ services_json|escapejs }}');
+
+    const tbody = document.getElementById('svc-tbody');
+    const emptyEl = document.getElementById('svc-empty');
+
+    function escHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s == null ? '' : s;
+        return d.innerHTML;
+    }
+
+    function usageText(s) {
+        if (!s.usage_resources) return '<span class="svc-usage none">не используется</span>';
+        const proj = s.usage_projects || 0;
+        const res = s.usage_resources || 0;
+        const pl = (n, a, b, c) => (n % 10 === 1 && n % 100 !== 11) ? a : ((n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? b : c);
+        return `<span class="svc-usage">${proj} ${pl(proj,'проект','проекта','проектов')} · ${res} ${pl(res,'ресурс','ресурса','ресурсов')}</span>`;
+    }
+
+    var APPLIES_ORDER = ['any', 'employee', 'contractor', 'subcontractor', 'equipment'];
+    function appliesRank(v) { var i = APPLIES_ORDER.indexOf(v); return i < 0 ? 99 : i; }
+    function sortServices() {
+        services.sort(function (a, b) {
+            var d = appliesRank(a.applies_to) - appliesRank(b.applies_to);
+            return d !== 0 ? d : a.name.localeCompare(b.name, 'ru');
+        });
+    }
+
+    function rowHtml(s) {
+        return `
+            <tr data-id="${s.id}">
+                <td>
+                    <div class="svc-name">${escHtml(s.name)}</div>
+                    ${s.description ? `<div class="svc-desc">${escHtml(s.description)}</div>` : ''}
+                </td>
+                <td>
+                    <span class="svc-badge ${s.is_active ? 'active' : 'hidden'}">
+                        <i class="fas fa-${s.is_active ? 'check-circle' : 'eye-slash'}"></i>
+                        ${s.is_active ? 'Активна' : 'Скрыта'}
+                    </span>
+                </td>
+                <td>${usageText(s)}</td>
+                <td>
+                    <div class="svc-actions">
+                        <button class="svc-icon-btn toggle ${s.is_active ? 'on' : ''}" data-act="toggle" title="${s.is_active ? 'Скрыть' : 'Сделать активной'}">
+                            <i class="fas fa-${s.is_active ? 'eye' : 'eye-slash'}"></i>
+                        </button>
+                        <button class="svc-icon-btn" data-act="edit" title="Редактировать"><i class="fas fa-pen"></i></button>
+                        <button class="svc-icon-btn danger" data-act="delete" title="Удалить"><i class="fas fa-trash"></i></button>
+                    </div>
+                </td>
+            </tr>`;
+    }
+
+    function render() {
+        if (!services.length) {
+            tbody.innerHTML = '';
+            emptyEl.style.display = '';
+            return;
+        }
+        emptyEl.style.display = 'none';
+        sortServices();
+        // Группировка по «Применяется к»: заголовок категории + строки
+        var html = '';
+        var lastCat = null;
+        services.forEach(function (s) {
+            if (s.applies_to !== lastCat) {
+                lastCat = s.applies_to;
+                html += `<tr class="svc-cat-head"><td colspan="4"><i class="fas fa-layer-group"></i> ${escHtml(s.applies_to_display || 'Любой ресурс')}</td></tr>`;
+            }
+            html += rowHtml(s);
+        });
+        tbody.innerHTML = html;
+    }
+
+    function findService(id) { return services.find(s => String(s.id) === String(id)); }
+
+    // --- Add ---
+    const addName = document.getElementById('svc-add-name');
+    const addDesc = document.getElementById('svc-add-desc');
+    const addApplies = document.getElementById('svc-add-applies');
+    const addError = document.getElementById('svc-add-error');
+
+    function addService() {
+        const name = addName.value.trim();
+        addError.textContent = '';
+        if (!name) { addError.textContent = 'Название услуги обязательно'; addName.focus(); return; }
+        const fd = new FormData();
+        fd.append('name', name);
+        fd.append('description', addDesc.value.trim());
+        fd.append('applies_to', addApplies.value);
+        fd.append('csrfmiddlewaretoken', CSRF);
+        fetch('{% url "add_service" %}', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd,
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                services.push(data.service);
+                render();
+                addName.value = ''; addDesc.value = ''; addName.focus();
+            } else {
+                addError.textContent = data.error || 'Ошибка';
+            }
+        }).catch(() => { addError.textContent = 'Ошибка сети'; });
+    }
+    document.getElementById('svc-add-btn').addEventListener('click', addService);
+    addName.addEventListener('keydown', e => { if (e.key === 'Enter') addService(); });
+    addDesc.addEventListener('keydown', e => { if (e.key === 'Enter') addService(); });
+
+    // --- Edit modal ---
+    const overlay = document.getElementById('svc-modal-overlay');
+    const editId = document.getElementById('svc-edit-id');
+    const editName = document.getElementById('svc-edit-name');
+    const editDesc = document.getElementById('svc-edit-desc');
+    const editActive = document.getElementById('svc-edit-active');
+    const editApplies = document.getElementById('svc-edit-applies');
+    const editError = document.getElementById('svc-edit-error');
+
+    function openEdit(s) {
+        editId.value = s.id;
+        editName.value = s.name;
+        editDesc.value = s.description || '';
+        editApplies.value = s.applies_to || 'any';
+        editActive.checked = !!s.is_active;
+        editError.textContent = '';
+        overlay.classList.add('open');
+        editName.focus();
+    }
+    function closeEdit() { overlay.classList.remove('open'); }
+    document.getElementById('svc-edit-cancel').addEventListener('click', closeEdit);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeEdit(); });
+
+    document.getElementById('svc-edit-save').addEventListener('click', () => {
+        const id = editId.value;
+        const name = editName.value.trim();
+        editError.textContent = '';
+        if (!name) { editError.textContent = 'Название обязательно'; return; }
+        const fd = new FormData();
+        fd.append('name', name);
+        fd.append('description', editDesc.value.trim());
+        fd.append('applies_to', editApplies.value);
+        fd.append('is_active', editActive.checked ? '1' : '0');
+        fd.append('csrfmiddlewaretoken', CSRF);
+        fetch(`/services/${id}/edit/`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd,
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                const s = findService(id);
+                if (s) {
+                    s.name = data.service.name; s.description = data.service.description;
+                    s.is_active = data.service.is_active;
+                    s.applies_to = data.service.applies_to; s.applies_to_display = data.service.applies_to_display;
+                }
+                render();
+                closeEdit();
+            } else {
+                editError.textContent = data.error || 'Ошибка';
+            }
+        }).catch(() => { editError.textContent = 'Ошибка сети'; });
+    });
+
+    // --- Toggle active ---
+    function toggleActive(id) {
+        const fd = new FormData();
+        fd.append('action', 'toggle_active');
+        fd.append('csrfmiddlewaretoken', CSRF);
+        fetch(`/services/${id}/edit/`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd,
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                const s = findService(id);
+                if (s) s.is_active = data.is_active;
+                render();
+            }
+        });
+    }
+
+    // --- Delete ---
+    function deleteService(id) {
+        const s = findService(id);
+        let msg = `Удалить услугу «${s ? s.name : ''}»?`;
+        if (s && s.usage_resources) {
+            msg += `\n\nОна назначена ${s.usage_resources} ресурс(ам) в ${s.usage_projects} проект(ах). ` +
+                   `После удаления у этих ресурсов услуга будет очищена (расчёты не изменятся).`;
+        }
+        if (!confirm(msg)) return;
+        const fd = new FormData();
+        fd.append('csrfmiddlewaretoken', CSRF);
+        fetch(`/services/delete/${id}/`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd,
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                services = services.filter(x => String(x.id) !== String(id));
+                render();
+            }
+        });
+    }
+
+    // --- Event delegation for row actions ---
+    tbody.addEventListener('click', e => {
+        const btn = e.target.closest('[data-act]');
+        if (!btn) return;
+        const id = btn.closest('tr').dataset.id;
+        const act = btn.dataset.act;
+        if (act === 'edit') openEdit(findService(id));
+        else if (act === 'toggle') toggleActive(id);
+        else if (act === 'delete') deleteService(id);
+    });
+
+    render();
+});
+</script>
+{% endblock %}

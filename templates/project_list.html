@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Проекты - IQNIX TECH{% endblock %}
+
+{% block extra_css %}
+<style>
+    body { background: #1a1a1a !important; color: #e0e0e0; }
+    main, .scrollable { background: #1a1a1a !important; }
+
+    .pl { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    .pl h1 { font-size: 1.6rem; font-weight: 700; color: #fff; margin-bottom: .25rem; }
+    .pl .subtitle { color: #666; font-size: .85rem; margin-bottom: 2rem; }
+
+    /* Card wrapper */
+    .pl-card {
+        background: #222;
+        border: 1px solid rgba(255,255,255,.06);
+        border-radius: 14px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+    .pl-card h2 {
+        font-size: .95rem; font-weight: 700; color: #8B5CF6;
+        margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem;
+    }
+    .pl-card h2 i { font-size: .8rem; }
+
+    /* Form fields */
+    .pl-card label {
+        display: block; font-size: .72rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: .04em;
+        color: #555; margin-bottom: .25rem;
+    }
+    .pl-card input, .pl-card textarea {
+        width: 100%; padding: .55rem .75rem;
+        background: #1a1a1a !important; border: 1px solid rgba(255,255,255,.08) !important;
+        border-radius: 8px; color: #e0e0e0; font-size: .85rem;
+        font-family: 'Manrope', sans-serif;
+        outline: none; transition: border-color .2s;
+    }
+    .pl-card input:focus, .pl-card textarea:focus {
+        border-color: #8B5CF6 !important;
+        box-shadow: 0 0 0 3px rgba(139,92,246,.1);
+    }
+    .pl-card textarea { resize: vertical; min-height: 60px; }
+    .pl-form-grid { display: grid; gap: .75rem; margin-bottom: 1rem; }
+    .pl-form-actions { display: flex; gap: .5rem; }
+
+    /* Buttons */
+    .pl .btn {
+        display: inline-flex; align-items: center; gap: .35rem;
+        padding: .5rem 1rem; border-radius: 8px;
+        font-size: .8rem; font-weight: 600;
+        font-family: 'Manrope', sans-serif;
+        border: none !important; outline: none !important;
+        cursor: pointer; transition: all .15s;
+        text-decoration: none !important; white-space: nowrap;
+    }
+    .pl .btn:hover { transform: translateY(-1px); }
+    .pl .btn-primary { background: #8B5CF6 !important; color: #fff !important; }
+    .pl .btn-primary:hover { box-shadow: 0 4px 16px rgba(139,92,246,.3); }
+    .pl .btn-secondary { background: #333 !important; color: #aaa !important; }
+    .pl .btn-secondary:hover { color: #fff !important; }
+    .pl .btn-success { background: #059669 !important; color: #fff !important; }
+    .pl .btn-docs { background: #7c3aed !important; color: #fff !important; }
+    .pl .btn-gantt { background: rgba(245,158,11,.12) !important; color: #fbbf24 !important; }
+    .pl .btn-gantt:hover { background: rgba(245,158,11,.2) !important; }
+    .pl .btn-danger { background: rgba(239,68,68,.12) !important; color: #f87171 !important; }
+    .pl .btn-danger:hover { background: rgba(239,68,68,.2) !important; }
+    .pl .btn i { font-size: .72rem; }
+
+    .pl-msg {
+        margin-top: .5rem; font-size: .82rem; display: none;
+        padding: .4rem .75rem; border-radius: 6px;
+    }
+
+    /* Project cards */
+    .pl-projects { display: grid; gap: .75rem; }
+    .pl-project {
+        background: #1a1a1a;
+        border: 1px solid rgba(255,255,255,.06);
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        transition: border-color .2s;
+    }
+    .pl-project:hover { border-color: rgba(139,92,246,.2); }
+    .pl-project-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: .65rem; }
+    .pl-project-name { font-weight: 700; color: #fff; font-size: .95rem; margin: 0; }
+    .pl-project-desc { color: #777; font-size: .82rem; margin: .2rem 0; }
+    .pl-project-date { color: #444; font-size: .72rem; }
+    .pl-project-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+
+    .pl-empty {
+        text-align: center; padding: 2.5rem 1rem; color: #444;
+    }
+    .pl-empty i { font-size: 2rem; margin-bottom: .75rem; display: block; color: #333; }
+    .pl-empty p { font-size: .85rem; }
+
+    .pl-loading { text-align: center; padding: 2rem; color: #555; }
+    .pl-loading i { font-size: 1.5rem; margin-bottom: .5rem; display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pl">
+    <h1>Управление проектами</h1>
+    <p class="subtitle">Создание новых проектов, просмотр и управление существующими.</p>
+
+    <!-- Create project -->
+    <div class="pl-card">
+        <h2><i class="fas fa-plus-circle"></i> Создать новый проект</h2>
+        <form id="createProjectForm">
+            {% csrf_token %}
+            <div class="pl-form-grid">
+                <div>
+                    <label>Название проекта *</label>
+                    <input type="text" name="name" required placeholder="Введите название проекта">
+                </div>
+                <div>
+                    <label>Описание</label>
+                    <textarea name="description" rows="2" placeholder="Краткое описание (необязательно)"></textarea>
+                </div>
+            </div>
+            <div class="pl-form-actions">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Создать проект</button>
+                <button type="reset" class="btn btn-secondary">Очистить</button>
+            </div>
+            <div id="createProjectMessage" class="pl-msg"></div>
+        </form>
+    </div>
+
+    <!-- Project list -->
+    <div class="pl-card">
+        <h2><i class="fas fa-folder-open"></i> Существующие проекты</h2>
+        <div id="projectsList" class="pl-projects">
+            <div class="pl-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Загрузка проектов...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function loadProjects() {
+    fetch('/projects/', { credentials: 'same-origin' })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(projects => {
+            const el = document.getElementById('projectsList');
+            if (projects.length === 0) {
+                el.innerHTML = '<div class="pl-empty"><i class="fas fa-folder-open"></i><p>У вас пока нет созданных проектов</p></div>';
+                return;
+            }
+            el.innerHTML = projects.map(p => `
+                <div class="pl-project">
+                    <div class="pl-project-head">
+                        <div>
+                            <h3 class="pl-project-name">${esc(p.name)}</h3>
+                            <p class="pl-project-desc">${esc(p.description || 'Без описания')}</p>
+                            <span class="pl-project-date">Создан: ${new Date(p.created_at).toLocaleDateString('ru-RU')}</span>
+                        </div>
+                    </div>
+                    <div class="pl-project-actions">
+                        <a href="/project/${p.id}/" class="btn btn-success"><i class="fas fa-cog"></i> Управление</a>
+<a href="/project/${p.id}/generate_documents/" class="btn btn-docs"><i class="fas fa-file-alt"></i> Документы</a>
+                        <button onclick="deleteProject(${p.id})" class="btn btn-danger"><i class="fas fa-trash"></i> Удалить</button>
+                    </div>
+                </div>
+            `).join('');
+        })
+        .catch(() => {
+            document.getElementById('projectsList').innerHTML = '<div class="pl-empty"><i class="fas fa-exclamation-triangle" style="color:#f87171;"></i><p>Ошибка при загрузке проектов</p></div>';
+        });
+}
+
+const createForm = document.getElementById('createProjectForm');
+if (createForm) {
+    createForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const resourcesData = localStorage.getItem('createProjectResources');
+        if (resourcesData) formData.append('resources_data', resourcesData);
+
+        const msg = document.getElementById('createProjectMessage');
+        msg.style.display = 'block';
+        msg.style.color = '#888';
+        msg.style.background = 'rgba(255,255,255,.03)';
+        msg.textContent = 'Создаем проект...';
+
+        fetch('/create_projects_resources/', {
+            method: 'POST', body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]')?.value || (document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''))
+            },
+            credentials: 'same-origin'
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                msg.style.color = '#34d399';
+                msg.style.background = 'rgba(52,211,153,.06)';
+                msg.textContent = 'Проект успешно создан!';
+                this.reset();
+                localStorage.removeItem('createProjectResources');
+                loadProjects();
+                setTimeout(() => { msg.style.display = 'none'; }, 3000);
+            } else {
+                msg.style.color = '#f87171';
+                msg.style.background = 'rgba(239,68,68,.06)';
+                msg.textContent = 'Ошибка: ' + (data.error || 'Неизвестная ошибка');
+            }
+        })
+        .catch(() => {
+            msg.style.color = '#f87171';
+            msg.style.background = 'rgba(239,68,68,.06)';
+            msg.textContent = 'Ошибка при создании проекта';
+        });
+    });
+}
+
+function deleteProject(id) {
+    if (!confirm('Вы уверены, что хотите удалить этот проект?')) return;
+    fetch(`/project/${id}/delete/`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]')?.value || (document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''))
+        },
+        credentials: 'same-origin'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) loadProjects();
+        else alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+    })
+    .catch(() => alert('Ошибка при удалении проекта'));
+}
+
+loadProjects();
+</script>
+{% endblock %}

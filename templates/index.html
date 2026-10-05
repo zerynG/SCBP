@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}IQNIX TECH - Система расчета стоимости проектов{% endblock %}
+
+{% block extra_css %}
+<style>
+    .idx-hero {
+        background: var(--surface-1);
+        border-bottom: 1px solid var(--border-1);
+        padding: 3.5rem 0 3rem;
+        text-align: center;
+    }
+    .idx-hero h1 {
+        font-size: 2.2rem; font-weight: 800; color: var(--text-strong);
+        margin-bottom: .5rem; letter-spacing: -.02em;
+    }
+    .idx-hero p {
+        font-size: .95rem; color: var(--text-soft); max-width: 520px;
+        margin: 0 auto; line-height: 1.6;
+    }
+
+    .idx { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+    .idx-cards {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+    }
+    .idx-card {
+        background: var(--surface-2);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        padding: 1.75rem;
+        color: var(--text);
+        transition: border-color .2s, transform .15s, box-shadow .2s;
+        display: flex; flex-direction: column;
+    }
+    .idx-card:hover {
+        border-color: rgba(139,92,246,.25);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 30px rgba(0,0,0,.3);
+        color: var(--text);
+    }
+    .idx-card-icon {
+        width: 48px; height: 48px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.15rem; margin-bottom: 1.25rem;
+    }
+    .idx-card-icon.purple { background: var(--accent-tint); color: var(--accent-soft); }
+    .idx-card-icon.rose   { background: rgba(244,63,94,.12); color: #fb7185; }
+    .idx-card-icon.teal   { background: rgba(20,184,166,.12); color: #2dd4bf; }
+    .idx-card-icon.amber  { background: rgba(245,158,11,.12); color: #fbbf24; }
+    .idx-card-icon.indigo { background: rgba(99,102,241,.12); color: #818cf8; }
+
+    .idx-card h3 { font-size: 1.05rem; font-weight: 700; color: var(--text-strong); margin-bottom: .5rem; }
+    .idx-card p  { font-size: .82rem; color: var(--text-soft); line-height: 1.5; margin-bottom: 1rem; flex: 1; }
+    .idx-card ul { list-style: none; padding: 0; margin: 0; }
+    .idx-card ul li {
+        font-size: .78rem; color: var(--text-soft); padding: .3rem 0 .3rem 1.2rem; position: relative;
+    }
+    .idx-card ul li::before {
+        content: ""; position: absolute; left: 0; top: .65rem;
+        width: 5px; height: 5px; border-radius: 50%;
+        background: var(--text-faint);
+    }
+    @media (max-width: 900px) {
+        .idx-cards { grid-template-columns: 1fr; }
+        .idx-hero h1 { font-size: 1.6rem; }
+        .idx { padding: 1.5rem 1rem 3rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section class="idx-hero">
+    <h1>Система расчета стоимости проектов</h1>
+    <p>Инструмент для точного расчета стоимости IT-проектов с учетом всех ресурсов, налогов и маржинальности</p>
+</section>
+
+<!-- Main content -->
+<div class="idx">
+    <div class="idx-cards">
+        <a href="{% url 'create_projects_resources' %}" class="idx-card">
+            <div class="idx-card-icon purple">
+                <i class="fas fa-plus-circle"></i>
+            </div>
+            <h3>Создание ресурсов</h3>
+            <p>Создайте каталог ресурсов для использования в проектах</p>
+            <ul>
+                <li>Сотрудники с месячной зарплатой</li>
+                <li>Исполнители ГПХ / НПД</li>
+                <li>Подрядчики (юр. / физ. лица)</li>
+                <li>Оборудование и ПО</li>
+            </ul>
+        </a>
+
+        <a href="{% url 'project_list' %}" class="idx-card">
+            <div class="idx-card-icon rose">
+                <i class="fas fa-project-diagram"></i>
+            </div>
+            <h3>Управление проектами</h3>
+            <p>Создание проектов, управление ресурсами и расчет стоимости</p>
+            <ul>
+                <li>Создание и редактирование проектов</li>
+                <li>Назначение ресурсов</li>
+                <li>Расчет себестоимости и маржи</li>
+                <li>Мониторинг прибыльности</li>
+            </ul>
+        </a>
+
+        <a href="{% url 'project_list' %}" class="idx-card">
+            <div class="idx-card-icon teal">
+                <i class="fas fa-file-contract"></i>
+            </div>
+            <h3>Генерация документов</h3>
+            <p>Выберите проект из списка, чтобы сформировать КП, НМА и смету</p>
+            <ul>
+                <li>Коммерческие предложения</li>
+                <li>Договоры НМА</li>
+                <li>Сметы и расчеты</li>
+                <li>Экспорт в PDF / Excel / Word</li>
+            </ul>
+        </a>
+
+        <a href="{% url 'employee_gantt' %}" class="idx-card">
+            <div class="idx-card-icon amber">
+                <i class="fas fa-stream"></i>
+            </div>
+            <h3>Диаграмма Ганта</h3>
+            <p>Планирование и визуализация сроков выполнения задач по проектам</p>
+            <ul>
+                <li>Назначение задач исполнителям</li>
+                <li>Визуализация сроков</li>
+                <li>Отслеживание прогресса</li>
+                <li>Управление расписанием</li>
+            </ul>
+        </a>
+
+        <a href="{% url 'services_page' %}" class="idx-card">
+            <div class="idx-card-icon indigo">
+                <i class="fas fa-list-alt"></i>
+            </div>
+            <h3>Реестр услуг</h3>
+            <p>Глобальный справочник услуг для назначения ресурсам в проектах</p>
+            <ul>
+                <li>Добавление и редактирование услуг</li>
+                <li>Активация / скрытие услуг</li>
+                <li>Контроль использования в проектах</li>
+                <li>Единый список для всех проектов</li>
+            </ul>
+        </a>
+    </div>
+</div>
+{% endblock %}

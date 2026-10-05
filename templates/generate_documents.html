@@ -1,0 +1,345 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Документы — {{ project.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .gd { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
+
+    .gd-header {
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+    .gd-header h1 {
+        font-size: 1.5rem; font-weight: 700; color: var(--text-strong);
+        margin: 0;
+    }
+    .gd-header .gd-sub { font-size: 0.85rem; color: var(--text-soft); }
+
+    .gd-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .gd-stat .gd-stat-icon {
+        width: 44px; height: 44px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.05rem;
+        margin-bottom: 0.6rem;
+        background: var(--accent-tint); color: var(--accent-soft);
+    }
+    .gd-stat .gd-stat-value { font-size: 1.4rem; font-weight: 700; color: var(--text-strong); }
+    .gd-stat .gd-stat-label { font-size: 0.8rem; color: var(--text-soft); }
+
+    .gd-totals {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .gd-total-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem; }
+    .gd-total-table th, .gd-total-table td {
+        padding: 0.5rem 0.4rem;
+        border-bottom: 1px solid var(--border-1);
+        text-align: left;
+    }
+    .gd-total-table td.value { text-align: right; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+    .gd-total-table tr.total td {
+        font-weight: 700; color: var(--text-strong);
+        border-top: 1px solid var(--border-2);
+        border-bottom: none;
+        padding-top: 0.75rem;
+    }
+
+    .gd-docs {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .gd-doc-card { text-align: center; padding: 1.5rem; }
+    .gd-doc-card .gd-doc-icon { font-size: 2rem; color: var(--accent-soft); margin-bottom: 0.75rem; }
+    .gd-doc-card h3 { font-size: 1rem; color: var(--text-strong); margin: 0 0 0.25rem; }
+    .gd-doc-card .gd-doc-desc { font-size: 0.82rem; color: var(--text-soft); margin-bottom: 1rem; }
+    .gd-doc-actions { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
+
+    .gd-detail-table {
+        width: 100%; border-collapse: separate; border-spacing: 0;
+        font-size: 0.82rem;
+    }
+    .gd-detail-table th {
+        text-align: left; font-size: 0.7rem; font-weight: 700;
+        color: var(--text-soft); text-transform: uppercase; letter-spacing: 0.04em;
+        padding: 0.6rem;
+        border-bottom: 1px solid var(--border-2);
+        background: var(--surface-3);
+    }
+    .gd-detail-table td {
+        padding: 0.55rem 0.6rem;
+        border-bottom: 1px solid var(--border-1);
+    }
+
+    .gd-tabs { display: flex; gap: 0.4rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .gd-tab {
+        padding: 0.5rem 0.85rem;
+        font-size: 0.8rem; font-weight: 600;
+        background: var(--surface-2); color: var(--text-soft);
+        border: 1px solid var(--border-1); border-radius: 8px;
+        cursor: pointer;
+    }
+    .gd-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+    .gd-tab-pane { display: none; }
+    .gd-tab-pane.active { display: block; }
+
+    .gd-empty { color: var(--text-soft); padding: 1rem; }
+
+    #costChart { max-height: 220px; }
+
+    @media (max-width: 768px) {
+        .gd-totals { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gd">
+
+    <div class="gd-header">
+        <div>
+            <h1><i class="fas fa-file-alt"></i> Документы — {{ project.name }}</h1>
+            {% if project.description %}<div class="gd-sub">{{ project.description }}</div>{% endif %}
+        </div>
+        <div>
+            <a href="{% url 'project_manage' project.id %}" class="app-btn"><i class="fas fa-arrow-left"></i> К проекту</a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="gd-grid">
+        <div class="app-card gd-stat">
+            <div class="gd-stat-icon"><i class="fas fa-users"></i></div>
+            <div class="gd-stat-value">{{ employees|length }}</div>
+            <div class="gd-stat-label">Сотрудники</div>
+        </div>
+        <div class="app-card gd-stat">
+            <div class="gd-stat-icon"><i class="fas fa-user-tie"></i></div>
+            <div class="gd-stat-value">{{ contractors|length }}</div>
+            <div class="gd-stat-label">Исполнители</div>
+        </div>
+        <div class="app-card gd-stat">
+            <div class="gd-stat-icon"><i class="fas fa-building"></i></div>
+            <div class="gd-stat-value">{{ subcontractors|length }}</div>
+            <div class="gd-stat-label">Подрядчики</div>
+        </div>
+        <div class="app-card gd-stat">
+            <div class="gd-stat-icon"><i class="fas fa-tools"></i></div>
+            <div class="gd-stat-value">{{ equipment|length }}</div>
+            <div class="gd-stat-label">Оборудование</div>
+        </div>
+    </div>
+
+    <!-- Totals & chart -->
+    <div class="gd-totals">
+        <div class="app-card">
+            <div class="app-card-title">Расчёт стоимости проекта</div>
+            <table class="gd-total-table">
+                <tr><td>Сотрудники</td><td class="value">{{ cost_calculation.total_employee_cost|floatformat:2 }} ₽</td></tr>
+                <tr><td>Исполнители</td><td class="value">{{ cost_calculation.total_contractor_cost|floatformat:2 }} ₽</td></tr>
+                <tr><td>Подрядчики</td><td class="value">{{ cost_calculation.total_subcontractor_cost|floatformat:2 }} ₽</td></tr>
+                <tr><td>Оборудование</td><td class="value">{{ cost_calculation.total_equipment_cost|floatformat:2 }} ₽</td></tr>
+                <tr class="total"><td>Себестоимость</td><td class="value">{{ base_cost|floatformat:2 }} ₽</td></tr>
+                <tr class="total"><td>Итоговая цена</td><td class="value">{{ final_price|floatformat:2 }} ₽</td></tr>
+                <tr class="total"><td>Чистая прибыль</td><td class="value">{{ net_profit|floatformat:2 }} ₽</td></tr>
+            </table>
+        </div>
+        <div class="app-card">
+            <div class="app-card-title">Распределение себестоимости</div>
+            <canvas id="costChart" width="400" height="220"
+                    data-emp="{{ cost_calculation.total_employee_cost|floatformat:2 }}"
+                    data-contr="{{ cost_calculation.total_contractor_cost|floatformat:2 }}"
+                    data-sub="{{ cost_calculation.total_subcontractor_cost|floatformat:2 }}"
+                    data-eq="{{ cost_calculation.total_equipment_cost|floatformat:2 }}"></canvas>
+        </div>
+    </div>
+
+    <!-- Documents -->
+    <div class="gd-docs">
+        <div class="app-card gd-doc-card">
+            <div class="gd-doc-icon"><i class="fas fa-file-contract"></i></div>
+            <h3>Коммерческое предложение</h3>
+            <div class="gd-doc-desc">КП на основе данных проекта</div>
+            <div class="gd-doc-actions">
+                <a class="app-btn" href="{% url 'download_proposal_pdf' project.id %}"><i class="fas fa-file-pdf"></i> PDF</a>
+                <a class="app-btn" href="{% url 'download_proposal_excel' project.id %}"><i class="fas fa-file-excel"></i> Excel</a>
+                <a class="app-btn" href="{% url 'download_proposal_word' project.id %}"><i class="fas fa-file-word"></i> Word</a>
+            </div>
+        </div>
+        <div class="app-card gd-doc-card">
+            <div class="gd-doc-icon"><i class="fas fa-clipboard-list"></i></div>
+            <h3>НМА</h3>
+            <div class="gd-doc-desc">Документы по НМА для проекта</div>
+            <div class="gd-doc-actions">
+                <a class="app-btn" href="{% url 'download_nma_pdf' project.id %}"><i class="fas fa-file-pdf"></i> PDF</a>
+                <a class="app-btn" href="{% url 'download_nma_excel' project.id %}"><i class="fas fa-file-excel"></i> Excel</a>
+                <a class="app-btn" href="{% url 'download_nma_word' project.id %}"><i class="fas fa-file-word"></i> Word</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail tabs -->
+    <div class="app-card">
+        <div class="app-card-title">Детализация по ресурсам</div>
+        <div class="gd-tabs" role="tablist">
+            <button class="gd-tab active" data-tab="emp" type="button" role="tab" aria-selected="true">Сотрудники</button>
+            <button class="gd-tab" data-tab="contr" type="button" role="tab" aria-selected="false">Исполнители</button>
+            <button class="gd-tab" data-tab="sub" type="button" role="tab" aria-selected="false">Подрядчики</button>
+            <button class="gd-tab" data-tab="eq" type="button" role="tab" aria-selected="false">Оборудование</button>
+        </div>
+
+        <div class="gd-tab-pane active" data-pane="emp">
+            {% if employees %}
+            <table class="gd-detail-table">
+                <thead><tr><th>ФИО</th><th>Должность</th><th>Зарплата</th><th>Период</th></tr></thead>
+                <tbody>
+                {% for e in employees %}
+                    <tr>
+                        <td>{{ e.name }}</td>
+                        <td>{{ e.position }}</td>
+                        <td>{{ e.monthly_salary|floatformat:2 }} ₽/мес</td>
+                        <td>{{ e.start_date|default:"—" }} → {{ e.end_date|default:"н/в" }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<div class="gd-empty">Сотрудники не добавлены</div>{% endif %}
+        </div>
+
+        <div class="gd-tab-pane" data-pane="contr">
+            {% if contractors %}
+            <table class="gd-detail-table">
+                <thead><tr><th>ФИО</th><th>Договор</th><th>Ставка/час</th><th>План/факт часы</th></tr></thead>
+                <tbody>
+                {% for c in contractors %}
+                    <tr>
+                        <td>{{ c.name }}</td>
+                        <td>{{ c.get_contract_type_display }}</td>
+                        <td>{{ c.hourly_rate|floatformat:2 }} ₽</td>
+                        <td>{{ c.estimated_hours }} / {{ c.actual_hours }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<div class="gd-empty">Исполнители не добавлены</div>{% endif %}
+        </div>
+
+        <div class="gd-tab-pane" data-pane="sub">
+            {% if subcontractors %}
+            <table class="gd-detail-table">
+                <thead><tr><th>Название</th><th>Тип</th><th>ИНН</th><th>Сумма / Ставка</th></tr></thead>
+                <tbody>
+                {% for s in subcontractors %}
+                    <tr>
+                        <td>{{ s.name }}</td>
+                        <td>{{ s.get_entity_type_display }}</td>
+                        <td>{{ s.inn|default:"—" }}</td>
+                        <td>
+                            {% if s.pricing_type == 'hourly' and s.hourly_rate %}
+                                {{ s.hourly_rate|floatformat:2 }} ₽/час
+                            {% else %}
+                                {{ s.contract_amount|floatformat:2 }} ₽
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<div class="gd-empty">Подрядчики не добавлены</div>{% endif %}
+        </div>
+
+        <div class="gd-tab-pane" data-pane="eq">
+            {% if equipment %}
+            <table class="gd-detail-table">
+                <thead><tr><th>Название</th><th>Тип оплаты</th><th>Кол-во</th><th>Ставка / Стоимость</th></tr></thead>
+                <tbody>
+                {% for eq in equipment %}
+                    <tr>
+                        <td>{{ eq.name }}</td>
+                        <td>{{ eq.get_pricing_type_display }}</td>
+                        <td>{{ eq.quantity }}</td>
+                        <td>
+                            {% if eq.operational_cost %}
+                                {{ eq.operational_cost|floatformat:2 }} ₽/{{ eq.pricing_type }} · σ {{ eq.total_cost|floatformat:2 }} ₽
+                            {% else %}
+                                {{ eq.cost|floatformat:2 }} ₽/шт · σ {{ eq.total_cost|floatformat:2 }} ₽
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<div class="gd-empty">Оборудование не добавлено</div>{% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var canvas = document.getElementById('costChart');
+    if (canvas && window.Chart) {
+        var data = {
+            labels: ['Сотрудники', 'Исполнители', 'Подрядчики', 'Оборудование'],
+            datasets: [{
+                data: [
+                    parseFloat(canvas.dataset.emp) || 0,
+                    parseFloat(canvas.dataset.contr) || 0,
+                    parseFloat(canvas.dataset.sub) || 0,
+                    parseFloat(canvas.dataset.eq) || 0,
+                ],
+                backgroundColor: ['#60a5fa', '#fbbf24', '#34d399', '#a78bfa'],
+                borderWidth: 0,
+            }]
+        };
+        new Chart(canvas.getContext('2d'), {
+            type: 'doughnut',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#bbb', padding: 12, usePointStyle: true } },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                var v = ctx.parsed;
+                                var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                                var pct = total > 0 ? ((v / total) * 100).toFixed(1) : 0;
+                                return ctx.label + ': ' + v.toLocaleString('ru-RU') + ' ₽ (' + pct + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    document.querySelectorAll('.gd-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            document.querySelectorAll('.gd-tab').forEach(function (t) {
+                t.classList.remove('active');
+                t.setAttribute('aria-selected', 'false');
+            });
+            document.querySelectorAll('.gd-tab-pane').forEach(function (p) { p.classList.remove('active'); });
+            tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
+            var target = document.querySelector('.gd-tab-pane[data-pane="' + tab.dataset.tab + '"]');
+            if (target) target.classList.add('active');
+        });
+    });
+});
+</script>
+{% endblock %}
