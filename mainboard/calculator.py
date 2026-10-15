@@ -303,6 +303,20 @@ def resolve_margin(override_margin: Any, project_margin: Any) -> Decimal:
         return _D(project_margin)
     return _D(override_margin)
 
+def margin_applies(resource_type: str) -> bool:
+    """Начисляется ли маржа на этот тип ресурса.
+
+    Маржа (наценка) применяется ТОЛЬКО к:
+      - employee   (сотрудник)
+      - contractor (исполнитель)
+
+    НЕ применяется к:
+      - subcontractor (подрядчик — фикс. сумма, наценка уже внутри)
+      - customer      (заказчик — не ресурс для наценки)
+      - equipment     (оборудование — амортизация)
+    """
+    return resource_type in ('employee', 'contractor')
+
 
 def apply_tax_and_margin(
     base_no_tax: Decimal,
@@ -484,6 +498,7 @@ def calc_project(
     contractors: Iterable[Any],
     subcontractors: Iterable[Any],
     equipment: Iterable[Any],
+    customers: Iterable[Any],
     overrides_map: Dict[Tuple[str, int], Any],
     schedule_by_employee: Dict[int, List[Any]],
     calendars: CalendarMap,
@@ -603,12 +618,11 @@ def calc_project(
         ))
 
     # ----------------------------- Подрядчики (Subcontractor)
+        # ----------------------------- Подрядчики (Subcontractor)
     for s in subcontractors:
         o = overrides_map.get(("subcontractor", s.id))
-        margin_percent = resolve_margin(
-            getattr(o, "resource_margin", None) if o else None,
-            project_margin,
-        )
+        # Маржа НЕ применяется к подрядчикам
+        margin_percent = Decimal("0")
         wh = o.working_hours if o and o.working_hours is not None else None
         sb = calc_subcontractor_base(
             s.pricing_type,
@@ -619,7 +633,8 @@ def calc_project(
         )
         base_no_tax = sb["base_no_tax"]
         # взносы на подрядчиков не начисляются (юрлицо/договор)
-        cost, final_cost = apply_tax_and_margin(base_no_tax, Decimal("0"), margin_percent)
+        cost = base_no_tax
+        final_cost = base_no_tax
         totals.total_subcontractor_cost += cost
 
         start = o.work_start_date if o and o.work_start_date else None
@@ -657,12 +672,12 @@ def calc_project(
         ))
 
     # ----------------------------- Оборудование
+        # ----------------------------- Оборудование
     for eq in equipment:
         o = overrides_map.get(("equipment", eq.id))
-        margin_percent = resolve_margin(
-            getattr(o, "resource_margin", None) if o else None,
-            project_margin,
-        )
+        # Маржа НЕ применяется к оборудованию
+        margin_percent = Decimal("0")
+        # Период оборудования...
         # Период оборудования: даты из сводной таблицы (override) → дата покупки
         # для старта и конец проекта для финиша. Это позволяет помесячной аренде
         # считаться от приобретения до конца проекта (с округлением вверх),
@@ -695,8 +710,9 @@ def calc_project(
             work_hours_per_day=wh_per_day,
         )
         base_no_tax = eb["base_no_tax"]
-        # взносы на оборудование не начисляются
-        cost, final_cost = apply_tax_and_margin(base_no_tax, Decimal("0"), margin_percent)
+        # взносы на оборудование не начисляются, маржа тоже
+        cost = base_no_tax
+        final_cost = base_no_tax
         totals.total_equipment_cost += cost
 
         rows.append(ResourceCost(
@@ -725,6 +741,32 @@ def calc_project(
             delete_id=eq.id,
         ))
 
+        # ----------------------------- Заказчики (Customer)
+    # Заказчик — НЕ источник затрат, а получатель ценности.
+    # Себестоимость = 0, финальная стоимость = 0.
+    # В сводной таблице отображается как информационный ресурс.
+    for cu in customers:
+        o = overrides_map.get(("customer", cu.id))
+        rows.append(ResourceCost(
+            resource_type="customer",
+            resource_id=cu.id,
+            name=cu.name,
+            type_display="Заказчик",
+            service=(o.service.name if o and o.service else ""),
+            service_id=(o.service_id if o and getattr(o, "service_id", None) else None),
+            margin_percent=Decimal("0"),
+            start_date=(o.work_start_date if o else None),
+            end_date=(o.work_end_date if o else None),
+            work_days=None,
+            work_hours=None,
+            monthly_cost=None,
+            base_no_tax=Decimal("0"),
+            cost=Decimal("0"),
+            final_cost=Decimal("0"),
+            delete_name="delete_customer",
+            delete_id=cu.id,
+        ))
+    # в totals не добавляем — 0
     # ----------------------------- Итоги
     totals.base_cost = (
         totals.total_employee_cost

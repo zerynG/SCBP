@@ -133,6 +133,14 @@
         var finalCost = cost * marginMultiplier(marginPercent);
         return { cost: cost, finalCost: finalCost };
     }
+    
+    /**
+     * Начисляется ли маржа на этот тип ресурса.
+     * Совпадает с Python: margin_applies().
+     */
+    function marginApplies(resourceType) {
+        return resourceType === 'employee' || resourceType === 'contractor';
+    }
 
     // -------- base calc per type --------
     function calcEmployeeBase(monthlySalary, start, end, calendars, unavailableDays, fallbackDays) {
@@ -245,6 +253,7 @@
         marginMultiplier: marginMultiplier,
         resolveMargin: resolveMargin,
         applyTaxAndMargin: applyTaxAndMargin,
+        marginApplies: marginApplies,
         calcEmployeeBase: calcEmployeeBase,
         calcContractorBase: calcContractorBase,
         calcSubcontractorBase: calcSubcontractorBase,

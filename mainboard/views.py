@@ -364,10 +364,22 @@ def _load_overrides_map(project):
 
 
 def _load_employee_schedule(project):
-    """Словарь {employee_id: [entries]} только для dayoff/other_project."""
+    """Словарь {employee_id: [entries]} только для dayoff/other_project.
+
+    Фильтруем расписание по сотрудникам, которые сейчас в проекте (через overrides).
+    """
+    # Какие сотрудники сейчас в проекте?
+    employee_ids = list(
+        ProjectResourceOverride.objects.filter(
+            project=project, resource_type='employee',
+        ).values_list('resource_id', flat=True)
+    )
+    if not employee_ids:
+        return {}
+
     schedule_by_employee = {}
     for entry in EmployeeSchedule.objects.filter(
-        employee__project=project,
+        employee_id__in=employee_ids,
         employee__is_active=True,
         status__in=['dayoff', 'other_project'],
     ):
@@ -376,17 +388,62 @@ def _load_employee_schedule(project):
 
 
 def _calculate_project(project):
-    """Единая точка расчёта проекта: возвращает (rows_dicts, totals, calendars, schedule_for_js).
+    """Единая точка расчёта проекта: возвращает dict с rows, totals и т.д.
 
-    rows_dicts — список словарей для шаблона / JSON-ответа.
+    Собирает ресурсы через ProjectResourceOverride:
+      - для каждого override → берёт ресурс из каталога Workspace
+      - передаёт в calculator.calc_project
     """
-    employees_qs = list(project.employees.filter(is_active=True))
-    contractors_qs = list(project.contractors.filter(is_active=True))
-    subcontractors_qs = list(project.subcontractors.filter(is_active=True))
-    equipment_qs = list(project.equipment.filter(is_active=True))
-
+    # Собираем ресурсы проекта через overrides
     overrides_map = _load_overrides_map(project)
     calendars = _load_project_calendars()
+
+    # Группируем override по типам, читаем сами ресурсы из каталога Workspace
+    ws = project.workspace
+    employees_qs = []
+    contractors_qs = []
+    subcontractors_qs = []
+    equipment_qs = []
+    customers_qs = []
+
+    if ws:
+        for (rtype, rid), override in overrides_map.items():
+            if rtype == 'employee':
+                try:
+                    employees_qs.append(ws.employees.get(id=rid, is_active=True))
+                except Employee.DoesNotExist:
+                    pass
+            elif rtype == 'contractor':
+                try:
+                    contractors_qs.append(ws.contractors.get(id=rid, is_active=True))
+                except Contractor.DoesNotExist:
+                    pass
+            elif rtype == 'subcontractor':
+                try:
+                    subcontractors_qs.append(ws.subcontractors.get(id=rid, is_active=True))
+                except Subcontractor.DoesNotExist:
+                    pass
+            elif rtype == 'equipment':
+                try:
+                    equipment_qs.append(ws.equipment.get(id=rid, is_active=True))
+                except Equipment.DoesNotExist:
+                    pass
+            elif rtype == 'customer':
+                try:
+                    customers_qs.append(ws.customers.get(id=rid, is_active=True))
+                except Customer.DoesNotExist:
+                    pass
+
+    # Основной заказчик проекта — если задан, но не в overrides, добавляем
+    if project.customer_id and project.customer:
+        already = any(
+            rtype == 'customer' and rid == project.customer_id
+            for (rtype, rid) in overrides_map.keys()
+        )
+        if not already:
+            customers_qs.append(project.customer)
+
+    # Расписание сотрудников
     schedule_by_employee = _load_employee_schedule(project)
 
     rows, totals = calc.calc_project(
@@ -395,15 +452,14 @@ def _calculate_project(project):
         contractors=contractors_qs,
         subcontractors=subcontractors_qs,
         equipment=equipment_qs,
+        customers=customers_qs,
         overrides_map=overrides_map,
         schedule_by_employee=schedule_by_employee,
         calendars=calendars,
     )
 
-    # Сериализация для шаблона
     rows_dicts = [r.as_dict() for r in rows]
 
-    # Расписание для JS
     schedule_for_js = {
         emp_id: [
             {'start': str(e.start_date), 'end': str(e.end_date), 'status': e.status}
@@ -421,6 +477,7 @@ def _calculate_project(project):
         'contractors_qs': contractors_qs,
         'subcontractors_qs': subcontractors_qs,
         'equipment_qs': equipment_qs,
+        'customers_qs': customers_qs,
     }
 
 
@@ -445,7 +502,16 @@ def project_manage(request, project_id):
         project.description = request.POST.get('description', project.description)
         project.technical_task_url = request.POST.get('technical_task_url', project.technical_task_url)
         project.status = request.POST.get('status', project.status)
-        project.customer = request.POST.get('customer', project.customer)
+        customer_id = request.POST.get('customer_id')
+        if customer_id:
+            try:
+                project.customer = Customer.objects.get(
+                    id=int(customer_id), workspace=project.workspace, is_active=True
+                )
+            except (Customer.DoesNotExist, ValueError, TypeError):
+                pass
+        elif 'customer_id' in request.POST:
+            project.customer = None
         project.start_date = request.POST.get('start_date') or project.start_date
         project.end_date = request.POST.get('end_date') or project.end_date
         tax_rate = request.POST.get('tax_rate')
@@ -522,40 +588,50 @@ def project_manage(request, project_id):
     totals = result['totals']
     _persist_project_cost(project, totals)
 
-    def decimal_default(obj):
-        if isinstance(obj, Decimal):
-            return str(obj)
-        raise TypeError
-
-    catalog_db = {
-        'employees': list(Employee.objects.values('name', 'position', 'monthly_salary').distinct()),
-        'contractors': list(Contractor.objects.values('name', 'contract_type', 'hourly_rate', 'estimated_hours').distinct()),
-        'subcontractors': list(Subcontractor.objects.values('name', 'entity_type', 'pricing_type', 'contract_amount', 'hourly_rate', 'estimated_hours').distinct()),
-        'equipment': list(Equipment.objects.values('name', 'model', 'cost', 'monthly_cost', 'pricing_type', 'operational_cost').distinct()),
+    # Каталог Workspace для модалки «Добавить ресурс»
+    ws = project.workspace
+    catalog = _get_workspace_resources_grouped(ws) if ws else {
+        'employees': [], 'executors': [], 'subcontractors': [],
+        'customers': [], 'equipment': []
     }
-    services = Service.objects.filter(is_active=True)
 
-    # Подготовим словари для json_script (Django сам безопасно сериализует Decimal в строки)
-    # catalog_db содержит Decimal — конвертируем через json.loads(json.dumps(..., default=str))
-    catalog_db_safe = json.loads(json.dumps(catalog_db, default=decimal_default, ensure_ascii=False))
+    # Override-ы для передачи в JS (какие ресурсы уже в проекте)
+    overrides_list = []
+    for o in ProjectResourceOverride.objects.filter(project=project):
+        overrides_list.append(_serialize_override(o))
+
+    # Услуги для select
+    services = list(Service.objects.filter(is_active=True).values('id', 'name', 'applies_to'))
 
     context = {
         'project': project,
-        'employees': result['employees_qs'],
-        'contractors': result['contractors_qs'],
-        'subcontractors': result['subcontractors_qs'],
-        'equipment': result['equipment_qs'],
+        'workspace': ws,
+        'sidebar_active': 'project-manage',
+
+        'project_json': {
+            'id': project.id,
+            'name': project.name or '',
+            'description': project.description or '',
+            'customerId': project.customer_id,
+            'customerName': project.customer.name if project.customer else '',
+            'tz': project.technical_task_url or '',
+            'startDate': project.start_date.isoformat() if project.start_date else '',
+            'endDate': project.end_date.isoformat() if project.end_date else '',
+         },
+        # Расчёт
         'resources': result['rows'],
-        'services': services,
         'base_cost': totals.base_cost,
         'final_price': totals.final_price,
         'net_profit': totals.net_profit,
         'vat_rate': totals.vat_rate,
         'vat_amount': totals.vat_amount,
         'price_with_vat': totals.price_with_vat,
-        # dict-объекты для тега {{ ...|json_script:'...' }} в шаблоне
+
+        # JSON для JS
         'calendars_json': result['calendars'],
-        'catalog_db_json': catalog_db_safe,
+        'catalog_json': catalog,
+        'overrides_json': overrides_list,
+        'services_json': services,
         'employee_schedule_json': result['schedule_for_js'],
     }
     return render(request, 'project_manage.html', context)
@@ -1265,26 +1341,26 @@ def _get_company_settings_dict():
 
 
 def _build_project_data(project):
-    """Собирает данные проекта для генераторов КП и НМА (единый калькулятор).
-
-    КП оперирует отпускной ценой (final + НДС), НМА — себестоимостью (cost)
-    по статьям затрат (ФОТ + взносы + услуги + оборудование).
-    """
+    """Собирает данные проекта для генераторов КП и НМА."""
     result = _calculate_project(project)
     rows = result['rows']
     totals = result['totals']
 
     type_display = {
-        'employee': 'Сотрудник', 'contractor': 'Исполнитель',
-        'subcontractor': 'Подрядчик', 'equipment': 'Оборудование',
+        'employee': 'Сотрудник',
+        'contractor': 'Исполнитель',
+        'subcontractor': 'Подрядчик',
+        'equipment': 'Оборудование',
+        'customer': 'Заказчик',
     }
 
     def m(v):
         return float(calc.quantize_money(v or Decimal('0')))
 
     resources_list = []
-    fot = ins = con = sub = eq = Decimal('0')      # статьи затрат для НМА
-    kp_groups: dict = {}                            # работы для КП (по услуге/типу)
+    fot = ins = con = sub = eq = Decimal('0')
+    kp_groups: dict = {}
+
     for r in rows:
         rt = r.get('resource_type')
         base = Decimal(str(r.get('base_no_tax') or 0))
@@ -1306,9 +1382,12 @@ def _build_project_data(project):
             sub += cost
         elif rt == 'equipment':
             eq += cost
-        # КП: группировка по услуге, иначе по типу ресурса
-        key = r.get('service') or f"Работы: {type_display.get(rt, 'прочее').lower()}"
-        kp_groups[key] = kp_groups.get(key, Decimal('0')) + final
+        # customer → 0, не учитываем в breakdown
+
+        # КП: только ресурсы с ненулевой стоимостью (не заказчики)
+        if final > 0:
+            key = r.get('service') or f"Работы: {type_display.get(rt, 'прочее').lower()}"
+            kp_groups[key] = kp_groups.get(key, Decimal('0')) + final
 
     nma_breakdown = []
     for label, val in (
@@ -1329,21 +1408,21 @@ def _build_project_data(project):
     def fmt_date(dt):
         return dt.strftime('%d.%m.%Y') if dt else '—'
 
+    customer_name = project.customer.name if project.customer else '—'
+
     return {
         'name': project.name,
         'doc_number': str(project.id),
         'technical_task': project.technical_task_url or 'Не приложено',
         'start_date': fmt_date(project.start_date),
         'end_date': fmt_date(project.end_date),
-        'customer': {'name': project.customer or '—'},
-        # финансы
-        'cost_total': m(totals.base_cost),       # себестоимость
-        'final_price': m(totals.final_price),    # цена без НДС
-        'margin_amount': m(totals.net_profit),   # наценка/прибыль
+        'customer': {'name': customer_name},
+        'cost_total': m(totals.base_cost),
+        'final_price': m(totals.final_price),
+        'margin_amount': m(totals.net_profit),
         'vat_rate': float(totals.vat_rate),
         'vat_amount': m(totals.vat_amount),
         'price_with_vat': m(totals.price_with_vat),
-        # КП и НМА
         'kp_items': kp_items,
         'nma_breakdown': nma_breakdown,
         'nma_total': m(totals.base_cost),
@@ -1683,6 +1762,15 @@ def _get_active_workspace(request):
         request.session['active_workspace_id'] = ws.id
     return ws
 
+
+def _parse_date(s):
+    """ISO-строка → date или None."""
+    if not s or not str(s).strip():
+        return None
+    try:
+        return date.fromisoformat(str(s).strip())
+    except (ValueError, TypeError):
+        return None
 
 # ---------- Сериализаторы ----------
 
@@ -2230,4 +2318,361 @@ def workspace_update(request, workspace_id):
     return JsonResponse({
         'success': True,
         'workspace': _serialize_workspace_detail(ws),
+    })
+
+# ============================================================================
+# СПИСОК ПРОЕКТОВ (в рамках Workspace)
+# ============================================================================
+
+def _serialize_project(p):
+    """Краткая сериализация Project для списка."""
+    resources_count = p.resource_overrides.count()
+    return {
+        'id': p.id,
+        'name': p.name,
+        'description': p.description,
+        'customer': p.customer.name if p.customer else '',
+        'customerId': p.customer_id,
+        'status': p.status,
+        'startDate': p.start_date.isoformat() if p.start_date else '',
+        'endDate': p.end_date.isoformat() if p.end_date else '',
+        'tz': p.technical_task_url,
+        'isActive': p.is_active,
+        'resourcesCount': resources_count,
+        'createdAt': p.created_at.isoformat(),
+        'updatedAt': p.updated_at.isoformat(),
+    }
+
+
+@login_required
+def project_list_page(request):
+    """Страница списка проектов текущей Workspace."""
+    ws = _get_active_workspace(request)
+    return render(request, 'project_list.html', {
+        'workspace': ws,
+        'sidebar_active': 'project-manage',
+    })
+
+
+@login_required
+@require_http_methods(["GET"])
+def projects_api(request):
+    """GET /api/projects/ — список проектов текущей Workspace."""
+    ws = _get_active_workspace(request)
+    if not ws:
+        return JsonResponse({'projects': []})
+    qs = Project.objects.filter(workspace=ws, is_active=True).select_related('customer')
+    return JsonResponse({'projects': [_serialize_project(p) for p in qs]})
+
+
+@login_required
+@require_http_methods(["POST"])
+def project_create(request):
+    """POST /api/projects/create/ — создать проект в текущей Workspace."""
+    ws = _get_active_workspace(request)
+    if not ws:
+        return JsonResponse({'success': False, 'error': 'Рабочая область не найдена'}, status=400)
+
+    name = (request.POST.get('name') or '').strip()
+    if not name:
+        return JsonResponse({'success': False, 'error': 'Укажите название проекта'}, status=400)
+
+    customer_id = request.POST.get('customer_id')
+    customer = None
+    if customer_id:
+        try:
+            customer = Customer.objects.get(id=int(customer_id), workspace=ws, is_active=True)
+        except (Customer.DoesNotExist, ValueError, TypeError):
+            pass
+
+    project = Project.objects.create(
+        workspace=ws,
+        name=name,
+        description=(request.POST.get('description') or '').strip(),
+        customer=customer,
+        technical_task_url=(request.POST.get('tz') or '').strip(),
+        start_date=_parse_date(request.POST.get('start_date')),
+        end_date=_parse_date(request.POST.get('end_date')),
+    )
+    return JsonResponse({'success': True, 'project': _serialize_project(project)})
+
+
+@login_required
+@require_http_methods(["POST"])
+def project_update_meta(request, project_id):
+    """POST /api/projects/<id>/update/ — редактировать основные данные проекта."""
+    ws = _get_active_workspace(request)
+    project = get_object_or_404(Project, id=project_id, workspace=ws)
+
+    name = (request.POST.get('name') or '').strip()
+    if not name:
+        return JsonResponse({'success': False, 'error': 'Укажите название'}, status=400)
+
+    customer_id = request.POST.get('customer_id')
+    customer = None
+    if customer_id:
+        try:
+            customer = Customer.objects.get(id=int(customer_id), workspace=ws, is_active=True)
+        except (Customer.DoesNotExist, ValueError, TypeError):
+            pass
+
+    project.name = name
+    project.description = (request.POST.get('description') or '').strip()
+    project.customer = customer
+    project.technical_task_url = (request.POST.get('tz') or '').strip()
+    project.start_date = _parse_date(request.POST.get('start_date'))
+    project.end_date = _parse_date(request.POST.get('end_date'))
+
+    # Настройки расчёта
+    tax_rate = _dec(request.POST.get('tax_rate'))
+    margin = _dec(request.POST.get('margin'))
+    vat_rate = _dec(request.POST.get('vat_rate'))
+    wh_per_day = _dec(request.POST.get('work_hours_per_day'))
+
+    if tax_rate is not None:
+        project.tax_rate = tax_rate
+    if margin is not None:
+        project.margin = margin
+    if vat_rate is not None:
+        project.vat_rate = vat_rate
+    if wh_per_day is not None and Decimal('0') < wh_per_day <= Decimal('24'):
+        project.work_hours_per_day = wh_per_day
+
+    project.save()
+    return JsonResponse({'success': True, 'project': _serialize_project(project)})
+
+
+@login_required
+@require_http_methods(["POST"])
+def project_hide(request, project_id):
+    """POST /api/projects/<id>/hide/ — is_active=False."""
+    ws = _get_active_workspace(request)
+    project = get_object_or_404(Project, id=project_id, workspace=ws)
+    project.is_active = False
+    project.save(update_fields=['is_active'])
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_http_methods(["POST"])
+def project_delete(request, project_id):
+    """POST /api/projects/<id>/delete/ — удалить проект."""
+    ws = _get_active_workspace(request)
+    project = get_object_or_404(Project, id=project_id, workspace=ws)
+    project.delete()
+    return JsonResponse({'success': True})
+
+
+# ============================================================================
+# РЕСУРСЫ ПРОЕКТА (overrides)
+# ============================================================================
+
+def _get_workspace_resources_grouped(ws):
+    """Каталог ресурсов Workspace, сгруппированный по типу."""
+    if not ws:
+        return {'employees': [], 'executors': [], 'subcontractors': [],
+                'customers': [], 'equipment': []}
+    return {
+        'employees':      [_serialize_employee(e)      for e in ws.employees.filter(is_active=True)],
+        'executors':      [_serialize_contractor(c)    for c in ws.contractors.filter(is_active=True)],
+        'subcontractors': [_serialize_subcontractor(s) for s in ws.subcontractors.filter(is_active=True)],
+        'customers':      [_serialize_customer(cu)     for cu in ws.customers.filter(is_active=True)],
+        'equipment':      [_serialize_equipment(eq)    for eq in ws.equipment.filter(is_active=True)],
+    }
+
+
+@login_required
+@require_http_methods(["GET"])
+def workspace_catalog_api(request):
+    """GET /api/catalog/ — ресурсы каталога текущей Workspace (для модалки)."""
+    ws = _get_active_workspace(request)
+    return JsonResponse(_get_workspace_resources_grouped(ws))
+
+
+def _serialize_override(o):
+    return {
+        'id': o.id,
+        'resource_type': o.resource_type,
+        'resource_id': o.resource_id,
+        'resource_margin': str(o.resource_margin) if o.resource_margin is not None else None,
+        'service_id': o.service_id,
+        'service_name': o.service.name if o.service else '',
+        'work_start_date': o.work_start_date.isoformat() if o.work_start_date else '',
+        'work_end_date': o.work_end_date.isoformat() if o.work_end_date else '',
+        'working_hours': o.working_hours,
+        'quantity': o.quantity,
+        'use_project_dates': o.use_project_dates,
+    }
+
+
+@login_required
+@require_http_methods(["POST"])
+def project_add_resource(request, project_id):
+    """POST /api/projects/<id>/add-resource/ — добавить ресурс в проект.
+
+    Принимает: resource_type, resource_id. Проверяет, что ресурс есть в
+    каталоге Workspace и его ещё нет в проекте. Создаёт override.
+    """
+    ws = _get_active_workspace(request)
+    project = get_object_or_404(Project, id=project_id, workspace=ws)
+
+    rtype = request.POST.get('resource_type')
+    rid_raw = request.POST.get('resource_id')
+
+    if rtype not in ('employee', 'contractor', 'subcontractor', 'customer', 'equipment'):
+        return JsonResponse({'success': False, 'error': 'Неверный тип ресурса'}, status=400)
+
+    try:
+        rid = int(rid_raw)
+    except (ValueError, TypeError):
+        return JsonResponse({'success': False, 'error': 'Неверный ID ресурса'}, status=400)
+
+    # Проверка, что ресурс существует в каталоге Workspace
+    model_map = {
+        'employee': Employee, 'contractor': Contractor,
+        'subcontractor': Subcontractor, 'customer': Customer, 'equipment': Equipment,
+    }
+    Model = model_map[rtype]
+    try:
+        Model.objects.get(id=rid, workspace=ws, is_active=True)
+    except Model.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Ресурс не найден в каталоге'}, status=404)
+
+    # Уже добавлен?
+    if ProjectResourceOverride.objects.filter(
+        project=project, resource_type=rtype, resource_id=rid
+    ).exists():
+        return JsonResponse({'success': False, 'error': 'Ресурс уже в проекте'}, status=400)
+
+    override = ProjectResourceOverride.objects.create(
+        project=project, resource_type=rtype, resource_id=rid,
+        quantity=1, use_project_dates=False,
+    )
+    return JsonResponse({'success': True, 'override': _serialize_override(override)})
+
+
+@login_required
+@require_http_methods(["POST"])
+def project_remove_resource(request, project_id):
+    """POST /api/projects/<id>/remove-resource/ — удалить ресурс из проекта.
+
+    Принимает: resource_type, resource_id.
+    """
+    ws = _get_active_workspace(request)
+    project = get_object_or_404(Project, id=project_id, workspace=ws)
+
+    rtype = request.POST.get('resource_type')
+    try:
+        rid = int(request.POST.get('resource_id') or 0)
+    except (ValueError, TypeError):
+        rid = 0
+
+    if not rtype or not rid:
+        return JsonResponse({'success': False, 'error': 'Не указан ресурс'}, status=400)
+
+    ProjectResourceOverride.objects.filter(
+        project=project, resource_type=rtype, resource_id=rid
+    ).delete()
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_http_methods(["POST"])
+def project_update_override(request, project_id):
+    """POST /api/projects/<id>/update-override/ — сохранить параметры ресурса.
+
+    Принимает: resource_type, resource_id, а также поля override:
+    resource_margin, service_id, work_start_date, work_end_date,
+    working_hours, quantity, use_project_dates.
+    """
+    ws = _get_active_workspace(request)
+    project = get_object_or_404(Project, id=project_id, workspace=ws)
+
+    rtype = request.POST.get('resource_type')
+    try:
+        rid = int(request.POST.get('resource_id') or 0)
+    except (ValueError, TypeError):
+        rid = 0
+
+    if not rtype or not rid:
+        return JsonResponse({'success': False, 'error': 'Не указан ресурс'}, status=400)
+
+    override, _ = ProjectResourceOverride.objects.get_or_create(
+        project=project, resource_type=rtype, resource_id=rid,
+        defaults={'quantity': 1, 'use_project_dates': False},
+    )
+
+    # Маржа — только для employee/contractor. Для остальных принудительно None.
+    if rtype in ('employee', 'contractor'):
+        raw = request.POST.get('resource_margin')
+        if raw is None or str(raw).strip() == '':
+            override.resource_margin = None
+        else:
+            override.resource_margin = _dec(raw)
+    else:
+        override.resource_margin = None
+
+    # Услуга
+    service_id = request.POST.get('service_id')
+    if service_id is not None:
+        if str(service_id).strip() == '':
+            override.service = None
+        else:
+            try:
+                override.service = Service.objects.get(id=int(service_id))
+            except (Service.DoesNotExist, ValueError, TypeError):
+                override.service = None
+
+    # Даты
+    override.work_start_date = _parse_date(request.POST.get('work_start_date'))
+    override.work_end_date = _parse_date(request.POST.get('work_end_date'))
+
+    # Часы
+    wh = request.POST.get('working_hours')
+    if wh is None or str(wh).strip() == '':
+        override.working_hours = None
+    else:
+        try:
+            override.working_hours = max(0, int(wh))
+        except (ValueError, TypeError):
+            override.working_hours = None
+
+    # Количество
+    qty = request.POST.get('quantity')
+    if qty is not None and str(qty).strip() != '':
+        try:
+            override.quantity = max(1, int(qty))
+        except (ValueError, TypeError):
+            override.quantity = 1
+
+    # Флаг
+    override.use_project_dates = (request.POST.get('use_project_dates') == '1')
+
+    override.save()
+
+    # Пересчёт и возврат актуального снимка
+    result = _calculate_project(project)
+    totals = result['totals']
+    _persist_project_cost(project, totals)
+    return JsonResponse({
+        'success': True,
+        'totals': calc.serialize_totals(totals),
+        'rows': [calc.serialize_row(_row_obj_for_serialization(r)) for r in result['rows']],
+        'override': _serialize_override(override),
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def project_recalculate(request, project_id):
+    """POST /api/projects/<id>/recalculate/ — актуальный снимок расчёта."""
+    ws = _get_active_workspace(request)
+    project = get_object_or_404(Project, id=project_id, workspace=ws)
+    result = _calculate_project(project)
+    totals = result['totals']
+    _persist_project_cost(project, totals)
+    return JsonResponse({
+        'success': True,
+        'totals': calc.serialize_totals(totals),
+        'rows': [calc.serialize_row(_row_obj_for_serialization(r)) for r in result['rows']],
     })

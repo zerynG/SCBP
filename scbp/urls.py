@@ -19,10 +19,27 @@ urlpatterns = [
     path('api/workspaces/create/', views.workspace_create, name='workspace_create'),
     path('api/workspaces/check-subdomain/', views.workspace_check_subdomain, name='workspace_check_subdomain'),
     
+        # ============================================================
+    # Список проектов
+    # ============================================================
+    path('api/projects/', views.projects_api, name='projects_api'),
+    path('api/projects/create/', views.project_create, name='project_create'),
+    path('api/projects/<int:project_id>/update/', views.project_update_meta, name='project_update_meta'),
+    path('api/projects/<int:project_id>/hide/', views.project_hide, name='project_hide'),
+    path('api/projects/<int:project_id>/delete/', views.project_delete, name='project_delete'),
+
+    # ============================================================
+    # Ресурсы проекта
+    # ============================================================
+    path('api/catalog/', views.workspace_catalog_api, name='workspace_catalog_api'),
+    path('api/projects/<int:project_id>/add-resource/', views.project_add_resource, name='project_add_resource'),
+    path('api/projects/<int:project_id>/remove-resource/', views.project_remove_resource, name='project_remove_resource'),
+    path('api/projects/<int:project_id>/update-override/', views.project_update_override, name='project_update_override'),
+    path('api/projects/<int:project_id>/recalculate/', views.project_recalculate, name='project_recalculate'),
     # Проекты
     path('create_projects_resources/', views.create_project, name='create_projects_resources'),
     path('projects/', views.projects_api, name='projects_api'),
-    path('project/', views.project_list, name='project_list'),
+    path('project/', views.project_list_page, name='project_list'),
     path('project/<int:project_id>/', views.project_manage, name='project_manage'),
     path('project/<int:project_id>/generate_documents/', views.generate_documents, name='generate_documents'),
     # Новые маршруты для скачивания

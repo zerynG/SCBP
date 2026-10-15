@@ -408,7 +408,9 @@
 
             // Страховые взносы (taxRate) — только на ФОТ штатных сотрудников
             var insuranceForRow = (type === 'employee') ? taxRate : 0;
-            var r = calcLib.applyTaxAndMargin(baseNoTax, insuranceForRow, margin);
+            var marginApplicable = calcLib.marginApplies(type);
+            var effectiveMargin = marginApplicable ? margin : 0;
+            var r = calcLib.applyTaxAndMargin(baseNoTax, insuranceForRow, effectiveMargin);
 
             if (workDaysEl) workDaysEl.textContent = workDays !== null && workDays !== undefined ? workDays : '—';
             if (workHoursEl) workHoursEl.textContent = workHours !== null && workHours !== undefined ? workHours : '—';

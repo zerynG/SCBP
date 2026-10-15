@@ -1,247 +1,763 @@
-{% extends 'base.html' %}
+{% extends 'base_app.html' %}
 {% load static %}
 
-{% block title %}Проекты - IQNIX TECH{% endblock %}
+{% block title %}Список проектов — IQNIX TECH{% endblock %}
 
-{% block extra_css %}
+{% block app_extra_css %}
 <style>
-    body { background: #1a1a1a !important; color: #e0e0e0; }
-    main, .scrollable { background: #1a1a1a !important; }
+    /* ============================================================
+       PROJECT LIST — список проектов рабочей области
+       Токены (:root), .app-card — в app.css.
+       Сайдбар — в sidebar.css.
+       ============================================================ */
 
-    .pl { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
-    .pl h1 { font-size: 1.6rem; font-weight: 700; color: #fff; margin-bottom: .25rem; }
-    .pl .subtitle { color: #666; font-size: .85rem; margin-bottom: 2rem; }
+    .proj-head {
+        display: flex; align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem; flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+    .proj-head h1 {
+        font-size: 1.55rem; font-weight: 700;
+        color: var(--text-strong); margin: 0 0 .25rem;
+    }
+    .proj-head .subtitle {
+        color: var(--text-soft); font-size: .85rem; margin: 0;
+    }
 
-    /* Card wrapper */
-    .pl-card {
-        background: #222;
-        border: 1px solid rgba(255,255,255,.06);
-        border-radius: 14px;
-        padding: 1.5rem;
-        margin-bottom: 1.25rem;
-    }
-    .pl-card h2 {
-        font-size: .95rem; font-weight: 700; color: #8B5CF6;
-        margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem;
-    }
-    .pl-card h2 i { font-size: .8rem; }
-
-    /* Form fields */
-    .pl-card label {
-        display: block; font-size: .72rem; font-weight: 600;
-        text-transform: uppercase; letter-spacing: .04em;
-        color: #555; margin-bottom: .25rem;
-    }
-    .pl-card input, .pl-card textarea {
-        width: 100%; padding: .55rem .75rem;
-        background: #1a1a1a !important; border: 1px solid rgba(255,255,255,.08) !important;
-        border-radius: 8px; color: #e0e0e0; font-size: .85rem;
-        font-family: 'Manrope', sans-serif;
-        outline: none; transition: border-color .2s;
-    }
-    .pl-card input:focus, .pl-card textarea:focus {
-        border-color: #8B5CF6 !important;
-        box-shadow: 0 0 0 3px rgba(139,92,246,.1);
-    }
-    .pl-card textarea { resize: vertical; min-height: 60px; }
-    .pl-form-grid { display: grid; gap: .75rem; margin-bottom: 1rem; }
-    .pl-form-actions { display: flex; gap: .5rem; }
-
-    /* Buttons */
-    .pl .btn {
-        display: inline-flex; align-items: center; gap: .35rem;
-        padding: .5rem 1rem; border-radius: 8px;
-        font-size: .8rem; font-weight: 600;
-        font-family: 'Manrope', sans-serif;
-        border: none !important; outline: none !important;
+    /* Кнопки */
+    .g-btn {
+        display: inline-flex; align-items: center;
+        gap: .4rem; padding: .55rem 1.1rem;
+        border-radius: 8px; font-size: .82rem;
+        font-weight: 600; font-family: var(--font);
+        border: none; outline: none;
         cursor: pointer; transition: all .15s;
-        text-decoration: none !important; white-space: nowrap;
+        white-space: nowrap; color: #fff;
+        text-decoration: none;
     }
-    .pl .btn:hover { transform: translateY(-1px); }
-    .pl .btn-primary { background: #8B5CF6 !important; color: #fff !important; }
-    .pl .btn-primary:hover { box-shadow: 0 4px 16px rgba(139,92,246,.3); }
-    .pl .btn-secondary { background: #333 !important; color: #aaa !important; }
-    .pl .btn-secondary:hover { color: #fff !important; }
-    .pl .btn-success { background: #059669 !important; color: #fff !important; }
-    .pl .btn-docs { background: #7c3aed !important; color: #fff !important; }
-    .pl .btn-gantt { background: rgba(245,158,11,.12) !important; color: #fbbf24 !important; }
-    .pl .btn-gantt:hover { background: rgba(245,158,11,.2) !important; }
-    .pl .btn-danger { background: rgba(239,68,68,.12) !important; color: #f87171 !important; }
-    .pl .btn-danger:hover { background: rgba(239,68,68,.2) !important; }
-    .pl .btn i { font-size: .72rem; }
+    .g-btn:hover { transform: translateY(-1px); }
+    .g-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .g-btn-primary { background: var(--accent); }
+    .g-btn-primary:hover {
+        background: var(--accent-hover);
+        box-shadow: 0 4px 16px rgba(139,92,246,.3);
+    }
+    .g-btn-secondary {
+        background: var(--surface-2); color: var(--text);
+        border: 1px solid var(--border-2);
+    }
+    .g-btn-secondary:hover {
+        background: var(--surface-3); border-color: var(--border-3);
+    }
+    .g-btn-danger {
+        background: rgba(248,113,113,.12);
+        color: var(--danger);
+    }
+    .g-btn-danger:hover { background: rgba(248,113,113,.2); }
 
-    .pl-msg {
-        margin-top: .5rem; font-size: .82rem; display: none;
-        padding: .4rem .75rem; border-radius: 6px;
+    /* Сетка проектов — 3 в ряд */
+    .projects-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1.5rem;
+    }
+    @media (max-width: 1100px) {
+        .projects-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 720px) {
+        .projects-grid { grid-template-columns: 1fr; }
     }
 
-    /* Project cards */
-    .pl-projects { display: grid; gap: .75rem; }
-    .pl-project {
-        background: #1a1a1a;
-        border: 1px solid rgba(255,255,255,.06);
-        border-radius: 10px;
-        padding: 1rem 1.25rem;
-        transition: border-color .2s;
+    /* Карточка проекта */
+    .proj-tile {
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        padding: 1.75rem 1.75rem 1.4rem;
+        display: flex; flex-direction: column;
+        gap: .85rem;
+        transition: all .2s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        min-height: 260px;
+        text-decoration: none;
+        color: inherit;
     }
-    .pl-project:hover { border-color: rgba(139,92,246,.2); }
-    .pl-project-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: .65rem; }
-    .pl-project-name { font-weight: 700; color: #fff; font-size: .95rem; margin: 0; }
-    .pl-project-desc { color: #777; font-size: .82rem; margin: .2rem 0; }
-    .pl-project-date { color: #444; font-size: .72rem; }
-    .pl-project-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
-
-    .pl-empty {
-        text-align: center; padding: 2.5rem 1rem; color: #444;
+    .proj-tile::before {
+        content: '';
+        position: absolute; top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-soft), transparent 90%);
+        opacity: 0;
+        transition: opacity .25s;
     }
-    .pl-empty i { font-size: 2rem; margin-bottom: .75rem; display: block; color: #333; }
-    .pl-empty p { font-size: .85rem; }
+    .proj-tile:hover {
+        border-color: rgba(139,92,246,.45);
+        background: var(--surface-2);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 32px rgba(0,0,0,.3);
+        color: inherit;
+    }
+    .proj-tile:hover::before { opacity: 1; }
+    .proj-tile-head {
+        display: flex; align-items: flex-start;
+        justify-content: space-between; gap: .75rem;
+    }
+    .proj-tile-icon {
+        width: 50px; height: 50px; border-radius: 12px;
+        background: var(--accent-tint); color: var(--accent-soft);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.2rem;
+        border: 1px solid rgba(139,92,246,.22);
+        flex-shrink: 0;
+    }
+    .proj-tile-badge {
+        font-size: .62rem; font-weight: 700;
+        letter-spacing: .05em; text-transform: uppercase;
+        border-radius: 5px; padding: .15rem .5rem;
+        border: 1px solid currentColor;
+        white-space: nowrap;
+    }
+    .proj-tile-badge.hidden { color: var(--text-faint); }
+    .proj-tile-badge.active { color: var(--success); }
+    .proj-tile-name {
+        font-size: 1.2rem; font-weight: 700;
+        color: var(--text-strong); line-height: 1.3;
+        display: -webkit-box; -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical; overflow: hidden;
+        word-break: break-word; margin: 0;
+    }
+    .proj-tile-customer {
+        font-size: .85rem; color: var(--accent-soft);
+        font-weight: 600; display: flex;
+        align-items: center; gap: .35rem;
+    }
+    .proj-tile-customer i { font-size: .8rem; }
+    .proj-tile-desc {
+        font-size: .85rem; color: var(--text-soft);
+        line-height: 1.55;
+        display: -webkit-box; -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical; overflow: hidden;
+        min-height: 2.6em;
+    }
+    .proj-tile-spacer { flex: 1; }
+    .proj-tile-footer {
+        display: flex; align-items: center;
+        justify-content: space-between; gap: .5rem;
+        padding-top: .9rem;
+        border-top: 1px solid var(--border-1);
+    }
+    .proj-tile-meta {
+        font-size: .75rem; color: var(--text-faint);
+        display: flex; align-items: center; gap: .35rem;
+        flex-wrap: wrap;
+    }
+    .proj-tile-meta i { color: var(--accent-soft); }
+    .proj-tile-arrow {
+        width: 34px; height: 34px; border-radius: 8px;
+        background: var(--surface-2);
+        border: 1px solid var(--border-2);
+        color: var(--text-soft);
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: .85rem;
+        transition: all .2s;
+        flex-shrink: 0;
+    }
+    .proj-tile:hover .proj-tile-arrow {
+        background: var(--accent); border-color: var(--accent); color: #fff;
+        transform: translateX(3px);
+    }
+    .proj-tile-actions {
+        display: flex; gap: .35rem;
+        position: absolute; top: 1.1rem; right: 1.1rem;
+        opacity: 0; transition: opacity .2s;
+    }
+    .proj-tile:hover .proj-tile-actions { opacity: 1; }
+    .proj-tile-action-btn {
+        width: 30px; height: 30px; border-radius: 6px;
+        background: var(--surface-3);
+        border: 1px solid var(--border-2);
+        color: var(--text-soft);
+        display: inline-flex; align-items: center; justify-content: center;
+        cursor: pointer; font-size: .7rem;
+        transition: all .15s;
+    }
+    .proj-tile-action-btn:hover {
+        background: var(--surface-2);
+        color: var(--text-strong);
+        border-color: var(--border-3);
+    }
+    .proj-tile-action-btn.danger:hover {
+        color: var(--danger); border-color: rgba(248,113,113,.3);
+        background: rgba(248,113,113,.1);
+    }
 
-    .pl-loading { text-align: center; padding: 2rem; color: #555; }
-    .pl-loading i { font-size: 1.5rem; margin-bottom: .5rem; display: block; }
+    /* Пустое состояние */
+    .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 4rem 1rem;
+        color: var(--text-faint);
+        font-size: .9rem;
+        border: 1px dashed var(--border-2);
+        border-radius: var(--radius-lg);
+        background: var(--surface-1);
+    }
+    .empty-state i {
+        font-size: 2.5rem; display: block;
+        margin-bottom: 1rem; color: var(--text-faint);
+    }
+    .empty-state h3 {
+        color: var(--text-strong); font-size: 1.1rem;
+        margin: 0 0 .35rem; font-weight: 700;
+    }
+    .empty-state p { margin: 0; }
+
+    /* Модалка */
+    .cr-modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,.72);
+        backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 2000; padding: 1rem;
+        opacity: 0; visibility: hidden;
+        transition: opacity .22s, visibility .22s;
+        overflow-y: auto;
+    }
+    .cr-modal-overlay.open { opacity: 1; visibility: visible; }
+    .cr-modal {
+        position: relative;
+        background: linear-gradient(180deg, var(--surface-1), #171717);
+        border: 1px solid var(--border-3);
+        border-radius: 16px;
+        box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 24px 72px rgba(0,0,0,.65);
+        padding: 1.75rem 1.85rem 1.5rem;
+        max-width: 720px; width: 100%;
+        margin: auto; max-height: 92vh;
+        overflow-y: auto;
+        transform: translateY(14px) scale(.96);
+        transition: transform .22s cubic-bezier(.2,.9,.3,1.1);
+    }
+    .cr-modal-overlay.open .cr-modal { transform: translateY(0) scale(1); }
+    .cr-modal::before {
+        content: ''; position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 4px;
+        background: linear-gradient(180deg, var(--accent), var(--accent-hover));
+        border-radius: 16px 0 0 16px;
+    }
+    .cr-modal-head {
+        display: flex; align-items: flex-start;
+        gap: .85rem; margin-bottom: 1rem;
+    }
+    .cr-modal-icon {
+        width: 44px; height: 44px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        background: var(--accent-tint); color: var(--accent);
+        border: 1px solid rgba(139,92,246,.25);
+        font-size: 1.1rem;
+    }
+    .cr-modal-title {
+        font-size: 1.1rem; font-weight: 700;
+        color: var(--text-strong); margin: 0 0 .2rem;
+    }
+    .cr-modal-sub {
+        font-size: .8rem; color: var(--text-soft); margin: 0;
+    }
+    .cr-section {
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: 1rem 1.2rem; margin-bottom: .9rem;
+    }
+    .cr-section h4 {
+        font-size: .72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .05em;
+        color: var(--accent-soft); margin: 0 0 .75rem;
+    }
+    .cr-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: .75rem;
+    }
+    .cr-row + .cr-row { margin-top: .75rem; }
+    .cr-field { display: flex; flex-direction: column; gap: .25rem; }
+    .cr-field label {
+        font-size: .7rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: .04em;
+        color: var(--text-soft);
+    }
+    .cr-field input,
+    .cr-field select,
+    .cr-field textarea {
+        width: 100% !important;
+        padding: .6rem .8rem !important;
+        background: var(--surface-2) !important;
+        border: 1px solid var(--border-2) !important;
+        border-radius: 8px !important;
+        color: var(--text) !important;
+        font-size: .85rem !important;
+        font-family: var(--font) !important;
+        outline: none !important;
+        transition: border-color .2s, box-shadow .2s !important;
+        color-scheme: dark;
+    }
+    .cr-field textarea { resize: vertical; min-height: 70px; }
+    .cr-field input:focus,
+    .cr-field select:focus,
+    .cr-field textarea:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px var(--accent-tint) !important;
+    }
+    .cr-field .cr-error {
+        font-size: .7rem; color: var(--danger);
+        margin-top: .15rem; display: none;
+    }
+    .cr-field .cr-error.visible { display: block; }
+    .cr-modal-actions {
+        display: flex; justify-content: flex-end;
+        gap: .55rem; flex-wrap: wrap;
+        margin-top: 1.25rem; padding-top: 1rem;
+        border-top: 1px solid var(--border-1);
+    }
+
+    /* Тост */
+    .cr-toast-wrap {
+        position: fixed;
+        top: calc(var(--header-height) + 1rem);
+        right: 1rem; z-index: 3000;
+        display: flex; flex-direction: column;
+        gap: .5rem; pointer-events: none;
+    }
+    .cr-toast {
+        pointer-events: auto;
+        background: var(--surface-1);
+        border: 1px solid var(--border-3);
+        border-left: 3px solid var(--accent);
+        border-radius: var(--radius);
+        padding: .75rem 1rem;
+        font-size: .85rem; color: var(--text);
+        box-shadow: 0 10px 28px rgba(0,0,0,.4);
+        min-width: 260px; max-width: 360px;
+        transform: translateX(120%);
+        transition: transform .25s;
+    }
+    .cr-toast.visible { transform: translateX(0); }
+    .cr-toast.success { border-left-color: var(--success); }
+    .cr-toast.danger  { border-left-color: var(--danger); }
+    .cr-toast.warning { border-left-color: var(--warning); }
+    .cr-toast-title {
+        font-weight: 700; color: var(--text-strong);
+        margin-bottom: .15rem; font-size: .82rem;
+    }
+
+    /* Модалка подтверждения */
+    .cr-modal-sm { max-width: 480px; }
+    .cr-modal.danger::before {
+        background: linear-gradient(180deg, var(--danger), #dc2626);
+    }
+    .cr-modal.danger .cr-modal-icon {
+        background: rgba(248,113,113,.12); color: var(--danger);
+        border-color: rgba(248,113,113,.3);
+    }
+
+    @media (max-width: 640px) {
+        .cr-row { grid-template-columns: 1fr; }
+        .proj-tile { min-height: 200px; }
+    }
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="pl">
-    <h1>Управление проектами</h1>
-    <p class="subtitle">Создание новых проектов, просмотр и управление существующими.</p>
+{% block app_content %}
+<div class="proj-head">
+    <div>
+        <h1>Список проектов</h1>
+        <p class="subtitle">Все созданные проекты рабочей области и быстрый доступ к управлению</p>
+    </div>
+    <button class="g-btn g-btn-primary" onclick="openCreateModal()">
+        <i class="fas fa-plus"></i> Создать проект
+    </button>
+</div>
 
-    <!-- Create project -->
-    <div class="pl-card">
-        <h2><i class="fas fa-plus-circle"></i> Создать новый проект</h2>
-        <form id="createProjectForm">
+<div class="projects-grid" id="projectsGrid">
+    <div class="empty-state" style="grid-column: 1 / -1;">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Загрузка проектов…</p>
+    </div>
+</div>
+
+{# ===================== МОДАЛКА СОЗДАНИЯ ===================== #}
+<div class="cr-modal-overlay" id="createProjectModal" aria-hidden="true">
+    <div class="cr-modal" role="dialog" aria-modal="true">
+        <div class="cr-modal-head">
+            <div class="cr-modal-icon"><i class="fas fa-folder-plus"></i></div>
+            <div style="min-width:0; flex:1;">
+                <h3 class="cr-modal-title">Новый проект</h3>
+                <p class="cr-modal-sub">Введите основную информацию о проекте</p>
+            </div>
+        </div>
+        <form id="createProjectForm" novalidate>
             {% csrf_token %}
-            <div class="pl-form-grid">
-                <div>
-                    <label>Название проекта *</label>
-                    <input type="text" name="name" required placeholder="Введите название проекта">
+            <div class="cr-section">
+                <h4>Основная информация</h4>
+                <div class="cr-row">
+                    <div class="cr-field" style="grid-column: 1 / -1;">
+                        <label>Название проекта *</label>
+                        <input type="text" id="newProjName" required maxlength="150" placeholder="Например: Внедрение CRM">
+                        <div class="cr-error" id="newProjNameError"></div>
+                    </div>
                 </div>
-                <div>
-                    <label>Описание</label>
-                    <textarea name="description" rows="2" placeholder="Краткое описание (необязательно)"></textarea>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Заказчик</label>
+                        <select id="newProjCustomer">
+                            <option value="">— Выберите заказчика —</option>
+                        </select>
+                    </div>
+                    <div class="cr-field">
+                        <label>Ссылка на ТЗ</label>
+                        <input type="url" id="newProjTz" maxlength="300" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Дата начала</label>
+                        <input type="date" id="newProjStartDate">
+                    </div>
+                    <div class="cr-field">
+                        <label>Дата окончания</label>
+                        <input type="date" id="newProjEndDate">
+                    </div>
                 </div>
             </div>
-            <div class="pl-form-actions">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Создать проект</button>
-                <button type="reset" class="btn btn-secondary">Очистить</button>
+            <div class="cr-section">
+                <h4>Описание</h4>
+                <div class="cr-row">
+                    <div class="cr-field" style="grid-column: 1 / -1;">
+                        <label>Описание проекта</label>
+                        <textarea id="newProjDescription" rows="3" maxlength="1000" placeholder="Краткое описание проекта..."></textarea>
+                    </div>
+                </div>
             </div>
-            <div id="createProjectMessage" class="pl-msg"></div>
+            <div class="cr-modal-actions">
+                <button type="button" class="g-btn g-btn-secondary" onclick="closeCreateModal()">Отмена</button>
+                <button type="submit" class="g-btn g-btn-primary" id="createSubmitBtn">
+                    <i class="fas fa-check"></i> Создать проект
+                </button>
+            </div>
         </form>
     </div>
+</div>
 
-    <!-- Project list -->
-    <div class="pl-card">
-        <h2><i class="fas fa-folder-open"></i> Существующие проекты</h2>
-        <div id="projectsList" class="pl-projects">
-            <div class="pl-loading">
-                <i class="fas fa-spinner fa-spin"></i>
-                <p>Загрузка проектов...</p>
+{# ===================== МОДАЛКА УДАЛЕНИЯ ===================== #}
+<div class="cr-modal-overlay" id="deleteModal" aria-hidden="true">
+    <div class="cr-modal cr-modal-sm danger" role="dialog" aria-modal="true">
+        <div class="cr-modal-head">
+            <div class="cr-modal-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <div style="min-width:0; flex:1;">
+                <h3 class="cr-modal-title">Удалить проект?</h3>
+                <p class="cr-modal-sub">Это действие нельзя отменить</p>
             </div>
+        </div>
+        <p style="color:var(--text-muted); font-size:.9rem; line-height:1.6; margin:0 0 1rem;">
+            Проект <strong style="color:var(--text-strong)" id="deleteProjectName">—</strong> и все его ресурсы будут удалены безвозвратно.
+        </p>
+        <div class="cr-modal-actions">
+            <button type="button" class="g-btn g-btn-secondary" onclick="closeDeleteModal()">Отмена</button>
+            <button type="button" class="g-btn g-btn-danger" onclick="confirmDelete()">
+                <i class="fas fa-trash"></i> Удалить проект
+            </button>
         </div>
     </div>
 </div>
+
+<div class="cr-toast-wrap" id="toastWrap"></div>
 {% endblock %}
 
-{% block extra_js %}
+{% block app_extra_js %}
 <script>
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+(function () {
+    'use strict';
 
-function loadProjects() {
-    fetch('/projects/', { credentials: 'same-origin' })
-        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-        .then(projects => {
-            const el = document.getElementById('projectsList');
-            if (projects.length === 0) {
-                el.innerHTML = '<div class="pl-empty"><i class="fas fa-folder-open"></i><p>У вас пока нет созданных проектов</p></div>';
+    // ============================================================
+    // Утилиты
+    // ============================================================
+    function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s == null ? '' : String(s);
+        return d.innerHTML;
+    }
+    function getCookie(name) {
+        var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? m.pop() : '';
+    }
+    function csrf() {
+        var inp = document.querySelector('[name=csrfmiddlewaretoken]');
+        return (inp && inp.value) ? inp.value : getCookie('csrftoken');
+    }
+    function formatDate(s) {
+        if (!s) return '—';
+        var d = new Date(s);
+        if (isNaN(d)) return '—';
+        return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    function toast(title, text, kind) {
+        var wrap = document.getElementById('toastWrap');
+        var el = document.createElement('div');
+        el.className = 'cr-toast ' + (kind || '');
+        el.innerHTML = '<div class="cr-toast-title">' + esc(title) + '</div><div>' + esc(text || '') + '</div>';
+        wrap.appendChild(el);
+        requestAnimationFrame(function () { el.classList.add('visible'); });
+        setTimeout(function () {
+            el.classList.remove('visible');
+            setTimeout(function () { el.remove(); }, 300);
+        }, 3400);
+    }
+
+    // ============================================================
+    // Загрузка каталога заказчиков
+    // ============================================================
+    var catalogCustomers = [];
+
+    function loadCatalog() {
+        return fetch('/api/catalog/', { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                catalogCustomers = data.customers || [];
+                renderCustomerSelect();
+            })
+            .catch(function () {});
+    }
+
+    function renderCustomerSelect() {
+        var sel = document.getElementById('newProjCustomer');
+        if (!sel) return;
+        var current = sel.value;
+        sel.innerHTML = '<option value="">— Выберите заказчика —</option>';
+        catalogCustomers.forEach(function (c) {
+            var opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name + (c.organization ? ' (' + c.organization + ')' : '');
+            sel.appendChild(opt);
+        });
+        sel.value = current;
+    }
+
+    // ============================================================
+    // Список проектов
+    // ============================================================
+    var projects = [];
+
+    function loadProjects() {
+        return fetch('/api/projects/', { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                projects = data.projects || [];
+                renderProjects();
+            })
+            .catch(function () {
+                projects = [];
+                renderProjects();
+            });
+    }
+
+    function renderProjects() {
+        var grid = document.getElementById('projectsGrid');
+
+        if (!projects.length) {
+            grid.innerHTML = ''
+                + '<div class="empty-state">'
+                +   '<i class="fas fa-folder-open"></i>'
+                +   '<h3>Пока нет ни одного проекта</h3>'
+                +   '<p>Создайте первый проект, чтобы начать работу</p>'
+                + '</div>';
+            return;
+        }
+
+        // Сортировка по updated_at (новые сверху)
+        var sorted = projects.slice().sort(function (a, b) {
+            return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+        });
+
+        grid.innerHTML = sorted.map(function (p) {
+            var hidden = !p.isActive;
+            return ''
+                + '<a class="proj-tile" href="/project/' + p.id + '/">'
+                +   '<div class="proj-tile-head">'
+                +     '<div class="proj-tile-icon"><i class="fas fa-folder"></i></div>'
+                +     '<span class="proj-tile-badge ' + (hidden ? 'hidden' : 'active') + '">'
+                +       (hidden ? 'Скрыт' : 'Активный')
+                +     '</span>'
+                +   '</div>'
+                +   '<h3 class="proj-tile-name">' + esc(p.name || 'Без названия') + '</h3>'
+                +   (p.customer ? '<div class="proj-tile-customer"><i class="fas fa-building"></i> ' + esc(p.customer) + '</div>' : '')
+                +   '<div class="proj-tile-desc">' + esc(p.description || 'Описание не указано') + '</div>'
+                +   '<div class="proj-tile-spacer"></div>'
+                +   '<div class="proj-tile-footer">'
+                +     '<div class="proj-tile-meta">'
+                +       '<i class="fas fa-cubes"></i> ' + (p.resourcesCount || 0) + ' ресурс(ов)'
+                +       (p.startDate ? ' · <i class="fas fa-calendar-plus"></i> ' + formatDate(p.startDate) : '')
+                +     '</div>'
+                +     '<div class="proj-tile-arrow"><i class="fas fa-arrow-right"></i></div>'
+                +   '</div>'
+                +   '<div class="proj-tile-actions">'
+                +     '<button class="proj-tile-action-btn" onclick="event.preventDefault(); event.stopPropagation(); hideProject(' + p.id + ')" title="Скрыть"><i class="fas fa-eye-slash"></i></button>'
+                +     '<button class="proj-tile-action-btn danger" onclick="event.preventDefault(); event.stopPropagation(); openDeleteModal(' + p.id + ')" title="Удалить"><i class="fas fa-trash"></i></button>'
+                +   '</div>'
+                + '</a>';
+        }).join('');
+    }
+
+    // ============================================================
+    // Создание
+    // ============================================================
+    var createModal = document.getElementById('createProjectModal');
+
+    window.openCreateModal = function () {
+        document.getElementById('createProjectForm').reset();
+        document.getElementById('newProjNameError').classList.remove('visible');
+        createModal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        setTimeout(function () { document.getElementById('newProjName').focus(); }, 100);
+    };
+    window.closeCreateModal = function () {
+        createModal.classList.remove('open');
+        if (!document.querySelector('.cr-modal-overlay.open')) document.body.style.overflow = '';
+    };
+    createModal.addEventListener('click', function (e) {
+        if (e.target === createModal) closeCreateModal();
+    });
+
+    document.getElementById('createProjectForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = document.getElementById('newProjName').value.trim();
+        if (!name) {
+            var err = document.getElementById('newProjNameError');
+            err.textContent = 'Введите название проекта';
+            err.classList.add('visible');
+            return;
+        }
+        document.getElementById('newProjNameError').classList.remove('visible');
+
+        var fd = new FormData();
+        fd.append('name', name);
+        fd.append('customer_id', document.getElementById('newProjCustomer').value);
+        fd.append('tz', document.getElementById('newProjTz').value);
+        fd.append('start_date', document.getElementById('newProjStartDate').value);
+        fd.append('end_date', document.getElementById('newProjEndDate').value);
+        fd.append('description', document.getElementById('newProjDescription').value);
+        fd.append('csrfmiddlewaretoken', csrf());
+
+        var btn = document.getElementById('createSubmitBtn');
+        btn.disabled = true;
+
+        fetch('/api/projects/create/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            btn.disabled = false;
+            if (!data.success) {
+                toast('Ошибка', data.error || 'Не удалось создать проект', 'danger');
                 return;
             }
-            el.innerHTML = projects.map(p => `
-                <div class="pl-project">
-                    <div class="pl-project-head">
-                        <div>
-                            <h3 class="pl-project-name">${esc(p.name)}</h3>
-                            <p class="pl-project-desc">${esc(p.description || 'Без описания')}</p>
-                            <span class="pl-project-date">Создан: ${new Date(p.created_at).toLocaleDateString('ru-RU')}</span>
-                        </div>
-                    </div>
-                    <div class="pl-project-actions">
-                        <a href="/project/${p.id}/" class="btn btn-success"><i class="fas fa-cog"></i> Управление</a>
-<a href="/project/${p.id}/generate_documents/" class="btn btn-docs"><i class="fas fa-file-alt"></i> Документы</a>
-                        <button onclick="deleteProject(${p.id})" class="btn btn-danger"><i class="fas fa-trash"></i> Удалить</button>
-                    </div>
-                </div>
-            `).join('');
+            projects.unshift(data.project);
+            closeCreateModal();
+            renderProjects();
+            toast('Проект создан', data.project.name, 'success');
         })
-        .catch(() => {
-            document.getElementById('projectsList').innerHTML = '<div class="pl-empty"><i class="fas fa-exclamation-triangle" style="color:#f87171;"></i><p>Ошибка при загрузке проектов</p></div>';
-        });
-}
-
-const createForm = document.getElementById('createProjectForm');
-if (createForm) {
-    createForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        const resourcesData = localStorage.getItem('createProjectResources');
-        if (resourcesData) formData.append('resources_data', resourcesData);
-
-        const msg = document.getElementById('createProjectMessage');
-        msg.style.display = 'block';
-        msg.style.color = '#888';
-        msg.style.background = 'rgba(255,255,255,.03)';
-        msg.textContent = 'Создаем проект...';
-
-        fetch('/create_projects_resources/', {
-            method: 'POST', body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]')?.value || (document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''))
-            },
-            credentials: 'same-origin'
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                msg.style.color = '#34d399';
-                msg.style.background = 'rgba(52,211,153,.06)';
-                msg.textContent = 'Проект успешно создан!';
-                this.reset();
-                localStorage.removeItem('createProjectResources');
-                loadProjects();
-                setTimeout(() => { msg.style.display = 'none'; }, 3000);
-            } else {
-                msg.style.color = '#f87171';
-                msg.style.background = 'rgba(239,68,68,.06)';
-                msg.textContent = 'Ошибка: ' + (data.error || 'Неизвестная ошибка');
-            }
-        })
-        .catch(() => {
-            msg.style.color = '#f87171';
-            msg.style.background = 'rgba(239,68,68,.06)';
-            msg.textContent = 'Ошибка при создании проекта';
+        .catch(function () {
+            btn.disabled = false;
+            toast('Ошибка сети', '', 'danger');
         });
     });
-}
 
-function deleteProject(id) {
-    if (!confirm('Вы уверены, что хотите удалить этот проект?')) return;
-    fetch(`/project/${id}/delete/`, {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]')?.value || (document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''))
-        },
-        credentials: 'same-origin'
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) loadProjects();
-        else alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
-    })
-    .catch(() => alert('Ошибка при удалении проекта'));
-}
+    // ============================================================
+    // Скрытие
+    // ============================================================
+    window.hideProject = function (id) {
+        var p = projects.find(function (x) { return x.id === id; });
+        if (!p) return;
+        if (!confirm('Скрыть проект «' + p.name + '»?\nОн исчезнет из списка активных.')) return;
 
-loadProjects();
+        var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', csrf());
+        fetch('/api/projects/' + id + '/hide/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                projects = projects.filter(function (x) { return x.id !== id; });
+                renderProjects();
+                toast('Проект скрыт', p.name, 'warning');
+            }
+        });
+    };
+
+    // ============================================================
+    // Удаление
+    // ============================================================
+    var deleteModal = document.getElementById('deleteModal');
+    var deletingId = null;
+
+    window.openDeleteModal = function (id) {
+        var p = projects.find(function (x) { return x.id === id; });
+        if (!p) return;
+        deletingId = id;
+        document.getElementById('deleteProjectName').textContent = p.name;
+        deleteModal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    };
+    window.closeDeleteModal = function () {
+        deleteModal.classList.remove('open');
+        if (!document.querySelector('.cr-modal-overlay.open')) document.body.style.overflow = '';
+    };
+    deleteModal.addEventListener('click', function (e) {
+        if (e.target === deleteModal) closeDeleteModal();
+    });
+
+    window.confirmDelete = function () {
+        if (!deletingId) return;
+        var id = deletingId;
+        var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', csrf());
+        fetch('/api/projects/' + id + '/delete/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                projects = projects.filter(function (x) { return x.id !== id; });
+                renderProjects();
+                closeDeleteModal();
+                toast('Проект удалён', '', 'warning');
+                deletingId = null;
+            }
+        });
+    };
+
+    // ============================================================
+    // Esc
+    // ============================================================
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        if (createModal.classList.contains('open')) closeCreateModal();
+        if (deleteModal.classList.contains('open')) closeDeleteModal();
+    });
+
+    // ============================================================
+    // Init
+    // ============================================================
+    loadCatalog();
+    loadProjects();
+})();
 </script>
 {% endblock %}

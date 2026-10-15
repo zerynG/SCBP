@@ -1,819 +1,2046 @@
-{% extends 'base.html' %}
+{% extends 'base_app.html' %}
 {% load static %}
-{% load l10n %}
 
-{% block title %}Управление проектом: {{ project.name }}{% endblock %}
+{% block title %}{{ project.name }} — Управление проектом{% endblock %}
 
-{% block extra_css %}
+{% block app_extra_css %}
 <style>
-    /* ========================================================
-       PROJECT MANAGE — self-contained dark UI
-       All selectors scoped to .pm to avoid Bootstrap leaks
-       ======================================================== */
-    /* Глобальные body/scrollable стили заданы в base.html + app.css */
+    /* ============================================================
+       PROJECT MANAGE — управление проектом
+       Токены в app.css, сайдбар в sidebar.css.
+       ============================================================ */
 
-    /* === Reset Bootstrap inside .pm === */
-    .pm *, .pm *::before, .pm *::after { box-sizing: border-box; }
-    .pm button, .pm a.pm-btn, .pm input, .pm select, .pm textarea {
-        font-family: 'Manrope', sans-serif;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        appearance: none;
+    /* HEAD */
+    .pm-head {
+        display: flex; align-items: flex-start;
+        justify-content: space-between; gap: 1rem;
+        flex-wrap: wrap; margin-bottom: 1.5rem;
+    }
+    .pm-head h1 {
+        font-size: 1.55rem; font-weight: 700;
+        color: var(--text-strong); margin: 0 0 .25rem;
+    }
+    .pm-head .subtitle {
+        color: var(--text-soft); font-size: .85rem; margin: 0;
     }
 
-    /* === Layout === */
-    .pm { max-width: 1600px; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
+    /* Кнопки */
+    .g-btn {
+        display: inline-flex; align-items: center;
+        gap: .4rem; padding: .55rem 1.1rem;
+        border-radius: 8px; font-size: .82rem;
+        font-weight: 600; font-family: var(--font);
+        border: none; outline: none;
+        cursor: pointer; transition: all .15s;
+        white-space: nowrap; color: #fff;
+        text-decoration: none;
+    }
+    .g-btn:hover { transform: translateY(-1px); }
+    .g-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .g-btn-primary { background: var(--accent); }
+    .g-btn-primary:hover {
+        background: var(--accent-hover);
+        box-shadow: 0 4px 16px rgba(139,92,246,.3);
+    }
+    .g-btn-secondary {
+        background: var(--surface-2); color: var(--text);
+        border: 1px solid var(--border-2);
+    }
+    .g-btn-secondary:hover {
+        background: var(--surface-3); border-color: var(--border-3);
+    }
+    .g-btn-warning {
+        background: rgba(251,191,36,.12); color: var(--warning);
+    }
+    .g-btn-warning:hover { background: rgba(251,191,36,.2); }
+    .g-btn-danger {
+        background: rgba(248,113,113,.12); color: var(--danger);
+    }
+    .g-btn-danger:hover { background: rgba(248,113,113,.2); }
+    .g-btn-edit {
+        background: #f0f08d; color: #1a1a1a;
+    }
+    .g-btn-edit:hover {
+        background: #e6e67a;
+        box-shadow: 0 4px 12px rgba(240,240,141,.15);
+    }
+    .g-btn-sm { padding: .45rem .75rem; font-size: .8rem; }
 
-    /* --- Top grid: project meta + finance --- */
-    .pm-top {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 1.25rem;
+    /* TOP GRID */
+    .pm-top-grid {
+        display: grid; grid-template-columns: 1fr 1fr;
+        gap: 1.25rem; margin-bottom: 1.5rem;
+        align-items: start;
+    }
+    @media (max-width: 1024px) {
+        .pm-top-grid { grid-template-columns: 1fr; }
     }
 
     .pm-card {
-        background: #1a1a1a;
-        border: 1px solid rgba(255,255,255,.06);
-        border-radius: 14px;
-        padding: 1.25rem 1.5rem;
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem 1.65rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .pm-card::before {
+        content: '';
+        position: absolute; top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-soft), var(--accent), transparent 90%);
+        background-size: 200% 100%;
+        animation: pmGradient 6s ease infinite;
+    }
+    @keyframes pmGradient {
+        0%, 100% { background-position: 0% 50%; }
+        50%      { background-position: 100% 50%; }
+    }
+    .pm-card.fin::before {
+        background: linear-gradient(90deg, var(--success), #059669, transparent 90%);
+        animation: none;
+    }
+    .pm-card-head {
+        display: flex; align-items: flex-start;
+        justify-content: space-between; gap: 1rem;
+        flex-wrap: wrap; margin-bottom: 1.1rem;
     }
     .pm-card-title {
-        font-size: .72rem; font-weight: 700; text-transform: uppercase;
-        letter-spacing: .06em; color: #9a9a9a; margin-bottom: .75rem;
+        font-size: 1.25rem; font-weight: 700;
+        color: var(--text-strong); margin: 0 0 .3rem;
+    }
+    .pm-card-sub {
+        color: var(--accent-soft); font-size: .82rem;
+        font-weight: 600; margin: 0;
+        display: flex; align-items: center; gap: .35rem;
+    }
+    .pm-card-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .pm-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem 1.5rem;
+    }
+    .pm-field { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
+    .pm-field-label {
+        font-size: .66rem; text-transform: uppercase;
+        letter-spacing: .04em; color: var(--text-faint);
+        font-weight: 600;
+        display: flex; align-items: center; gap: .35rem;
+    }
+    .pm-field-label i { color: var(--accent-soft); font-size: .7rem; }
+    .pm-field-value {
+        font-size: .9rem; color: var(--text-strong);
+        font-weight: 600; word-break: break-word;
+    }
+    .pm-field-value.muted { color: var(--text-soft); font-weight: 500; }
+    .pm-field-value a { color: var(--accent); }
+    .pm-desc {
+        margin-top: 1.1rem; padding-top: 1.1rem;
+        border-top: 1px solid var(--border-1);
+    }
+    .pm-desc-label {
+        font-size: .66rem; text-transform: uppercase;
+        letter-spacing: .04em; color: var(--text-faint);
+        font-weight: 600; margin-bottom: .5rem;
+        display: flex; align-items: center; gap: .35rem;
+    }
+    .pm-desc-label i { color: var(--accent-soft); font-size: .7rem; }
+    .pm-desc-text {
+        font-size: .88rem; color: var(--text-muted);
+        line-height: 1.65; margin: 0;
+    }
+    .placeholder {
+        color: var(--text-faint); font-style: italic;
+        font-weight: 500; cursor: pointer;
     }
 
-    /* KPI cards */
-    .kpi-row { display: flex; gap: .75rem; flex-wrap: wrap; }
-    .kpi {
-        flex: 1; min-width: 130px;
-        background: #1a1a1a; border: 1px solid rgba(255,255,255,.06);
-        border-radius: 10px; padding: .65rem .85rem; text-align: center;
+    /* FIN CARD */
+    .fin-inputs {
+        display: grid; grid-template-columns: 1fr 1fr;
+        gap: .65rem .9rem; margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border-1);
     }
-    .kpi-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .04em; color: #9a9a9a; margin-bottom: .15rem; }
-    .kpi-value { font-size: 1.1rem; font-weight: 700; color: #fff; }
-    .kpi-value.positive { color: #34d399; }
-    .kpi-value.negative { color: #f87171; }
-
-    /* --- Shared form field --- */
-    .pm .fm { display: flex; flex-direction: column; gap: .2rem; }
-    .pm .fm label {
-        font-size: .68rem; color: #9a9a9a; font-weight: 600;
-        text-transform: uppercase; letter-spacing: .04em;
+    @media (max-width: 640px) {
+        .fin-inputs { grid-template-columns: 1fr; }
     }
-    .pm .fm input,
-    .pm .fm textarea,
-    .pm .fm select {
-        background: #1a1a1a !important;
-        border: 1px solid rgba(255,255,255,.08) !important;
+    .fin-field { display: flex; flex-direction: column; gap: .2rem; }
+    .fin-field label {
+        font-size: .64rem; color: var(--text-soft);
+        font-weight: 600; text-transform: uppercase;
+        letter-spacing: .04em;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .fin-field input {
+        background: var(--bg) !important;
+        border: 1px solid var(--border-2) !important;
         border-radius: 8px !important;
-        color: #e0e0e0 !important;
+        color: var(--text) !important;
         padding: .45rem .65rem !important;
         font-size: .82rem !important;
-        font-family: 'Manrope', sans-serif !important;
-        transition: border-color .2s, box-shadow .2s;
+        font-family: var(--font) !important;
         outline: none !important;
-        box-shadow: none !important;
         width: 100%;
+        color-scheme: dark;
     }
-    .pm .fm input:focus,
-    .pm .fm textarea:focus,
-    .pm .fm select:focus {
-        border-color: #8B5CF6 !important;
-        box-shadow: 0 0 0 3px rgba(139,92,246,.12) !important;
+    .fin-field input:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px var(--accent-tint) !important;
     }
-    .pm .fm textarea { resize: vertical; min-height: 32px; }
-    .pm .fm select {
-        cursor: pointer;
-        padding-right: 1.6rem !important;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E") !important;
-        background-repeat: no-repeat !important;
-        background-position: right .65rem center !important;
-        background-size: 10px 6px !important;
-    }
-    .pm .fm select option { background: #1a1a1a; color: #e0e0e0; }
-    .pm .fm.full { grid-column: 1 / -1; }
-
-    /* Project meta grid */
-    .pm-meta { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .75rem; }
-
-    /* === Buttons — hard override of Bootstrap === */
-    .pm .pm-btn {
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center;
-        gap: .4rem;
-        padding: .5rem 1rem !important;
-        border-radius: 8px !important;
-        font-size: .8rem !important;
-        font-weight: 600 !important;
-        font-family: 'Manrope', sans-serif !important;
-        border: none !important;
-        outline: none !important;
-        box-shadow: none !important;
-        cursor: pointer;
-        transition: background .15s, box-shadow .15s, transform .1s;
-        text-decoration: none !important;
-        white-space: nowrap;
-        line-height: 1.4;
-    }
-    .pm .pm-btn:hover { text-decoration: none !important; transform: translateY(-1px); }
-    .pm .pm-btn:active { transform: translateY(0); }
-    .pm .pm-btn:focus-visible { outline: 2px solid #8B5CF6 !important; outline-offset: 2px; }
-    .pm .pm-btn i { font-size: .75rem; }
-
-    .pm .pm-btn-primary { background: #8B5CF6 !important; color: #fff !important; }
-    .pm .pm-btn-primary:hover { background: #7c3aed !important; box-shadow: 0 4px 16px rgba(139,92,246,.3) !important; }
-
-    .pm .pm-btn-secondary { background: #252525 !important; color: #aaa !important; }
-    .pm .pm-btn-secondary:hover { background: #333 !important; color: #fff !important; }
-
-    .pm .pm-btn-success { background: #059669 !important; color: #fff !important; }
-    .pm .pm-btn-success:hover { background: #047857 !important; box-shadow: 0 4px 16px rgba(5,150,105,.25) !important; }
-
-    .pm .pm-btn-danger { background: #dc2626 !important; color: #fff !important; }
-    .pm .pm-btn-danger:hover { background: #b91c1c !important; }
-    .pm .pm-btn-sm { padding: .25rem .5rem; font-size: .75rem; min-height: auto; }
-
-    /* --- Action bar --- */
-    .pm-actions {
-        display: flex; align-items: center; gap: .5rem;
-        margin-bottom: 1.25rem; flex-wrap: wrap;
-    }
-    .pm-actions .spacer { flex: 1; }
-
-    /* === Summary table === */
-    .pm-table-wrap {
-        background: #1a1a1a;
-        border: 1px solid rgba(255,255,255,.06);
-        border-radius: 14px;
-        overflow: hidden;
-    }
-    .pm-table-header {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: .85rem 1.25rem;
-        border-bottom: 1px solid rgba(255,255,255,.06);
-    }
-    .pm-table-header h3 { font-size: .95rem; font-weight: 700; color: #fff; margin: 0; }
-    .pm-table-header .badge-count {
-        font-size: .7rem; color: #555; background: #222;
-        padding: .2rem .55rem; border-radius: 20px;
-    }
-    .pm-table-scroll { overflow-x: auto; }
-
-    .pm-table {
-        width: 100%; border-collapse: collapse; font-size: .8rem;
-    }
-    .pm-table thead th {
-        background: #151515;
-        color: #555; font-weight: 700; font-size: .65rem;
-        text-transform: uppercase; letter-spacing: .05em;
-        padding: .65rem .6rem;
-        border-bottom: 1px solid rgba(255,255,255,.06);
-        white-space: nowrap;
-        position: sticky; top: 0; z-index: 2;
-    }
-    .pm-table tbody td {
-        padding: .5rem .6rem;
-        border-bottom: 1px solid rgba(255,255,255,.03);
-        vertical-align: middle;
-        color: #bbb;
-    }
-    .pm-table tbody tr { transition: background .12s; }
-    .pm-table tbody tr:hover { background: rgba(255,255,255,.02); }
-
-    /* Type badge */
-    .type-badge {
-        display: inline-block;
-        padding: .2rem .55rem;
-        border-radius: 6px;
-        font-size: .65rem;
-        font-weight: 700;
-        letter-spacing: .02em;
-        white-space: nowrap;
-    }
-    .type-badge.employee { background: rgba(59,130,246,.12); color: #60a5fa; }
-    .type-badge.contractor { background: rgba(245,158,11,.12); color: #fbbf24; }
-    .type-badge.subcontractor { background: rgba(16,185,129,.12); color: #34d399; }
-    .type-badge.equipment { background: rgba(139,92,246,.12); color: #a78bfa; }
-
-    /* === Группировка по типам === */
-    .pm-group-head td {
-        padding: 0 !important; border: none !important;
-        position: sticky; top: 0; z-index: 3; background: #1c1c1c;
-    }
-    .pm-gh {
-        display: flex; align-items: center; gap: .6rem;
-        padding: .6rem .85rem; border-top: 1px solid rgba(255,255,255,.05);
-        border-bottom: 1px solid rgba(255,255,255,.04);
-    }
-    .pm-gh-ic { width: 28px; height: 28px; border-radius: 8px; display: inline-flex;
-        align-items: center; justify-content: center; font-size: .8rem; }
-    .pm-gh-name { font-weight: 800; color: #fff; font-size: .9rem; }
-    .pm-gh-cnt { font-size: .68rem; color: #888; background: rgba(255,255,255,.06);
-        padding: .08rem .5rem; border-radius: 20px; }
-    .pm-gh-sub { margin-left: auto; text-align: right; }
-    .pm-gh-sub .l { display: block; font-size: .58rem; text-transform: uppercase;
-        letter-spacing: .05em; color: #777; }
-    .pm-gh-sub .v { font-size: .9rem; font-weight: 800; color: #fff; }
-    .g-employee .pm-gh-ic { background: rgba(59,130,246,.14); color: #60a5fa; }
-    .g-contractor .pm-gh-ic { background: rgba(245,158,11,.14); color: #fbbf24; }
-    .g-subcontractor .pm-gh-ic { background: rgba(16,185,129,.14); color: #34d399; }
-    .g-equipment .pm-gh-ic { background: rgba(139,92,246,.14); color: #a78bfa; }
-
-    /* Компактная шапка колонок внутри группы */
-    .pm-cols th {
-        background: #131313; color: #555; font-weight: 700; font-size: .62rem;
-        text-transform: uppercase; letter-spacing: .04em; text-align: left;
-        padding: .4rem .6rem; border-bottom: 1px solid rgba(255,255,255,.05);
-        white-space: nowrap;
-    }
-
-    /* Цветовой акцент строки по типу (inset, чтобы не ломать border-collapse) */
-    .resource-row td:first-child { position: relative; }
-    .pm-row-employee td:first-child { box-shadow: inset 3px 0 0 #60a5fa; }
-    .pm-row-contractor td:first-child { box-shadow: inset 3px 0 0 #fbbf24; }
-    .pm-row-subcontractor td:first-child { box-shadow: inset 3px 0 0 #34d399; }
-    .pm-row-equipment td:first-child { box-shadow: inset 3px 0 0 #a78bfa; }
-    .resource-row td { padding-top: .6rem !important; padding-bottom: .6rem !important; }
-    .resource-row .cell-name { font-weight: 600; color: #eee; padding-left: 1rem !important; }
-
-    /* Table inline inputs */
-    .pm-table input[type="text"],
-    .pm-table input[type="number"],
-    .pm-table input[type="date"],
-    .pm-table select {
-        background: transparent !important;
-        border: 1px solid rgba(255,255,255,.06) !important;
-        border-radius: 6px !important;
-        color: #ddd !important;
-        padding: .3rem .4rem !important;
-        font-size: .78rem !important;
-        font-family: 'Manrope', sans-serif !important;
-        width: 100%; min-width: 80px;
-        transition: border-color .2s, box-shadow .2s;
-        outline: none !important;
-        box-shadow: none !important;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        appearance: none;
-    }
-    .pm-table input:focus,
-    .pm-table select:focus {
-        border-color: #8B5CF6 !important;
-        background: rgba(139,92,246,.04) !important;
-        box-shadow: 0 0 0 2px rgba(139,92,246,.1) !important;
-    }
-    .pm-table select {
-        min-width: 120px; cursor: pointer;
-        padding-right: 1.4rem !important;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E") !important;
-        background-repeat: no-repeat !important;
-        background-position: right .4rem center !important;
-        background-size: 10px 6px !important;
-    }
-    .pm-table select option { background: #1a1a1a; color: #ddd; }
-    .pm-table input[type="date"] { min-width: 125px; }
-    .pm-table input[type="number"] { min-width: 55px; }
-    .pm-table .margin-input { max-width: 65px; text-align: right; }
-    .pm-table .hours-input { max-width: 65px; }
-
-    /* Computed cells */
-    .cell-computed { color: #666; white-space: nowrap; }
-    .cell-cost { font-weight: 600; color: #eee; white-space: nowrap; }
-    .cell-final { font-weight: 700; color: #a78bfa; white-space: nowrap; }
-    .rate-unit { font-size: .6rem; color: #444; font-weight: 500; margin-left: 1px; }
-
-    /* Row actions */
-    .row-actions { display: flex; gap: .35rem; align-items: center; justify-content: center; }
-    .row-btn {
-        width: 28px; height: 28px; border-radius: 6px;
-        border: none !important; outline: none !important; box-shadow: none !important;
-        display: inline-flex; align-items: center; justify-content: center;
-        cursor: pointer; transition: all .15s; font-size: .72rem;
-        padding: 0; line-height: 1;
-    }
-    .row-btn-delete { background: rgba(239,68,68,.08); color: #f87171; }
-    .row-btn-delete:hover { background: rgba(239,68,68,.2); color: #fca5a5; }
-
-    /* Auto-save indicator */
-    .save-indicator {
-        display: none;
-        font-size: .6rem; font-weight: 600;
-        color: #34d399; white-space: nowrap;
-        padding: .1rem .35rem; border-radius: 4px;
-        background: rgba(52,211,153,.06);
-    }
-    .save-indicator.visible { display: inline-block; animation: fadeInOut 2s ease forwards; }
-    @keyframes fadeInOut { 0%{opacity:0} 15%{opacity:1} 75%{opacity:1} 100%{opacity:0;display:none} }
-
-    /* Totals footer */
-    .pm-table tfoot td {
-        padding: .75rem .6rem;
-        border-top: 2px solid #8B5CF6;
-        font-weight: 700; color: #fff;
-        background: #151515;
-        font-size: .82rem;
-    }
-
-    /* === Quick-add panel === */
-    .pm-add-panel {
-        background: #1a1a1a;
-        border: 1px solid rgba(255,255,255,.06);
-        border-radius: 14px;
-        margin-top: 1.25rem;
-        overflow: hidden;
-    }
-    .pm-add-tabs {
-        display: flex;
-        border-bottom: 1px solid rgba(255,255,255,.06);
-        background: #151515;
-    }
-    .pm-add-tab {
-        flex: 1;
-        padding: .7rem .5rem;
-        text-align: center;
-        font-size: .75rem; font-weight: 600; color: #555;
-        cursor: pointer;
-        border: none !important; outline: none !important; box-shadow: none !important;
-        background: transparent !important;
-        transition: color .2s, background .2s;
-        font-family: 'Manrope', sans-serif;
-        border-bottom: 2px solid transparent !important;
-    }
-    .pm-add-tab:hover { color: #999; background: rgba(255,255,255,.02) !important; }
-    .pm-add-tab.active {
-        color: #8B5CF6 !important;
-        border-bottom: 2px solid #8B5CF6 !important;
-        background: rgba(139,92,246,.03) !important;
-    }
-    .pm-add-tab i { margin-right: .3rem; }
-
-    .pm-add-content { display: none; padding: 1.25rem 1.5rem; }
-    .pm-add-content.active { display: block; }
-
-    .pm-add-form {
+    .fin-kpi-row {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: .6rem;
+    }
+    .fin-kpi {
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: 10px;
+        padding: .7rem .8rem;
+        text-align: center;
+    }
+    .fin-kpi-label {
+        font-size: .6rem; text-transform: uppercase;
+        letter-spacing: .04em; color: var(--text-soft);
+        margin-bottom: .2rem; font-weight: 600;
+    }
+    .fin-kpi-value {
+        font-size: 1.05rem; font-weight: 700;
+        color: var(--text-strong); white-space: nowrap;
+    }
+    .fin-kpi-value.positive { color: var(--success); }
+    .fin-kpi-value.negative { color: var(--danger); }
+
+    /* SECTIONS */
+    .pm-section {
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem 1.6rem;
+        margin-bottom: 1.5rem;
+    }
+    .pm-section-head {
+        display: flex; align-items: center;
+        justify-content: space-between;
+        gap: 1rem; flex-wrap: wrap;
+        margin-bottom: 1.1rem;
+    }
+    .pm-section-title {
+        font-size: 1rem; font-weight: 700;
+        color: var(--text-strong); margin: 0;
+        display: flex; align-items: center; gap: .55rem;
+    }
+    .pm-section-title i { color: var(--accent-soft); font-size: .9rem; }
+    .pm-section-count {
+        font-size: .72rem; font-weight: 700;
+        color: var(--accent);
+        background: var(--accent-tint);
+        border: 1px solid rgba(139,92,246,.3);
+        border-radius: 6px;
+        padding: .12rem .55rem;
+    }
+    .pm-section-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+
+    /* Переключатель вида */
+    .view-toggle {
+        display: inline-flex;
+        background: var(--surface-2);
+        border: 1px solid var(--border-2);
+        border-radius: 8px;
+        padding: 2px; gap: 2px;
+    }
+    .view-toggle-btn {
+        display: inline-flex; align-items: center;
+        gap: .4rem; padding: .45rem .8rem;
+        border-radius: 6px;
+        background: transparent; border: none;
+        color: var(--text-soft);
+        font-size: .78rem; font-weight: 600;
+        font-family: var(--font); cursor: pointer;
+        transition: all .15s; white-space: nowrap;
+    }
+    .view-toggle-btn:hover {
+        color: var(--text-strong);
+        background: rgba(255,255,255,.03);
+    }
+    .view-toggle-btn.active {
+        background: var(--accent-tint); color: var(--accent);
+    }
+
+    /* Фильтры */
+    .pm-filter-chips {
+        display: flex; gap: .35rem;
+        flex-wrap: wrap; margin-bottom: 1.1rem;
+    }
+    .pm-chip {
+        padding: .4rem .85rem;
+        background: var(--surface-2);
+        border: 1px solid var(--border-2);
+        border-radius: 20px;
+        font-size: .78rem; font-weight: 600;
+        color: var(--text-muted);
+        cursor: pointer; transition: all .15s;
+        font-family: var(--font);
+        display: inline-flex; align-items: center; gap: .35rem;
+    }
+    .pm-chip:hover {
+        background: var(--surface-3); color: var(--text-strong);
+    }
+    .pm-chip.active {
+        background: var(--accent-tint);
+        border-color: rgba(139,92,246,.4);
+        color: var(--accent);
+    }
+    .pm-chip-count {
+        font-size: .68rem; font-weight: 700;
+        color: var(--text-faint);
+    }
+    .pm-chip.active .pm-chip-count { color: var(--accent); }
+
+    /* Список ресурсов */
+    .pm-res-list {
+        display: grid; gap: .65rem;
+        max-height: 720px; overflow-y: auto;
+        padding-right: .35rem;
+    }
+    .pm-res-item {
+        display: flex; align-items: center;
+        gap: 1rem;
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: 1rem 1.15rem;
+        transition: all .18s;
+        min-height: 100px;
+    }
+    .pm-res-item:hover {
+        border-color: rgba(139,92,246,.35);
+        background: var(--surface-2);
+    }
+    .pm-res-icon {
+        width: 42px; height: 42px; border-radius: 10px;
+        background: var(--accent-tint);
+        color: var(--accent-soft);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .95rem; flex-shrink: 0;
+        border: 1px solid rgba(139,92,246,.22);
+    }
+    .pm-res-info { flex: 1; min-width: 0; }
+    .pm-res-name {
+        font-size: .95rem; font-weight: 600;
+        color: var(--text-strong);
+        line-height: 1.35;
+        display: flex; align-items: center;
+        gap: .5rem; flex-wrap: wrap;
+    }
+    .pm-res-type {
+        font-size: .62rem; font-weight: 700;
+        letter-spacing: .05em; text-transform: uppercase;
+        color: var(--accent-soft);
+        background: var(--accent-tint);
+        border-radius: 5px;
+        padding: .1rem .4rem;
+    }
+    .pm-res-details {
+        font-size: .82rem; color: var(--text-soft);
+        margin-top: .25rem; line-height: 1.5;
+        display: flex; flex-wrap: wrap; gap: .35rem .9rem;
+    }
+    .pm-res-details .acc { color: var(--accent-soft); font-weight: 600; }
+    .pm-res-details .val { color: var(--text-soft); }
+    .pm-res-details .hours { color: #60a5fa; font-weight: 600; }
+    .pm-res-margin {
+        display: flex; flex-direction: column;
+        align-items: flex-end; gap: .2rem;
+        flex-shrink: 0; min-width: 110px;
+        text-align: right;
+    }
+    .pm-res-margin-label {
+        font-size: .62rem; text-transform: uppercase;
+        letter-spacing: .04em; color: var(--text-faint);
+        font-weight: 600;
+    }
+    .pm-res-margin-value {
+        font-size: 1.05rem; font-weight: 700;
+        color: var(--success);
+    }
+    .pm-res-margin-value.negative { color: var(--danger); }
+    .pm-res-margin-percent { font-size: .7rem; color: var(--text-soft); }
+    .pm-res-total {
+        display: flex; flex-direction: column;
+        align-items: flex-end; gap: .1rem;
+        flex-shrink: 0; min-width: 130px;
+        text-align: right;
+    }
+    .pm-res-total-label {
+        font-size: .62rem; text-transform: uppercase;
+        letter-spacing: .04em; color: var(--text-faint);
+        font-weight: 600;
+    }
+    .pm-res-total-value {
+        font-size: 1.05rem; font-weight: 700;
+        color: var(--accent-soft);
+    }
+    .pm-res-actions { display: flex; gap: .35rem; flex-shrink: 0; }
+    .pm-icon-btn {
+        width: 32px; height: 32px; border-radius: 8px;
+        background: var(--surface-2);
+        border: 1px solid var(--border-2);
+        color: var(--text-soft);
+        display: inline-flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: all .15s; font-size: .75rem;
+    }
+    .pm-icon-btn:hover {
+        background: var(--surface-3);
+        border-color: var(--border-3);
+        color: var(--text-strong);
+    }
+    .pm-icon-btn.danger:hover {
+        background: rgba(248,113,113,.12);
+        border-color: rgba(248,113,113,.3);
+        color: var(--danger);
+    }
+
+    /* Плитка */
+    .pm-res-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+        max-height: 820px; overflow-y: auto;
+        padding-right: .35rem;
+    }
+    @media (max-width: 1280px) {
+        .pm-res-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 992px) {
+        .pm-res-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+        .pm-res-grid { grid-template-columns: 1fr; }
+    }
+    .pm-res-tile {
+        position: relative;
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: 1.25rem 1.35rem;
+        display: flex; flex-direction: column;
+        gap: .55rem;
+        transition: all .2s;
+        min-height: 260px;
+        overflow: hidden;
+    }
+    .pm-res-tile:hover {
+        border-color: rgba(139,92,246,.45);
+        background: var(--surface-2);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    }
+    .pm-tile-head {
+        display: flex; align-items: flex-start;
+        justify-content: space-between; gap: .5rem;
+    }
+    .pm-tile-icon {
+        width: 52px; height: 52px;
+        border-radius: 12px;
+        background: var(--accent-tint);
+        color: var(--accent-soft);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.25rem;
+        border: 1px solid rgba(139,92,246,.22);
+        flex-shrink: 0;
+    }
+    .pm-tile-actions { display: flex; gap: .25rem; }
+    .pm-tile-actions .pm-icon-btn { width: 34px; height: 34px; font-size: .8rem; }
+    .pm-tile-type {
+        font-size: .68rem; font-weight: 700;
+        letter-spacing: .05em; text-transform: uppercase;
+        color: var(--accent-soft);
+        background: var(--accent-tint);
+        border-radius: 5px;
+        padding: .15rem .5rem;
+        align-self: flex-start;
+    }
+    .pm-tile-name {
+        font-size: 1.15rem; font-weight: 700;
+        color: var(--text-strong);
+        line-height: 1.35;
+        display: -webkit-box; -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical; overflow: hidden;
+        word-break: break-word;
+    }
+    .pm-tile-spacer { flex: 1; }
+    .pm-tile-stats {
+        display: grid; grid-template-columns: 1fr 1fr;
+        gap: .7rem .8rem;
+        padding-top: .75rem;
+        border-top: 1px solid var(--border-1);
+    }
+    .pm-tile-stat { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+    .pm-tile-stat-label {
+        font-size: .68rem; text-transform: uppercase;
+        letter-spacing: .04em; color: var(--text-faint);
+        font-weight: 700;
+    }
+    .pm-tile-stat-value {
+        font-size: 1rem; font-weight: 700;
+        color: var(--text-strong);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pm-tile-stat-value.success { color: var(--success); }
+    .pm-tile-stat-value.accent { color: var(--accent-soft); }
+    .pm-tile-stat-value.negative { color: var(--danger); }
+
+    /* Пустое состояние */
+    .pm-empty {
+        text-align: center;
+        padding: 2.5rem 1rem;
+        color: var(--text-faint);
+        font-size: .85rem;
+        border: 1px dashed var(--border-2);
+        border-radius: var(--radius);
+        background: var(--surface-3);
+    }
+    .pm-empty i {
+        font-size: 1.75rem; display: block;
+        margin-bottom: .5rem; color: var(--text-faint);
+    }
+
+    /* Итоги */
+    .pm-totals {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.25rem;
+        margin: 1.5rem 0;
+        padding: 1.5rem 1.75rem;
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+    }
+    .pm-total-item {
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: 1.1rem 1.25rem;
+    }
+    .pm-total-label {
+        font-size: .65rem; text-transform: uppercase;
+        letter-spacing: .04em; color: var(--text-soft);
+        font-weight: 600; margin-bottom: .55rem;
+        display: flex; align-items: center; gap: .35rem;
+    }
+    .pm-total-label i { color: var(--accent-soft); font-size: .7rem; }
+    .pm-total-value {
+        font-size: 1.3rem; font-weight: 700;
+        color: var(--text-strong);
+    }
+    .pm-total-value.success { color: var(--success); }
+    .pm-total-value.accent { color: var(--accent-soft); }
+
+    /* Модалка */
+    .cr-modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,.72);
+        backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 2000; padding: 1rem;
+        opacity: 0; visibility: hidden;
+        transition: opacity .22s, visibility .22s;
+        overflow-y: auto;
+    }
+    .cr-modal-overlay.open { opacity: 1; visibility: visible; }
+    .cr-modal {
+        position: relative;
+        background: linear-gradient(180deg, var(--surface-1), #171717);
+        border: 1px solid var(--border-3);
+        border-radius: 16px;
+        box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 24px 72px rgba(0,0,0,.65);
+        padding: 1.75rem 1.85rem 1.5rem;
+        max-width: 720px; width: 100%;
+        margin: auto; max-height: 92vh;
+        overflow-y: auto;
+        transform: translateY(14px) scale(.96);
+        transition: transform .22s cubic-bezier(.2,.9,.3,1.1);
+    }
+    .cr-modal-overlay.open .cr-modal { transform: translateY(0) scale(1); }
+    .cr-modal::before {
+        content: ''; position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 4px;
+        background: linear-gradient(180deg, var(--accent), var(--accent-hover));
+        border-radius: 16px 0 0 16px;
+    }
+    .cr-modal.danger::before {
+        background: linear-gradient(180deg, var(--danger), #dc2626);
+    }
+    .cr-modal-sm { max-width: 480px; }
+    .cr-modal-head {
+        display: flex; align-items: flex-start;
+        gap: .85rem; margin-bottom: 1rem;
+    }
+    .cr-modal-icon {
+        width: 44px; height: 44px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        background: var(--accent-tint); color: var(--accent);
+        border: 1px solid rgba(139,92,246,.25);
+        font-size: 1.1rem;
+    }
+    .cr-modal.danger .cr-modal-icon {
+        background: rgba(248,113,113,.12); color: var(--danger);
+        border-color: rgba(248,113,113,.3);
+    }
+    .cr-modal-title {
+        font-size: 1.1rem; font-weight: 700;
+        color: var(--text-strong); margin: 0 0 .2rem;
+    }
+    .cr-modal-sub {
+        font-size: .8rem; color: var(--text-soft); margin: 0;
+    }
+    .cr-section {
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: 1rem 1.2rem;
+        margin-bottom: .9rem;
+    }
+    .cr-section h4 {
+        font-size: .72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .05em;
+        color: var(--accent-soft); margin: 0 0 .75rem;
+    }
+    .cr-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
         gap: .75rem;
     }
-    .pm-add-form .catalog-row {
-        grid-column: 1 / -1;
-        display: flex; gap: .75rem; align-items: flex-end;
-        padding-bottom: .85rem;
-        border-bottom: 1px solid rgba(255,255,255,.05);
-        margin-bottom: .35rem;
+    .cr-row + .cr-row { margin-top: .75rem; }
+    .cr-field { display: flex; flex-direction: column; gap: .25rem; }
+    .cr-field label {
+        font-size: .7rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: .04em;
+        color: var(--text-soft);
     }
-    .pm-add-form .catalog-row .fm { flex: 1; }
-    .pm-add-form .fm-row {
-        display: flex; gap: .5rem; align-items: center;
-        grid-column: 1 / -1;
+    .cr-field input, .cr-field select, .cr-field textarea {
+        width: 100% !important;
+        padding: .6rem .8rem !important;
+        background: var(--surface-2) !important;
+        border: 1px solid var(--border-2) !important;
+        border-radius: 8px !important;
+        color: var(--text) !important;
+        font-size: .85rem !important;
+        font-family: var(--font) !important;
+        outline: none !important;
+        color-scheme: dark;
+    }
+    .cr-field textarea { resize: vertical; min-height: 70px; }
+    .cr-field input:focus, .cr-field select:focus, .cr-field textarea:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px var(--accent-tint) !important;
+    }
+    .cr-modal-actions {
+        display: flex; justify-content: flex-end;
+        gap: .55rem; flex-wrap: wrap;
+        margin-top: 1.25rem; padding-top: 1rem;
+        border-top: 1px solid var(--border-1);
+    }
+
+    /* Выбор ресурса */
+    .res-pick-list {
+        display: grid; gap: .5rem;
+        max-height: 380px; overflow-y: auto;
+        padding-right: .25rem;
+    }
+    .res-pick-item {
+        display: flex; align-items: center; gap: .85rem;
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: .85rem 1rem;
+        cursor: pointer;
+        transition: all .15s;
+    }
+    .res-pick-item:hover {
+        border-color: rgba(139,92,246,.4);
+        background: var(--surface-2);
+    }
+    .res-pick-item.selected {
+        border-color: var(--accent);
+        background: var(--accent-tint);
+    }
+    .res-pick-icon {
+        width: 36px; height: 36px; border-radius: 8px;
+        background: var(--accent-tint);
+        color: var(--accent-soft);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .85rem; flex-shrink: 0;
+        border: 1px solid rgba(139,92,246,.22);
+    }
+    .res-pick-info { flex: 1; min-width: 0; }
+    .res-pick-name {
+        font-size: .9rem; font-weight: 600;
+        color: var(--text-strong); line-height: 1.3;
+    }
+    .res-pick-details {
+        font-size: .78rem; color: var(--text-soft); margin-top: .15rem;
+    }
+    .res-pick-check {
+        width: 22px; height: 22px; border-radius: 6px;
+        border: 2px solid var(--border-3);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; color: transparent; font-size: .65rem;
+        transition: all .15s;
+    }
+    .res-pick-item.selected .res-pick-check {
+        background: var(--accent); border-color: var(--accent); color: #fff;
+    }
+
+    /* Период */
+    .period-info {
         margin-top: .75rem;
-        padding-top: .75rem;
-        border-top: 1px solid rgba(255,255,255,.04);
+        padding: .75rem 1rem;
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        font-size: .82rem; color: var(--text-soft);
+        display: none;
+    }
+    .period-info.visible { display: block; }
+    .period-info-row {
+        display: flex; flex-wrap: wrap; gap: .5rem 1.5rem;
+    }
+    .period-info-row span strong { color: var(--text-strong); }
+
+    /* Тосты */
+    .cr-toast-wrap {
+        position: fixed;
+        top: calc(var(--header-height) + 1rem);
+        right: 1rem; z-index: 3000;
+        display: flex; flex-direction: column;
+        gap: .5rem; pointer-events: none;
+    }
+    .cr-toast {
+        pointer-events: auto;
+        background: var(--surface-1);
+        border: 1px solid var(--border-3);
+        border-left: 3px solid var(--accent);
+        border-radius: var(--radius);
+        padding: .75rem 1rem;
+        font-size: .85rem; color: var(--text);
+        box-shadow: 0 10px 28px rgba(0,0,0,.4);
+        min-width: 260px; max-width: 360px;
+        transform: translateX(120%);
+        transition: transform .25s;
+    }
+    .cr-toast.visible { transform: translateX(0); }
+    .cr-toast.success { border-left-color: var(--success); }
+    .cr-toast.danger  { border-left-color: var(--danger); }
+    .cr-toast.warning { border-left-color: var(--warning); }
+    .cr-toast-title {
+        font-weight: 700; color: var(--text-strong);
+        margin-bottom: .15rem; font-size: .82rem;
     }
 
-    /* --- Responsive --- */
-    @media (max-width: 1024px) {
-        .pm-top { grid-template-columns: 1fr; }
-        .pm-meta { grid-template-columns: 1fr; }
+    /* Документы */
+    .doc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.25rem;
     }
-    @media (max-width: 768px) {
-        .pm { padding: 1rem .75rem; }
-        .kpi-row { flex-direction: column; }
-        .pm-add-form { grid-template-columns: 1fr; }
-        .pm-add-tabs { flex-wrap: wrap; }
-        .pm-add-tab { flex: 1 1 45%; }
+    .doc-card {
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: 1.25rem 1.3rem;
+        display: flex; flex-direction: column;
+        gap: .65rem;
+        transition: all .25s;
+        position: relative;
+        overflow: hidden;
+    }
+    .doc-card:hover {
+        border-color: var(--border-3);
+        background: var(--surface-2);
+    }
+    .doc-icon {
+        width: 44px; height: 44px; border-radius: 10px;
+        background: var(--accent-tint);
+        color: var(--accent-soft);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.05rem;
+        border: 1px solid rgba(139,92,246,.22);
+    }
+    .doc-title {
+        font-size: .95rem; font-weight: 700;
+        color: var(--text-strong); margin: 0;
+    }
+    .doc-desc {
+        font-size: .8rem; color: var(--text-soft);
+        margin: 0; line-height: 1.5;
+    }
+    .doc-actions {
+        display: flex; gap: .4rem; flex-wrap: wrap;
+        margin-top: .35rem;
     }
 
-    /* Empty state */
-    .empty-state { text-align: center; padding: 3rem 1rem; color: #444; }
-    .empty-state i { font-size: 2rem; margin-bottom: .75rem; display: block; color: #333; }
-    .empty-state p { font-size: .85rem; }
-
-    /* Resource name cell */
-    .cell-name { font-weight: 600; color: #eee; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+    /* Адаптив */
+    @media (max-width: 800px) {
+        .pm-res-item { flex-wrap: wrap; }
+        .pm-res-margin, .pm-res-total {
+            align-items: flex-start; text-align: left; min-width: 0;
+        }
+    }
+    @media (max-width: 640px) {
+        .cr-row { grid-template-columns: 1fr; }
+        .pm-totals { grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1.25rem; }
+    }
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="pm">
-    <!-- === TOP: Project info + KPIs === -->
-    <form method="post" action="{% url 'project_manage' project.id %}" id="projectForm">
-        {% csrf_token %}
-        <input type="hidden" name="form_type" value="update_project">
+{% block app_content %}
+{# ==================== JSON для JS ==================== #}
+{{ calendars_json|json_script:'pm-calendars' }}
+{{ catalog_json|json_script:'pm-catalog' }}
+{{ overrides_json|json_script:'pm-overrides' }}
+{{ services_json|json_script:'pm-services' }}
+{{ employee_schedule_json|json_script:'pm-schedule' }}
+{{ project_json|json_script:'pm-project' }}
 
-        <div class="pm-top">
-            <!-- Left: Project meta -->
-            <div class="pm-card">
-                <div class="pm-card-title">Проект</div>
-                <div class="pm-meta">
-                    <div class="fm">
-                        <label>Название</label>
-                        <input type="text" name="name" value="{{ project.name }}" required>
-                    </div>
-                    <div class="fm">
-                        <label>Заказчик</label>
-                        <input type="text" name="customer" value="{{ project.customer }}">
-                    </div>
-                    <div class="fm">
-                        <label>Статус</label>
-                        <input type="text" name="status" value="{{ project.status }}" placeholder="В работе">
-                    </div>
-                    <div class="fm">
-                        <label>ТЗ (ссылка)</label>
-                        <input type="url" name="technical_task_url" value="{{ project.technical_task_url }}" placeholder="https://...">
-                    </div>
-                    <div class="fm">
-                        <label>Дата начала</label>
-                        <input type="date" name="start_date" value="{{ project.start_date|date:'Y-m-d' }}">
-                    </div>
-                    <div class="fm">
-                        <label>Дата окончания</label>
-                        <input type="date" name="end_date" value="{{ project.end_date|date:'Y-m-d' }}">
-                    </div>
-                    <div class="fm full">
-                        <label>Описание</label>
-                        <textarea name="description" rows="1">{{ project.description }}</textarea>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right: Financial KPIs -->
-            <div class="pm-card">
-                <div class="pm-card-title">Финансовые показатели</div>
-                <div class="pm-meta" style="margin-bottom:.75rem;">
-                    <div class="fm">
-                        <label for="pm-tax-rate" title="Страховые взносы на ФОТ. Начисляются ТОЛЬКО на оклад штатных сотрудников и входят в себестоимость. По умолчанию 0.">Страховые взносы на ФОТ (%)</label>
-                        <input id="pm-tax-rate" type="number" step="0.01" min="0" max="999.99" name="tax_rate" value="{{ project.tax_rate|unlocalize }}">
-                    </div>
-                    <div class="fm">
-                        <label for="pm-margin" title="Наценка к себестоимости ресурса (рентабельность).">Наценка / рентабельность (%)</label>
-                        <input id="pm-margin" type="number" step="0.01" min="0" max="999.99" name="margin" value="{{ project.margin|unlocalize }}">
-                    </div>
-                    <div class="fm">
-                        <label for="pm-vat-rate" title="НДС на итоговую цену (output). Начисляется один раз на цену с наценкой, в прибыль не входит. По умолчанию 0 (напр. УСН без НДС).">НДС (%)</label>
-                        <input id="pm-vat-rate" type="number" step="0.01" min="0" max="999.99" name="vat_rate" value="{{ project.vat_rate|unlocalize }}">
-                    </div>
-                    <div class="fm">
-                        <label for="pm-wh-per-day" title="Количество рабочих часов в одном рабочем дне. Используется для отображения часов сотрудника и для расчёта оборудования при базе «рабочие часы».">Часов в дне (КЧЧ)</label>
-                        <input id="pm-wh-per-day" type="number" step="0.01" min="0.01" max="24" name="work_hours_per_day" value="{{ project.work_hours_per_day|unlocalize }}">
-                    </div>
-                    {% comment %}
-                        «Дней в месяце (fallback)» и «База часов оборудования» убраны из UI:
-                        календари обновляются регулярно, а оборудование всегда считается по
-                        календарным дням периода. Значения хранятся как hidden, чтобы расчёт
-                        и форма продолжали работать.
-                    {% endcomment %}
-                    <input type="hidden" name="working_days_per_month_fallback" value="{{ project.working_days_per_month_fallback|default:22 }}">
-                    <input type="hidden" name="equipment_hour_basis" value="calendar">
-                </div>
-                <div class="kpi-row">
-                    <div class="kpi">
-                        <div class="kpi-label">Себестоимость</div>
-                        <div class="kpi-value" id="finance-base-cost">{{ base_cost|floatformat:2 }} ₽</div>
-                    </div>
-                    <div class="kpi">
-                        <div class="kpi-label">Цена без НДС</div>
-                        <div class="kpi-value" id="finance-final-price">{{ final_price|floatformat:2 }} ₽</div>
-                    </div>
-                    <div class="kpi">
-                        <div class="kpi-label">Чистая прибыль</div>
-                        <div class="kpi-value {% if net_profit >= 0 %}positive{% else %}negative{% endif %}" id="finance-net-profit">{{ net_profit|floatformat:2 }} ₽</div>
-                    </div>
-                    <div class="kpi" id="finance-vat-card"{% if not project.vat_rate %} style="display:none;"{% endif %}>
-                        <div class="kpi-label">НДС</div>
-                        <div class="kpi-value" id="finance-vat">{{ vat_amount|floatformat:2 }} ₽</div>
-                    </div>
-                    <div class="kpi" id="finance-price-with-vat-card"{% if not project.vat_rate %} style="display:none;"{% endif %}>
-                        <div class="kpi-label">Цена с НДС</div>
-                        <div class="kpi-value" id="finance-price-with-vat">{{ price_with_vat|floatformat:2 }} ₽</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Action bar -->
-        <div class="pm-actions">
-            <button type="submit" class="pm-btn pm-btn-primary">
-                <i class="fas fa-save"></i> Сохранить проект
-            </button>
-            <a href="{% url 'generate_documents' project.id %}" class="pm-btn pm-btn-success">
-                <i class="fas fa-file-alt"></i> Документы
-            </a>
-            <span class="spacer"></span>
-            <a href="{% url 'index' %}" class="pm-btn pm-btn-secondary">
-                <i class="fas fa-arrow-left"></i> Назад
-            </a>
-        </div>
-    </form>
-
-    <!-- Hidden forms for resource override AJAX-save (rendered outside the table to keep valid HTML) -->
-    {% for r in resources %}
-    <form id="update-{{ r.resource_type }}-{{ r.resource_id }}"
-          method="post"
-          action="{% url 'update_resource' project.id %}"
-          hidden>
-        {% csrf_token %}
-        <input type="hidden" name="resource_type" value="{{ r.resource_type }}">
-        <input type="hidden" name="resource_id" value="{{ r.resource_id }}">
-    </form>
-    {% endfor %}
-
-    <!-- === SUMMARY TABLE === -->
-    <div class="pm-table-wrap">
-        <div class="pm-table-header">
-            <h3>Ресурсы проекта</h3>
-            <span class="badge-count">{{ resources|length }} ресурс(ов)</span>
-        </div>
-        <div class="pm-table-scroll">
-            {% if resources %}
-            <table class="pm-table">
-                {% regroup resources by resource_type as type_groups %}
-                {% for g in type_groups %}
-                <tbody class="pm-group g-{{ g.grouper }}">
-                    <tr class="pm-group-head">
-                        <td colspan="11">
-                            <div class="pm-gh">
-                                <span class="pm-gh-ic"><i class="fas fa-{% if g.grouper == 'employee' %}user{% elif g.grouper == 'contractor' %}user-tie{% elif g.grouper == 'subcontractor' %}building{% else %}server{% endif %}"></i></span>
-                                <span class="pm-gh-name">{% if g.grouper == 'employee' %}Сотрудники{% elif g.grouper == 'contractor' %}Исполнители{% elif g.grouper == 'subcontractor' %}Подрядчики{% else %}Оборудование{% endif %}</span>
-                                <span class="pm-gh-cnt">{{ g.list|length }}</span>
-                                <span class="pm-gh-sub"><span class="l">Подытог · итого</span><span class="v" id="subtotal-{{ g.grouper }}">—</span></span>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr class="pm-cols">
-                        <th>Название</th>
-                        <th>Услуга</th>
-                        <th>Наценка %</th>
-                        <th>Начало</th>
-                        <th>Окончание</th>
-                        <th>Раб. дни</th>
-                        <th>Часы</th>
-                        <th>Ставка</th>
-                        <th>Себестоимость</th>
-                        <th>Итого</th>
-                        <th style="width:70px;"></th>
-                    </tr>
-                    {% for r in g.list %}
-                    <tr class="resource-row pm-row-{{ r.resource_type }}"
-                        data-resource-type="{{ r.resource_type }}"
-                        data-resource-id="{{ r.resource_id }}"
-                        data-tax-rate="{{ project.tax_rate|default:0|unlocalize }}"
-                        data-working-days-per-month="22"
-                        data-base-monthly-cost="{{ r.base_monthly_cost|default:''|unlocalize }}"
-                        data-base-estimated-cost="{{ r.base_estimated_cost|default:''|unlocalize }}"
-                        data-base-estimated-hours="{{ r.base_estimated_hours|default:'' }}"
-                        data-base-contract-amount="{{ r.base_contract_amount|default:''|unlocalize }}"
-                        data-base-total-cost="{{ r.base_total_cost|default:''|unlocalize }}"
-                        data-base-total-monthly-cost="{{ r.base_total_monthly_cost|default:''|unlocalize }}"
-                        data-has-monthly-cost="{{ r.has_monthly_cost|default:False }}"
-                        data-hourly-rate="{{ r.hourly_rate|default:''|unlocalize }}"
-                        data-pricing-type="{{ r.pricing_type|default:'month' }}"
-                        data-rate="{{ r.rate|default:''|unlocalize }}"
-                        data-quantity="{{ r.quantity|default:1 }}">
-
-                        <td class="cell-name">{{ r.name }}</td>
-                        <td>
-                            <select name="service"
-                                    aria-label="Услуга для {{ r.name }}"
-                                    form="update-{{ r.resource_type }}-{{ r.resource_id }}">
-                                <option value="">—</option>
-                                {% for svc in services %}
-                                {% if svc.applies_to == 'any' or svc.applies_to == r.resource_type or r.service_id == svc.id %}
-                                <option value="{{ svc.id }}" {% if r.service_id == svc.id %}selected{% endif %}>{{ svc.name }}</option>
-                                {% endif %}
-                                {% endfor %}
-                            </select>
-                        </td>
-                        <td>
-                            <input type="number" step="0.01" name="resource_margin"
-                                   class="margin-input"
-                                   aria-label="Маржа в процентах для {{ r.name }}"
-                                   placeholder="по проекту"
-                                   title="Оставьте пустым, чтобы использовать маржу проекта. Введите 0 для явного 0%."
-                                   form="update-{{ r.resource_type }}-{{ r.resource_id }}"
-                                   value="{{ r.margin_percent|default_if_none:''|unlocalize }}">
-                        </td>
-                        <td>
-                            <input type="date" name="work_start_date"
-                                   aria-label="Дата начала работ для {{ r.name }}"
-                                   form="update-{{ r.resource_type }}-{{ r.resource_id }}"
-                                   value="{% if r.start_date %}{{ r.start_date|date:'Y-m-d' }}{% endif %}">
-                        </td>
-                        <td>
-                            <input type="date" name="work_end_date"
-                                   aria-label="Дата окончания работ для {{ r.name }}"
-                                   form="update-{{ r.resource_type }}-{{ r.resource_id }}"
-                                   value="{% if r.end_date %}{{ r.end_date|date:'Y-m-d' }}{% endif %}">
-                        </td>
-                        <td class="cell-computed">
-                            <span class="js-work-days">{{ r.work_days|default:"—" }}</span>
-                        </td>
-                        <td>
-                            {% if r.resource_type == 'contractor' %}
-                                <input type="number" name="working_hours"
-                                       class="hours-input editable-hours"
-                                       aria-label="Количество рабочих часов для {{ r.name }}"
-                                       form="update-{{ r.resource_type }}-{{ r.resource_id }}"
-                                       value="{{ r.work_hours|default_if_none:'' }}"
-                                       min="0" step="1">
-                            {% elif r.resource_type == 'subcontractor' and r.pricing_type == 'hourly' %}
-                                <input type="number" name="working_hours"
-                                       class="hours-input editable-hours"
-                                       aria-label="Количество рабочих часов для {{ r.name }}"
-                                       form="update-{{ r.resource_type }}-{{ r.resource_id }}"
-                                       value="{{ r.work_hours|default_if_none:'' }}"
-                                       min="0" step="1">
-                            {% else %}
-                                <span class="cell-computed js-work-hours">{{ r.work_hours|default:"—" }}</span>
-                            {% endif %}
-                        </td>
-                        <td class="cell-computed">
-                            <span class="js-monthly-cost">
-                                {% if r.monthly_cost %}
-                                    {{ r.monthly_cost|floatformat:2 }} ₽<span class="rate-unit">{% if r.resource_type == 'employee' %}/мес{% elif r.resource_type == 'contractor' %}/час{% elif r.resource_type == 'subcontractor' %}{% if r.pricing_type == 'hourly' %}/час{% else %}/фикс{% endif %}{% elif r.resource_type == 'equipment' %}/{% if r.pricing_type == 'day' %}дн{% elif r.pricing_type == 'hour' %}час{% elif r.pricing_type == 'minute' %}мин{% else %}мес{% endif %}{% endif %}</span>
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </span>
-                        </td>
-                        <td class="cell-cost">
-                            <span class="js-cost">
-                                {% if r.cost %}{{ r.cost|floatformat:2 }} ₽{% else %}—{% endif %}
-                            </span>
-                        </td>
-                        <td class="cell-final">
-                            <span class="js-final-cost">
-                                {% if r.final_cost %}{{ r.final_cost|floatformat:2 }} ₽{% else %}—{% endif %}
-                            </span>
-                        </td>
-                        <td>
-                            <div class="row-actions">
-                                <span class="save-indicator" data-indicator="{{ r.resource_type }}-{{ r.resource_id }}">Saved</span>
-                                {% if r.delete_name and r.delete_id %}
-                                <form method="post" action="{% url r.delete_name project.id r.delete_id %}" style="display:inline;">
-                                    {% csrf_token %}
-                                    <button type="submit" class="row-btn row-btn-delete"
-                                            title="Удалить"
-                                            onclick="return confirm('Удалить ресурс?')">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-                {% endfor %}
-                <tfoot>
-                    <tr>
-                        <td colspan="8" style="text-align:right;font-size:.75rem;letter-spacing:.03em;">ИТОГО ПО ПРОЕКТУ:</td>
-                        <td id="tfoot-base-cost">{{ base_cost|floatformat:2 }} ₽</td>
-                        <td id="tfoot-final-cost">{{ final_price|floatformat:2 }} ₽</td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-            </table>
-            {% else %}
-            <div class="empty-state">
-                <i class="fas fa-box-open"></i>
-                <p>Ресурсы не добавлены. Используйте панель ниже для добавления.</p>
-            </div>
-            {% endif %}
-        </div>
+{# ==================== HEAD ==================== #}
+<div class="pm-head">
+    <div>
+        <h1>Управление проектом</h1>
+        <p class="subtitle">Ресурсы проекта, маржинальность, сроки и итоговая стоимость</p>
     </div>
-
-    <!-- === QUICK-ADD PANEL === -->
-    <div class="pm-add-panel">
-        <div class="pm-add-tabs">
-            <button type="button" class="pm-add-tab active" data-tab="add-employee">
-                <i class="fas fa-users"></i> Сотрудник
-            </button>
-            <button type="button" class="pm-add-tab" data-tab="add-contractor">
-                <i class="fas fa-user-tie"></i> Исполнитель
-            </button>
-            <button type="button" class="pm-add-tab" data-tab="add-subcontractor">
-                <i class="fas fa-building"></i> Подрядчик
-            </button>
-            <button type="button" class="pm-add-tab" data-tab="add-equipment">
-                <i class="fas fa-tools"></i> Оборудование
-            </button>
-        </div>
-
-        <!-- Add Employee -->
-        <div class="pm-add-content active" id="add-employee">
-            <form method="post" action="{% url 'add_employee' project.id %}" id="addEmployeeForm">
-                {% csrf_token %}
-                <input type="hidden" name="name" id="emp_name">
-                <input type="hidden" name="position" id="emp_position">
-                <input type="hidden" name="monthly_salary" id="emp_salary">
-                <div class="pm-add-form">
-                    <div class="catalog-row">
-                        <div class="fm" style="flex:1;">
-                            <label>Выберите сотрудника из каталога</label>
-                            <select id="catalogEmployeeSelect"></select>
-                        </div>
-                        <button type="button" class="pm-btn pm-btn-primary" id="fillEmployeeFromCatalogBtn"><i class="fas fa-plus"></i> Добавить</button>
-                        <a href="{% url 'create_projects_resources' %}" class="pm-btn pm-btn-secondary"><i class="fas fa-database"></i> Каталог ресурсов</a>
-                    </div>
-                </div>
-            </form>
-        </div>
-
-        <!-- Add Contractor -->
-        <div class="pm-add-content" id="add-contractor">
-            <form method="post" action="{% url 'add_contractor' project.id %}" id="addContractorForm">
-                {% csrf_token %}
-                <input type="hidden" name="name">
-                <input type="hidden" name="contract_type" value="gph">
-                <input type="hidden" name="hourly_rate">
-                <input type="hidden" name="estimated_hours" value="1">
-                <input type="hidden" name="actual_hours" value="0">
-                <div class="pm-add-form">
-                    <div class="catalog-row">
-                        <div class="fm" style="flex:1;">
-                            <label>Выберите исполнителя из каталога</label>
-                            <select id="catalogExecutorSelect"></select>
-                        </div>
-                        <button type="button" class="pm-btn pm-btn-primary" id="fillContractorFromCatalogBtn"><i class="fas fa-plus"></i> Добавить</button>
-                        <a href="{% url 'create_projects_resources' %}" class="pm-btn pm-btn-secondary"><i class="fas fa-database"></i> Каталог ресурсов</a>
-                    </div>
-                </div>
-            </form>
-        </div>
-
-        <!-- Add Subcontractor -->
-        <div class="pm-add-content" id="add-subcontractor">
-            <form method="post" action="{% url 'add_subcontractor' project.id %}" id="addSubcontractorForm">
-                {% csrf_token %}
-                <input type="hidden" name="name">
-                <input type="hidden" name="entity_type" value="individual">
-                <input type="hidden" name="pricing_type" id="sub_pricing_type" value="fixed">
-                <input type="hidden" name="contract_amount" id="sub_contract_amount">
-                <input type="hidden" name="hourly_rate" id="sub_hourly_rate">
-                <input type="hidden" name="estimated_hours" id="sub_estimated_hours">
-                <input type="hidden" name="contract_date">
-                <input type="hidden" name="work_description" value="Из каталога">
-                <div class="pm-add-form">
-                    <div class="catalog-row">
-                        <div class="fm" style="flex:1;">
-                            <label>Выберите подрядчика из каталога</label>
-                            <select id="catalogSubcontractorSelect"></select>
-                        </div>
-                        <button type="button" class="pm-btn pm-btn-primary" id="fillSubcontractorFromCatalogBtn"><i class="fas fa-plus"></i> Добавить</button>
-                        <a href="{% url 'create_projects_resources' %}" class="pm-btn pm-btn-secondary"><i class="fas fa-database"></i> Каталог ресурсов</a>
-                    </div>
-                </div>
-            </form>
-        </div>
-
-        <!-- Add Equipment -->
-        <div class="pm-add-content" id="add-equipment">
-            <form method="post" action="{% url 'add_equipment' project.id %}" id="addEquipmentForm">
-                {% csrf_token %}
-                <input type="hidden" name="name">
-                <input type="hidden" name="pricing_type" value="month">
-                <input type="hidden" name="operational_cost">
-                <input type="hidden" name="cost">
-                <input type="hidden" name="model">
-                <input type="hidden" name="manufacturer">
-                <input type="hidden" name="quantity" value="1">
-                <input type="hidden" name="purchase_date">
-                <div class="pm-add-form">
-                    <div class="catalog-row">
-                        <div class="fm" style="flex:1;">
-                            <label>Выберите оборудование из каталога</label>
-                            <select id="catalogEquipmentSelect"></select>
-                        </div>
-                        <button type="button" class="pm-btn pm-btn-primary" id="fillEquipmentFromCatalogBtn"><i class="fas fa-plus"></i> Добавить</button>
-                        <a href="{% url 'create_projects_resources' %}" class="pm-btn pm-btn-secondary"><i class="fas fa-database"></i> Каталог ресурсов</a>
-                    </div>
-                </div>
-            </form>
-        </div>
-
+    <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+        <a href="{% url 'project_list' %}" class="g-btn g-btn-secondary">
+            <i class="fas fa-arrow-left"></i> К списку проектов
+        </a>
+        <button class="g-btn g-btn-warning" onclick="hideProject()">
+            <i class="fas fa-eye-slash"></i> Скрыть
+        </button>
+        <button class="g-btn g-btn-danger" onclick="openDeleteModal()">
+            <i class="fas fa-trash"></i> Удалить проект
+        </button>
     </div>
 </div>
+
+{# ==================== ПРОЕКТ + ФИНАНСЫ ==================== #}
+<div class="pm-top-grid">
+    <section class="pm-card">
+        <div class="pm-card-head">
+            <div style="min-width:0; flex:1;">
+                <h2 class="pm-card-title" id="projTitle">{{ project.name }}</h2>
+                <p class="pm-card-sub">
+                    <i class="fas fa-building"></i>
+                    <span id="projCustomer">{{ project.customer.name|default:'Заказчик не указан' }}</span>
+                </p>
+            </div>
+            <div class="pm-card-actions">
+                <button class="g-btn g-btn-edit g-btn-sm" onclick="openProjectEditModal()">
+                    <i class="fas fa-pen"></i> Редактировать
+                </button>
+            </div>
+        </div>
+        <div class="pm-card-grid">
+            <div class="pm-field">
+                <div class="pm-field-label"><i class="fas fa-file-alt"></i> Техническое задание</div>
+                <div class="pm-field-value" id="projTz">
+                    {% if project.technical_task_url %}
+                        <a href="{{ project.technical_task_url }}" target="_blank" rel="noopener">{{ project.technical_task_url }}</a>
+                    {% else %}
+                        <span class="placeholder" onclick="openProjectEditModal()">Указать ссылку на ТЗ</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="pm-field">
+                <div class="pm-field-label"><i class="fas fa-calendar-plus"></i> Дата начала</div>
+                <div class="pm-field-value" id="projStartDate">
+                    {% if project.start_date %}{{ project.start_date|date:"d.m.Y" }}{% else %}<span class="placeholder" onclick="openProjectEditModal()">Не указана</span>{% endif %}
+                </div>
+            </div>
+            <div class="pm-field">
+                <div class="pm-field-label"><i class="fas fa-calendar-check"></i> Дата окончания</div>
+                <div class="pm-field-value" id="projEndDate">
+                    {% if project.end_date %}{{ project.end_date|date:"d.m.Y" }}{% else %}<span class="placeholder" onclick="openProjectEditModal()">Не указана</span>{% endif %}
+                </div>
+            </div>
+            <div class="pm-field">
+                <div class="pm-field-label"><i class="fas fa-clock"></i> Длительность</div>
+                <div class="pm-field-value muted" id="projDuration">—</div>
+            </div>
+        </div>
+        <div class="pm-desc">
+            <div class="pm-desc-label"><i class="fas fa-align-left"></i> Описание проекта</div>
+            <p class="pm-desc-text" id="projDesc">
+                {% if project.description %}{{ project.description }}{% else %}<span class="placeholder" onclick="openProjectEditModal()">Описание не указано. Нажмите, чтобы добавить.</span>{% endif %}
+            </p>
+        </div>
+    </section>
+
+    <section class="pm-card fin">
+        <h3 class="pm-card-title" style="font-size:.95rem; margin-bottom:1rem;"><i class="fas fa-chart-line" style="color:var(--success);"></i> Финансовые показатели</h3>
+        <div class="fin-inputs">
+            <div class="fin-field">
+                <label for="fin-tax-rate" title="Только на ФОТ сотрудников">Страховые взносы на ФОТ (%)</label>
+                <input id="fin-tax-rate" type="number" step="0.01" min="0" max="999.99"
+                       value="{{ project.tax_rate|default:0 }}">
+            </div>
+            <div class="fin-field">
+                <label for="fin-margin">Наценка / рентабельность (%)</label>
+                <input id="fin-margin" type="number" step="0.01" min="0" max="999.99"
+                       value="{{ project.margin|default:0 }}">
+            </div>
+            <div class="fin-field">
+                <label for="fin-vat-rate">НДС (%)</label>
+                <input id="fin-vat-rate" type="number" step="0.01" min="0" max="999.99"
+                       value="{{ project.vat_rate|default:0 }}">
+            </div>
+            <div class="fin-field">
+                <label for="fin-wh-per-day">Часов в дне (КЧЧ)</label>
+                <input id="fin-wh-per-day" type="number" step="0.01" min="0.01" max="24"
+                       value="{{ project.work_hours_per_day|default:8 }}">
+            </div>
+        </div>
+        <div class="fin-kpi-row">
+            <div class="fin-kpi">
+                <div class="fin-kpi-label">Себестоимость</div>
+                <div class="fin-kpi-value" id="fin-base-cost">{{ base_cost|floatformat:2 }} ₽</div>
+            </div>
+            <div class="fin-kpi">
+                <div class="fin-kpi-label">Цена без НДС</div>
+                <div class="fin-kpi-value" id="fin-final-price">{{ final_price|floatformat:2 }} ₽</div>
+            </div>
+            <div class="fin-kpi">
+                <div class="fin-kpi-label">Чистая прибыль</div>
+                <div class="fin-kpi-value {% if net_profit >= 0 %}positive{% else %}negative{% endif %}" id="fin-net-profit">{{ net_profit|floatformat:2 }} ₽</div>
+            </div>
+            <div class="fin-kpi" id="fin-vat-card" {% if not project.vat_rate %}style="display:none;"{% endif %}>
+                <div class="fin-kpi-label">НДС</div>
+                <div class="fin-kpi-value" id="fin-vat">{{ vat_amount|floatformat:2 }} ₽</div>
+            </div>
+            <div class="fin-kpi" id="fin-price-with-vat-card" {% if not project.vat_rate %}style="display:none;"{% endif %}>
+                <div class="fin-kpi-label">Цена с НДС</div>
+                <div class="fin-kpi-value" id="fin-price-with-vat">{{ price_with_vat|floatformat:2 }} ₽</div>
+            </div>
+        </div>
+    </section>
+</div>
+
+{# ==================== ИТОГИ ==================== #}
+<section class="pm-totals">
+    <div class="pm-total-item">
+        <div class="pm-total-label"><i class="fas fa-cubes"></i> Ресурсов в проекте</div>
+        <div class="pm-total-value" id="totalResCount">{{ resources|length }}</div>
+    </div>
+    <div class="pm-total-item">
+        <div class="pm-total-label"><i class="fas fa-ruble-sign"></i> Себестоимость</div>
+        <div class="pm-total-value" id="totalCost">{{ base_cost|floatformat:0 }} ₽</div>
+    </div>
+    <div class="pm-total-item">
+        <div class="pm-total-label"><i class="fas fa-chart-line"></i> Маржинальность</div>
+        <div class="pm-total-value accent" id="totalMargin">{{ net_profit|floatformat:0 }} ₽</div>
+    </div>
+    <div class="pm-total-item">
+        <div class="pm-total-label"><i class="fas fa-tag"></i> Стоимость для заказчика</div>
+        <div class="pm-total-value success" id="totalPrice">{{ final_price|floatformat:0 }} ₽</div>
+    </div>
+</section>
+
+{# ==================== РЕСУРСЫ ==================== #}
+<section class="pm-section">
+    <div class="pm-section-head">
+        <h2 class="pm-section-title">
+            <i class="fas fa-layer-group"></i> Ресурсы проекта
+            <span class="pm-section-count" id="resCountBadge">{{ resources|length }}</span>
+        </h2>
+        <div class="pm-section-actions">
+            <div class="view-toggle" role="group">
+                <button type="button" class="view-toggle-btn active" data-view="list" onclick="setResView('list')"><i class="fas fa-list"></i> Список</button>
+                <button type="button" class="view-toggle-btn" data-view="grid" onclick="setResView('grid')"><i class="fas fa-th-large"></i> Плитка</button>
+            </div>
+            <button class="g-btn g-btn-primary g-btn-sm" onclick="openAddResourceModal()">
+                <i class="fas fa-plus"></i> Добавить ресурс
+            </button>
+        </div>
+    </div>
+    <div class="pm-filter-chips" id="resFilterChips">
+        <button class="pm-chip active" data-filter="all"><i class="fas fa-th"></i> Все <span class="pm-chip-count" id="cntAll">{{ resources|length }}</span></button>
+        <button class="pm-chip" data-filter="employee"><i class="fas fa-user-tie"></i> Сотрудники <span class="pm-chip-count" id="cntEmployee">0</span></button>
+        <button class="pm-chip" data-filter="contractor"><i class="fas fa-user"></i> Исполнители <span class="pm-chip-count" id="cntContractor">0</span></button>
+        <button class="pm-chip" data-filter="subcontractor"><i class="fas fa-building"></i> Подрядчики <span class="pm-chip-count" id="cntSubcontractor">0</span></button>
+        <button class="pm-chip" data-filter="customer"><i class="fas fa-handshake"></i> Заказчики <span class="pm-chip-count" id="cntCustomer">0</span></button>
+        <button class="pm-chip" data-filter="equipment"><i class="fas fa-tools"></i> Оборудование <span class="pm-chip-count" id="cntEquipment">0</span></button>
+    </div>
+    <div id="resViewList">
+        <div class="pm-res-list" id="projectResList"></div>
+    </div>
+    <div id="resViewGrid" style="display:none;">
+        <div class="pm-res-grid" id="projectResGrid"></div>
+    </div>
+</section>
+
+{# ==================== ДОКУМЕНТЫ ==================== #}
+<section class="pm-section">
+    <div class="pm-section-head">
+        <h2 class="pm-section-title"><i class="fas fa-file-contract"></i> Формирование документов</h2>
+    </div>
+    <div class="doc-grid">
+        <div class="doc-card">
+            <div class="doc-icon"><i class="fas fa-file-invoice"></i></div>
+            <h3 class="doc-title">НМА</h3>
+            <p class="doc-desc">Нематериальные активы — документ для постановки на учёт.</p>
+            <div class="doc-actions">
+                <a class="g-btn g-btn-secondary g-btn-sm" href="{% url 'download_nma_pdf' project.id %}">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+                <a class="g-btn g-btn-secondary g-btn-sm" href="{% url 'download_nma_excel' project.id %}">
+                    <i class="fas fa-file-excel"></i> Excel
+                </a>
+                <a class="g-btn g-btn-secondary g-btn-sm" href="{% url 'download_nma_word' project.id %}">
+                    <i class="fas fa-file-word"></i> Word
+                </a>
+            </div>
+        </div>
+        <div class="doc-card">
+            <div class="doc-icon"><i class="fas fa-file-signature"></i></div>
+            <h3 class="doc-title">Коммерческое предложение</h3>
+            <p class="doc-desc">Сформировать КП для заказчика на основе ресурсов проекта.</p>
+            <div class="doc-actions">
+                <a class="g-btn g-btn-secondary g-btn-sm" href="{% url 'download_proposal_pdf' project.id %}">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+                <a class="g-btn g-btn-secondary g-btn-sm" href="{% url 'download_proposal_excel' project.id %}">
+                    <i class="fas fa-file-excel"></i> Excel
+                </a>
+                <a class="g-btn g-btn-secondary g-btn-sm" href="{% url 'download_proposal_word' project.id %}">
+                    <i class="fas fa-file-word"></i> Word
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+{# ==================== МОДАЛКА: РЕДАКТИРОВАНИЕ ПРОЕКТА ==================== #}
+<div class="cr-modal-overlay" id="projectEditModal" aria-hidden="true">
+    <div class="cr-modal" role="dialog" aria-modal="true">
+        <div class="cr-modal-head">
+            <div class="cr-modal-icon"><i class="fas fa-pen"></i></div>
+            <div style="min-width:0; flex:1;">
+                <h3 class="cr-modal-title">Редактирование проекта</h3>
+                <p class="cr-modal-sub">Основные данные проекта</p>
+            </div>
+        </div>
+        <form id="projectEditForm" novalidate>
+            {% csrf_token %}
+            <div class="cr-section">
+                <h4>Основная информация</h4>
+                <div class="cr-row">
+                    <div class="cr-field" style="grid-column: 1 / -1;">
+                        <label>Название проекта *</label>
+                        <input type="text" id="editProjName" required maxlength="150">
+                    </div>
+                </div>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Заказчик</label>
+                        <select id="editProjCustomer">
+                            <option value="">— Не выбран —</option>
+                        </select>
+                    </div>
+                    <div class="cr-field">
+                        <label>Ссылка на ТЗ</label>
+                        <input type="url" id="editProjTz" maxlength="300" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Дата начала</label>
+                        <input type="date" id="editProjStartDate">
+                    </div>
+                    <div class="cr-field">
+                        <label>Дата окончания</label>
+                        <input type="date" id="editProjEndDate">
+                    </div>
+                </div>
+            </div>
+            <div class="cr-section">
+                <h4>Описание</h4>
+                <div class="cr-row">
+                    <div class="cr-field" style="grid-column: 1 / -1;">
+                        <label>Описание проекта</label>
+                        <textarea id="editProjDescription" rows="3" maxlength="1000"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="cr-modal-actions">
+                <button type="button" class="g-btn g-btn-secondary" onclick="closeProjectEditModal()">Отмена</button>
+                <button type="submit" class="g-btn g-btn-edit"><i class="fas fa-save"></i> Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ==================== МОДАЛКА: ДОБАВЛЕНИЕ РЕСУРСА ==================== #}
+<div class="cr-modal-overlay" id="addResourceModal" aria-hidden="true">
+    <div class="cr-modal" role="dialog" aria-modal="true" style="max-width:780px;">
+        <div class="cr-modal-head">
+            <div class="cr-modal-icon"><i class="fas fa-plus"></i></div>
+            <div style="min-width:0; flex:1;">
+                <h3 class="cr-modal-title">Добавить ресурс в проект</h3>
+                <p class="cr-modal-sub">Выберите ресурс из каталога рабочей области</p>
+            </div>
+        </div>
+
+        <div class="cr-section">
+            <h4>Выберите ресурс</h4>
+            <div style="margin-bottom:.75rem;">
+                <input type="search" id="resPickSearch" placeholder="Поиск по имени..." style="width:100%; padding:.55rem .8rem; background:var(--surface-2); border:1px solid var(--border-2); border-radius:8px; color:var(--text); font-size:.85rem; font-family:var(--font); outline:none;">
+            </div>
+            <div class="pm-filter-chips" id="resPickFilterChips">
+                <button class="pm-chip active" data-filter="all">Все</button>
+                <button class="pm-chip" data-filter="employee">Сотрудники</button>
+                <button class="pm-chip" data-filter="contractor">Исполнители</button>
+                <button class="pm-chip" data-filter="subcontractor">Подрядчики</button>
+                <button class="pm-chip" data-filter="customer">Заказчики</button>
+                <button class="pm-chip" data-filter="equipment">Оборудование</button>
+            </div>
+            <div class="res-pick-list" id="resPickList"></div>
+        </div>
+
+        <div class="cr-modal-actions">
+            <button type="button" class="g-btn g-btn-secondary" onclick="closeAddResourceModal()">Отмена</button>
+            <button type="button" class="g-btn g-btn-primary" id="pickResourceNextBtn" disabled onclick="goToResourceSettings()">
+                Далее <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+{# ==================== МОДАЛКА: НАСТРОЙКА РЕСУРСА ==================== #}
+<div class="cr-modal-overlay" id="resourceSettingsModal" aria-hidden="true">
+    <div class="cr-modal" role="dialog" aria-modal="true">
+        <div class="cr-modal-head">
+            <div class="cr-modal-icon"><i class="fas fa-cog"></i></div>
+            <div style="min-width:0; flex:1;">
+                <h3 class="cr-modal-title">Настройка ресурса</h3>
+                <p class="cr-modal-sub" id="resourceSettingsSub">—</p>
+            </div>
+        </div>
+        <form id="resourceSettingsForm" novalidate>
+            {% csrf_token %}
+            <input type="hidden" id="settingsResType" value="">
+            <input type="hidden" id="settingsResId" value="">
+
+            <div class="cr-section">
+                <h4>Параметры</h4>
+                <div class="cr-row">
+                    <div class="cr-field" id="marginField">
+                        <label>Маржинальность (%)</label>
+                        <input type="number" id="resMargin" min="0" max="500" step="0.1" value="{{ project.margin|default:0 }}">
+                        <small style="font-size:.7rem; color:var(--text-faint);">Оставьте пустым — возьмётся маржа проекта</small>
+                    </div>
+                    <div class="cr-field">
+                        <label>Услуга</label>
+                        <select id="resService">
+                            <option value="">— Не указана —</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="cr-row" id="quantityRow" style="display:none;">
+                    <div class="cr-field">
+                        <label>Количество</label>
+                        <input type="number" id="resQuantity" min="1" value="1">
+                    </div>
+                </div>
+            </div>
+
+            <div class="cr-section" id="hoursSection" style="display:none;">
+                <h4>Трудозатраты</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Рабочие часы</label>
+                        <input type="number" id="resHours" min="0" step="1" value="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="cr-section">
+                <h4>Сроки</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Дата начала</label>
+                        <input type="date" id="resStartDate">
+                    </div>
+                    <div class="cr-field">
+                        <label>Дата окончания</label>
+                        <input type="date" id="resEndDate">
+                    </div>
+                </div>
+                <div class="cr-row">
+                    <div class="cr-field" style="grid-column: 1 / -1;">
+                        <label style="display:flex; align-items:center; gap:.5rem; cursor:pointer; text-transform:none; letter-spacing:0; font-size:.8rem;">
+                            <input type="checkbox" id="resUseProjectDates" style="width:auto!important; margin:0;">
+                            Использовать даты проекта
+                        </label>
+                    </div>
+                </div>
+                <div class="period-info" id="periodInfo">
+                    <div class="period-info-row">
+                        <span><i class="fas fa-calendar-day" style="color:var(--accent-soft);"></i> Дней всего: <strong id="periodTotalDays">0</strong></span>
+                        <span><i class="fas fa-briefcase" style="color:var(--success);"></i> Рабочих: <strong id="periodWorkDays">0</strong></span>
+                        <span><i class="fas fa-umbrella-beach" style="color:var(--warning);"></i> Выходных: <strong id="periodWeekendDays">0</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cr-modal-actions">
+                <button type="button" class="g-btn g-btn-secondary" onclick="backToPickResource()">
+                    <i class="fas fa-arrow-left"></i> Назад
+                </button>
+                <button type="button" class="g-btn g-btn-secondary" onclick="closeResourceSettingsModal()">Отмена</button>
+                <button type="submit" class="g-btn g-btn-primary" id="saveResourceBtn">
+                    <i class="fas fa-check"></i> Добавить в проект
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ==================== МОДАЛКА: УДАЛЕНИЕ ПРОЕКТА ==================== #}
+<div class="cr-modal-overlay" id="deleteProjectModal" aria-hidden="true">
+    <div class="cr-modal cr-modal-sm danger" role="dialog" aria-modal="true">
+        <div class="cr-modal-head">
+            <div class="cr-modal-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <div style="min-width:0; flex:1;">
+                <h3 class="cr-modal-title">Удалить проект?</h3>
+                <p class="cr-modal-sub">Это действие нельзя отменить</p>
+            </div>
+        </div>
+        <p style="color:var(--text-muted); font-size:.9rem; line-height:1.6; margin:0 0 1rem;">
+            Проект <strong style="color:var(--text-strong)" id="deleteProjectName">{{ project.name }}</strong> и все его ресурсы будут удалены безвозвратно.
+        </p>
+        <div class="cr-modal-actions">
+            <button type="button" class="g-btn g-btn-secondary" onclick="closeDeleteModal()">Отмена</button>
+            <button type="button" class="g-btn g-btn-danger" onclick="confirmDeleteProject()"><i class="fas fa-trash"></i> Удалить проект</button>
+        </div>
+    </div>
+</div>
+
+{# ==================== МОДАЛКА: УДАЛЕНИЕ РЕСУРСА ==================== #}
+<div class="cr-modal-overlay" id="deleteResourceModal" aria-hidden="true">
+    <div class="cr-modal cr-modal-sm danger" role="dialog" aria-modal="true">
+        <div class="cr-modal-head">
+            <div class="cr-modal-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <div style="min-width:0; flex:1;">
+                <h3 class="cr-modal-title">Удалить ресурс из проекта?</h3>
+                <p class="cr-modal-sub">Это действие нельзя отменить</p>
+            </div>
+        </div>
+        <p style="color:var(--text-muted); font-size:.9rem; line-height:1.6; margin:0 0 1rem;" id="deleteResText"></p>
+        <div class="cr-modal-actions">
+            <button type="button" class="g-btn g-btn-secondary" onclick="closeDeleteResourceModal()">Отмена</button>
+            <button type="button" class="g-btn g-btn-danger" onclick="confirmDeleteResource()"><i class="fas fa-trash"></i> Удалить</button>
+        </div>
+    </div>
+</div>
+
+<div class="cr-toast-wrap" id="toastWrap"></div>
 {% endblock %}
 
-{% block extra_js %}
-{{ calendars_json|json_script:'pm-calendars' }}
-{{ employee_schedule_json|json_script:'pm-schedule' }}
-{{ catalog_db_json|json_script:'pm-catalog-db' }}
+{% block app_extra_js %}
 <script>
-    window.__PM_CONFIG__ = {
-        csrfToken: document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
-        projectId: Number('{{ project.id }}'),
-        calendars: JSON.parse(document.getElementById('pm-calendars').textContent || '{}'),
-        employeeSchedule: JSON.parse(document.getElementById('pm-schedule').textContent || '{}'),
-        catalogDb: JSON.parse(document.getElementById('pm-catalog-db').textContent || '{}'),
-        workHoursPerDay: Number('{{ project.work_hours_per_day|unlocalize }}') || 8,
-        equipmentHourBasis: '{{ project.equipment_hour_basis|default:"calendar" }}',
-        workingDaysPerMonthFallback: Number('{{ project.working_days_per_month_fallback|default:22 }}') || 22,
+(function () {
+    'use strict';
+
+    // ============================================================
+    // КОНФИГ
+    // ============================================================
+    var PROJECT_ID = {{ project.id }};
+    var CSRF = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+    var CALENDARS = JSON.parse(document.getElementById('pm-calendars').textContent || '{}');
+    var CATALOG = JSON.parse(document.getElementById('pm-catalog').textContent || '{}');
+    var OVERRIDES = JSON.parse(document.getElementById('pm-overrides').textContent || '[]');
+    var SERVICES = JSON.parse(document.getElementById('pm-services').textContent || '[]');
+    var SCHEDULE = JSON.parse(document.getElementById('pm-schedule').textContent || '{}');
+
+    // ============================================================
+    // Утилиты
+    // ============================================================
+    function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s == null ? '' : String(s);
+        return d.innerHTML;
+    }
+    function fmt(n) { return Math.round(parseFloat(n) || 0).toLocaleString('ru-RU'); }
+    function fmt2(n) { return (parseFloat(n) || 0).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+    function getCookie(name) {
+        var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? m.pop() : '';
+    }
+    function csrf() { return CSRF || getCookie('csrftoken'); }
+
+    function toast(title, text, kind) {
+        var wrap = document.getElementById('toastWrap');
+        var el = document.createElement('div');
+        el.className = 'cr-toast ' + (kind || '');
+        el.innerHTML = '<div class="cr-toast-title">' + esc(title) + '</div><div>' + esc(text || '') + '</div>';
+        wrap.appendChild(el);
+        requestAnimationFrame(function () { el.classList.add('visible'); });
+        setTimeout(function () {
+            el.classList.remove('visible');
+            setTimeout(function () { el.remove(); }, 300);
+        }, 3400);
+    }
+
+    function lockScroll() {
+        document.body.style.overflow = 'hidden';
+    }
+    function unlockScroll() {
+        if (!document.querySelector('.cr-modal-overlay.open')) document.body.style.overflow = '';
+    }
+
+    function countPeriodDays(startStr, endStr) {
+        if (!startStr || !endStr) return { total: 0, work: 0, weekend: 0 };
+        var s = new Date(startStr), e = new Date(endStr);
+        if (isNaN(s) || isNaN(e) || e < s) return { total: 0, work: 0, weekend: 0 };
+        var total = 0, work = 0, weekend = 0;
+        var cur = new Date(s);
+        while (cur <= e) {
+            total++;
+            var d = cur.getDay();
+            if (d === 0 || d === 6) weekend++; else work++;
+            cur.setDate(cur.getDate() + 1);
+        }
+        return { total: total, work: work, weekend: weekend };
+    }
+    function fmtDate(s) {
+        if (!s) return '—';
+        var d = new Date(s);
+        if (isNaN(d)) return '—';
+        return d.toLocaleDateString('ru-RU', {day:'2-digit', month:'long', year:'numeric'});
+    }
+
+    // ============================================================
+    // Тип-метаданные
+    // ============================================================
+    var TYPE_META = {
+        'employee':      { label: 'Сотрудник',     icon: 'fa-user-tie' },
+        'contractor':    { label: 'Исполнитель',   icon: 'fa-user' },
+        'subcontractor': { label: 'Субподрядчик',  icon: 'fa-building' },
+        'customer':      { label: 'Заказчик',      icon: 'fa-handshake' },
+        'equipment':     { label: 'Оборудование',  icon: 'fa-tools' }
     };
+
+    // ============================================================
+    // Данные проекта
+    // ============================================================
+    var project = JSON.parse(document.getElementById('pm-project').textContent || '{}');
+    var PROJECT_ID = project.id;
+    var resources = [];
+    var overridesMap = {};  // "type:id" → override
+    OVERRIDES.forEach(function (o) {
+        overridesMap[o.resource_type + ':' + o.resource_id] = o;
+    });
+
+    // ============================================================
+    // Рендер проекта (шапка)
+    // ============================================================
+    function renderProjectHead() {
+        document.getElementById('projTitle').textContent = project.name || 'Без названия';
+        document.getElementById('projCustomer').textContent = project.customerName || 'Заказчик не указан';
+
+        var tzEl = document.getElementById('projTz');
+        if (project.tz) {
+            tzEl.innerHTML = '<a href="' + esc(project.tz) + '" target="_blank" rel="noopener">' + esc(project.tz) + '</a>';
+        } else {
+            tzEl.innerHTML = '<span class="placeholder" onclick="openProjectEditModal()">Указать ссылку на ТЗ</span>';
+        }
+
+        var startEl = document.getElementById('projStartDate');
+        startEl.innerHTML = project.startDate ? esc(fmtDate(project.startDate)) : '<span class="placeholder" onclick="openProjectEditModal()">Не указана</span>';
+        var endEl = document.getElementById('projEndDate');
+        endEl.innerHTML = project.endDate ? esc(fmtDate(project.endDate)) : '<span class="placeholder" onclick="openProjectEditModal()">Не указана</span>';
+
+        var durEl = document.getElementById('projDuration');
+        if (project.startDate && project.endDate) {
+            var d = countPeriodDays(project.startDate, project.endDate);
+            durEl.textContent = d.total + ' дн. (' + d.work + ' раб. / ' + d.weekend + ' вых.)';
+        } else {
+            durEl.textContent = '—';
+        }
+
+        var descEl = document.getElementById('projDesc');
+        if (project.description) {
+            descEl.textContent = project.description;
+        } else {
+            descEl.innerHTML = '<span class="placeholder" onclick="openProjectEditModal()">Описание не указано. Нажмите, чтобы добавить.</span>';
+        }
+    }
+
+    // ============================================================
+    // Загрузка расчёта с сервера
+    // ============================================================
+    function loadCalculation() {
+        return fetch('/api/projects/' + PROJECT_ID + '/recalculate/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrf(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin',
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                resources = data.rows || [];
+                applyTotals(data.totals);
+                renderResources();
+            }
+        })
+        .catch(function () {});
+    }
+
+    function applyTotals(t) {
+        if (!t) return;
+        document.getElementById('fin-base-cost').textContent = fmt2(t.base_cost) + ' ₽';
+        document.getElementById('fin-final-price').textContent = fmt2(t.final_price) + ' ₽';
+        var np = parseFloat(t.net_profit);
+        var npEl = document.getElementById('fin-net-profit');
+        npEl.textContent = fmt2(np) + ' ₽';
+        npEl.className = 'fin-kpi-value ' + (np >= 0 ? 'positive' : 'negative');
+
+        document.getElementById('totalCost').textContent = fmt(t.base_cost) + ' ₽';
+        document.getElementById('totalPrice').textContent = fmt(t.final_price) + ' ₽';
+        var margin = parseFloat(t.final_price) - parseFloat(t.base_cost);
+        document.getElementById('totalMargin').textContent = fmt(margin) + ' ₽';
+
+        var vatRate = parseFloat(t.vat_rate) || 0;
+        var vatCard = document.getElementById('fin-vat-card');
+        var vatWithCard = document.getElementById('fin-price-with-vat-card');
+        if (vatRate > 0) {
+            vatCard.style.display = '';
+            vatWithCard.style.display = '';
+            document.getElementById('fin-vat').textContent = fmt2(t.vat_amount) + ' ₽';
+            document.getElementById('fin-price-with-vat').textContent = fmt2(t.price_with_vat) + ' ₽';
+        } else {
+            vatCard.style.display = 'none';
+            vatWithCard.style.display = 'none';
+        }
+    }
+
+    // ============================================================
+    // Рендер ресурсов
+    // ============================================================
+    var currentFilter = 'all';
+    var currentView = 'list';
+
+    function renderResources() {
+        var counts = { all: resources.length, employee: 0, contractor: 0, subcontractor: 0, customer: 0, equipment: 0 };
+        resources.forEach(function (r) { if (counts[r.resource_type] !== undefined) counts[r.resource_type]++; });
+        document.getElementById('resCountBadge').textContent = counts.all;
+        document.getElementById('cntAll').textContent = counts.all;
+        document.getElementById('cntEmployee').textContent = counts.employee;
+        document.getElementById('cntContractor').textContent = counts.contractor;
+        document.getElementById('cntSubcontractor').textContent = counts.subcontractor;
+        document.getElementById('cntCustomer').textContent = counts.customer;
+        document.getElementById('cntEquipment').textContent = counts.equipment;
+
+        var filtered = currentFilter === 'all' ? resources : resources.filter(function (r) { return r.resource_type === currentFilter; });
+
+        var listEl = document.getElementById('projectResList');
+        var gridEl = document.getElementById('projectResGrid');
+
+        if (!filtered.length) {
+            var emptyHtml = '<div class="pm-empty"><i class="fas fa-inbox"></i><p>Ресурсов пока нет</p></div>';
+            listEl.innerHTML = emptyHtml;
+            gridEl.innerHTML = emptyHtml;
+            return;
+        }
+
+        listEl.innerHTML = filtered.map(buildResItemHTML).join('');
+        gridEl.innerHTML = filtered.map(buildResTileHTML).join('');
+    }
+
+    function buildResItemHTML(r) {
+        var meta = TYPE_META[r.resource_type] || { label: 'Ресурс', icon: 'fa-cube' };
+        var baseCost = parseFloat(r.cost) || 0;
+        var finalCost = parseFloat(r.final_cost) || 0;
+        var margin = finalCost - baseCost;
+        var marginApplicable = r.resource_type === 'employee' || r.resource_type === 'contractor';
+        var marginPct = r.margin_percent != null ? parseFloat(r.margin_percent) : null;
+        if (marginPct === null && baseCost > 0) {
+            marginPct = (margin / baseCost) * 100;
+        }
+
+        var details = [];
+        details.push('<span class="acc">Себестоимость:</span> <span class="val">' + fmt2(baseCost) + ' ₽</span>');
+        if (r.work_hours != null) {
+            details.push('<span class="acc">Часы:</span> <span class="hours">' + r.work_hours + '</span>');
+        }
+        if (r.start_date && r.end_date) {
+            details.push('<span class="acc">Срок:</span> <span class="val">' + fmtDate(r.start_date) + ' — ' + fmtDate(r.end_date) + '</span>');
+        }
+        if (r.service) {
+            details.push('<span class="acc">Услуга:</span> <span class="val">' + esc(r.service) + '</span>');
+        }
+
+        var marginCell;
+        if (marginApplicable) {
+            marginCell = '<div class="pm-res-margin">'
+                + '<span class="pm-res-margin-label">Маржа</span>'
+                + '<span class="pm-res-margin-value ' + (margin < 0 ? 'negative' : '') + '">' + fmt2(margin) + ' ₽</span>'
+                + '<span class="pm-res-margin-percent">' + (marginPct != null ? marginPct.toFixed(1) + '%' : '—') + '</span>'
+                + '</div>';
+        } else {
+            marginCell = '<div class="pm-res-margin">'
+                + '<span class="pm-res-margin-label">Маржа</span>'
+                + '<span class="pm-res-margin-value" style="color:var(--text-faint); font-size:.8rem;">не начисляется</span>'
+                + '</div>';
+        }
+
+        return '<div class="pm-res-item" data-res-type="' + r.resource_type + '" data-res-id="' + r.resource_id + '">'
+            + '<div class="pm-res-icon"><i class="fas ' + meta.icon + '"></i></div>'
+            + '<div class="pm-res-info">'
+            +   '<div class="pm-res-name"><span class="pm-res-type">' + esc(meta.label) + '</span>' + esc(r.name) + '</div>'
+            +   '<div class="pm-res-details">' + details.join(' · ') + '</div>'
+            + '</div>'
+            + marginCell
+            + '<div class="pm-res-total">'
+            +   '<span class="pm-res-total-label">Стоимость</span>'
+            +   '<span class="pm-res-total-value">' + fmt2(finalCost) + ' ₽</span>'
+            + '</div>'
+            + '<div class="pm-res-actions">'
+            +   '<button class="pm-icon-btn" title="Редактировать" onclick="openEditResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-pen"></i></button>'
+            +   '<button class="pm-icon-btn danger" title="Удалить" onclick="openDeleteResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-trash"></i></button>'
+            + '</div>'
+            + '</div>';
+    }
+
+    function buildResTileHTML(r) {
+        var meta = TYPE_META[r.resource_type] || { label: 'Ресурс', icon: 'fa-cube' };
+        var baseCost = parseFloat(r.cost) || 0;
+        var finalCost = parseFloat(r.final_cost) || 0;
+        var margin = finalCost - baseCost;
+        var marginApplicable = r.resource_type === 'employee' || r.resource_type === 'contractor';
+        var marginPct = r.margin_percent != null ? parseFloat(r.margin_percent) : null;
+        if (marginPct === null && baseCost > 0) marginPct = (margin / baseCost) * 100;
+
+        return '<div class="pm-res-tile" data-res-type="' + r.resource_type + '" data-res-id="' + r.resource_id + '">'
+            + '<div class="pm-tile-head">'
+            +   '<div class="pm-tile-icon"><i class="fas ' + meta.icon + '"></i></div>'
+            +   '<div class="pm-tile-actions">'
+            +     '<button class="pm-icon-btn" title="Редактировать" onclick="openEditResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-pen"></i></button>'
+            +     '<button class="pm-icon-btn danger" title="Удалить" onclick="openDeleteResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-trash"></i></button>'
+            +   '</div>'
+            + '</div>'
+            + '<span class="pm-tile-type">' + esc(meta.label) + '</span>'
+            + '<div class="pm-tile-name" title="' + esc(r.name) + '">' + esc(r.name) + '</div>'
+            + '<div class="pm-tile-spacer"></div>'
+            + '<div class="pm-tile-stats">'
+            +   '<div class="pm-tile-stat"><span class="pm-tile-stat-label">Себест.</span><span class="pm-tile-stat-value">' + fmt2(baseCost) + ' ₽</span></div>'
+            + (marginApplicable
+                ? '<div class="pm-tile-stat"><span class="pm-tile-stat-label">Маржа</span><span class="pm-tile-stat-value ' + (margin < 0 ? 'negative' : 'success') + '">' + fmt2(margin) + ' ₽ · ' + (marginPct != null ? marginPct.toFixed(0) + '%' : '—') + '</span></div>'
+                : '<div class="pm-tile-stat"><span class="pm-tile-stat-label">Маржа</span><span class="pm-tile-stat-value" style="color:var(--text-faint);font-size:.8rem;">не начисл.</span></div>')
+            +   '<div class="pm-tile-stat"><span class="pm-tile-stat-label">Стоимость</span><span class="pm-tile-stat-value accent">' + fmt2(finalCost) + ' ₽</span></div>'
+            +   '<div class="pm-tile-stat"><span class="pm-tile-stat-label">Часы</span><span class="pm-tile-stat-value" style="color:#60a5fa;">' + (r.work_hours != null ? r.work_hours : '—') + '</span></div>'
+            + '</div>'
+            + '</div>';
+    }
+
+    // ============================================================
+    // Вид и фильтры
+    // ============================================================
+    window.setResView = function (view) {
+        currentView = view;
+        document.querySelectorAll('.view-toggle-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.view === view); });
+        document.getElementById('resViewList').style.display = view === 'list' ? '' : 'none';
+        document.getElementById('resViewGrid').style.display = view === 'grid' ? '' : 'none';
+    };
+
+    document.querySelectorAll('#resFilterChips .pm-chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            document.querySelectorAll('#resFilterChips .pm-chip').forEach(function (c) { c.classList.remove('active'); });
+            chip.classList.add('active');
+            currentFilter = chip.dataset.filter;
+            renderResources();
+        });
+    });
+
+    // ============================================================
+    // Финансовые input-ы → автосохранение
+    // ============================================================
+    var saveTimer = null;
+    function scheduleFinanceSave() {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveFinance, 800);
+    }
+    function saveFinance() {
+        var fd = new FormData();
+        fd.append('name', project.name);
+        fd.append('customer_id', project.customerId || '');
+        fd.append('description', project.description);
+        fd.append('tz', project.tz);
+        fd.append('start_date', project.startDate);
+        fd.append('end_date', project.endDate);
+        fd.append('tax_rate', document.getElementById('fin-tax-rate').value);
+        fd.append('margin', document.getElementById('fin-margin').value);
+        fd.append('vat_rate', document.getElementById('fin-vat-rate').value);
+        fd.append('work_hours_per_day', document.getElementById('fin-wh-per-day').value);
+        fd.append('csrfmiddlewaretoken', csrf());
+
+        fetch('/api/projects/' + PROJECT_ID + '/update/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                loadCalculation();
+            }
+        });
+    }
+    ['fin-tax-rate', 'fin-margin', 'fin-vat-rate', 'fin-wh-per-day'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', scheduleFinanceSave);
+    });
+
+    // ============================================================
+    // МОДАЛКА: РЕДАКТИРОВАНИЕ ПРОЕКТА
+    // ============================================================
+    var editModal = document.getElementById('projectEditModal');
+
+    window.openProjectEditModal = function () {
+        document.getElementById('editProjName').value = project.name || '';
+        document.getElementById('editProjTz').value = project.tz || '';
+        document.getElementById('editProjStartDate').value = project.startDate || '';
+        document.getElementById('editProjEndDate').value = project.endDate || '';
+        document.getElementById('editProjDescription').value = project.description || '';
+
+        var sel = document.getElementById('editProjCustomer');
+        sel.innerHTML = '<option value="">— Не выбран —</option>';
+        (CATALOG.customers || []).forEach(function (c) {
+            var o = document.createElement('option');
+            o.value = c.id;
+            o.textContent = c.name + (c.organization ? ' (' + c.organization + ')' : '');
+            sel.appendChild(o);
+        });
+        sel.value = project.customerId || '';
+
+        editModal.classList.add('open');
+        lockScroll();
+        setTimeout(function () { document.getElementById('editProjName').focus(); }, 100);
+    };
+    window.closeProjectEditModal = function () {
+        editModal.classList.remove('open');
+        unlockScroll();
+    };
+    editModal.addEventListener('click', function (e) { if (e.target === editModal) closeProjectEditModal(); });
+
+    document.getElementById('projectEditForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var fd = new FormData();
+        fd.append('name', document.getElementById('editProjName').value.trim());
+        fd.append('customer_id', document.getElementById('editProjCustomer').value);
+        fd.append('tz', document.getElementById('editProjTz').value);
+        fd.append('start_date', document.getElementById('editProjStartDate').value);
+        fd.append('end_date', document.getElementById('editProjEndDate').value);
+        fd.append('description', document.getElementById('editProjDescription').value);
+        fd.append('tax_rate', document.getElementById('fin-tax-rate').value);
+        fd.append('margin', document.getElementById('fin-margin').value);
+        fd.append('vat_rate', document.getElementById('fin-vat-rate').value);
+        fd.append('work_hours_per_day', document.getElementById('fin-wh-per-day').value);
+        fd.append('csrfmiddlewaretoken', csrf());
+
+        fetch('/api/projects/' + PROJECT_ID + '/update/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                var p = data.project;
+                project.name = p.name;
+                project.customerName = p.customer || '';
+                project.customerId = p.customerId;
+                project.tz = p.tz || '';
+                project.startDate = p.startDate || '';
+                project.endDate = p.endDate || '';
+                project.description = p.description || '';
+                closeProjectEditModal();
+                renderProjectHead();
+                loadCalculation();
+                toast('Проект сохранён', project.name, 'success');
+            } else {
+                toast('Ошибка', data.error || '', 'danger');
+            }
+        });
+    });
+
+    // ============================================================
+    // МОДАЛКА: ДОБАВЛЕНИЕ РЕСУРСА
+    // ============================================================
+    var addResModal = document.getElementById('addResourceModal');
+    var settingsModal = document.getElementById('resourceSettingsModal');
+    var pickFilter = 'all';
+    var pickSearch = '';
+    var selectedResource = null;
+
+    window.openAddResourceModal = function () {
+        selectedResource = null;
+        pickFilter = 'all';
+        pickSearch = '';
+        document.getElementById('resPickSearch').value = '';
+        document.querySelectorAll('#resPickFilterChips .pm-chip').forEach(function (c, i) { c.classList.toggle('active', i === 0); });
+        renderPickList();
+        addResModal.classList.add('open');
+        lockScroll();
+    };
+    window.closeAddResourceModal = function () {
+        addResModal.classList.remove('open');
+        unlockScroll();
+    };
+    addResModal.addEventListener('click', function (e) { if (e.target === addResModal) closeAddResourceModal(); });
+
+    function flattenCatalog() {
+        var out = [];
+        (CATALOG.employees || []).forEach(function (x)      { out.push({ type: 'employee',      item: x }); });
+        (CATALOG.executors || []).forEach(function (x)      { out.push({ type: 'contractor',    item: x }); });
+        (CATALOG.subcontractors || []).forEach(function (x) { out.push({ type: 'subcontractor', item: x }); });
+        (CATALOG.customers || []).forEach(function (x)      { out.push({ type: 'customer',      item: x }); });
+        (CATALOG.equipment || []).forEach(function (x)      { out.push({ type: 'equipment',     item: x }); });
+        return out;
+    }
+
+    function renderPickList() {
+        var all = flattenCatalog();
+        var filtered = all;
+        if (pickFilter !== 'all') filtered = filtered.filter(function (r) { return r.type === pickFilter; });
+        if (pickSearch) {
+            var q = pickSearch.toLowerCase();
+            filtered = filtered.filter(function (r) { return (r.item.name || '').toLowerCase().indexOf(q) !== -1; });
+        }
+        var listEl = document.getElementById('resPickList');
+        if (!filtered.length) {
+            listEl.innerHTML = '<div class="pm-empty"><i class="fas fa-inbox"></i><p>Ресурсов не найдено</p></div>';
+            return;
+        }
+        listEl.innerHTML = filtered.map(function (r) {
+            var meta = TYPE_META[r.type];
+            var isSelected = selectedResource && selectedResource.type === r.type && selectedResource.id === r.item.id;
+            var inProject = !!overridesMap[r.type + ':' + r.item.id];
+            return '<div class="res-pick-item ' + (isSelected ? 'selected' : '') + '"'
+                + (inProject ? ' style="opacity:.5; pointer-events:none;"' : ' onclick="selectPickItem(\'' + r.type + '\', ' + r.item.id + ')"')
+                + '>'
+                + '<div class="res-pick-icon"><i class="fas ' + meta.icon + '"></i></div>'
+                + '<div class="res-pick-info">'
+                +   '<div class="res-pick-name">' + esc(r.item.name) + '</div>'
+                +   '<div class="res-pick-details">' + esc(meta.label) + (inProject ? ' · уже в проекте' : '') + '</div>'
+                + '</div>'
+                + '<div class="res-pick-check"><i class="fas fa-check"></i></div>'
+                + '</div>';
+        }).join('');
+    }
+
+    window.selectPickItem = function (type, id) {
+        var all = flattenCatalog();
+        var found = all.find(function (r) { return r.type === type && r.item.id === id; });
+        if (!found) return;
+        selectedResource = { type: type, id: id, item: found.item };
+        document.getElementById('pickResourceNextBtn').disabled = false;
+        renderPickList();
+    };
+
+    document.querySelectorAll('#resPickFilterChips .pm-chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            document.querySelectorAll('#resPickFilterChips .pm-chip').forEach(function (c) { c.classList.remove('active'); });
+            chip.classList.add('active');
+            pickFilter = chip.dataset.filter;
+            renderPickList();
+        });
+    });
+    document.getElementById('resPickSearch').addEventListener('input', function (e) {
+        pickSearch = e.target.value.trim().toLowerCase();
+        renderPickList();
+    });
+
+    // ============================================================
+    // ШАГ 2: настройка ресурса
+    // ============================================================
+    window.goToResourceSettings = function () {
+        if (!selectedResource) return;
+        addResModal.classList.remove('open');
+        settingsModal.classList.add('open');
+        // (не unlock, чтобы body оставался lock)
+
+        var meta = TYPE_META[selectedResource.type];
+        document.getElementById('resourceSettingsSub').textContent = meta.label + ': ' + selectedResource.item.name;
+        document.getElementById('settingsResType').value = selectedResource.type;
+        document.getElementById('settingsResId').value = selectedResource.id;
+
+        // Маржа — только для employee/contractor
+        var marginField = document.getElementById('marginField');
+        marginField.style.display = (selectedResource.type === 'employee' || selectedResource.type === 'contractor') ? '' : 'none';
+        document.getElementById('resMargin').value = {{ project.margin|default:0 }};
+
+        // Количество — только для equipment
+        document.getElementById('quantityRow').style.display = selectedResource.type === 'equipment' ? '' : 'none';
+        document.getElementById('resQuantity').value = 1;
+
+        // Часы — для contractor + subcontractor (hourly)
+        var showHours = selectedResource.type === 'contractor';
+        if (selectedResource.type === 'subcontractor' && selectedResource.item.pricingType === 'hourly') showHours = true;
+        document.getElementById('hoursSection').style.display = showHours ? '' : 'none';
+        document.getElementById('resHours').value = 0;
+
+        // Услуги
+        var svcSel = document.getElementById('resService');
+        svcSel.innerHTML = '<option value="">— Не указана —</option>';
+        SERVICES.forEach(function (s) {
+            if (s.applies_to === 'any' || s.applies_to === selectedResource.type) {
+                var o = document.createElement('option');
+                o.value = s.id; o.textContent = s.name;
+                svcSel.appendChild(o);
+            }
+        });
+
+        // Даты
+        document.getElementById('resStartDate').value = project.startDate || '';
+        document.getElementById('resEndDate').value = project.endDate || '';
+        document.getElementById('resUseProjectDates').checked = false;
+        updatePeriodInfo();
+    };
+
+    window.backToPickResource = function () {
+        settingsModal.classList.remove('open');
+        addResModal.classList.add('open');
+    };
+
+    window.closeResourceSettingsModal = function () {
+        settingsModal.classList.remove('open');
+        unlockScroll();
+    };
+    settingsModal.addEventListener('click', function (e) { if (e.target === settingsModal) closeResourceSettingsModal(); });
+
+    document.getElementById('resStartDate').addEventListener('change', updatePeriodInfo);
+    document.getElementById('resEndDate').addEventListener('change', updatePeriodInfo);
+
+    function updatePeriodInfo() {
+        var s = document.getElementById('resStartDate').value;
+        var e = document.getElementById('resEndDate').value;
+        var d = countPeriodDays(s, e);
+        var info = document.getElementById('periodInfo');
+        if (d.total > 0) {
+            info.classList.add('visible');
+            document.getElementById('periodTotalDays').textContent = d.total;
+            document.getElementById('periodWorkDays').textContent = d.work;
+            document.getElementById('periodWeekendDays').textContent = d.weekend;
+        } else {
+            info.classList.remove('visible');
+        }
+    }
+
+    document.getElementById('resourceSettingsForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!selectedResource) return;
+
+        var fd = new FormData();
+        fd.append('resource_type', selectedResource.type);
+        fd.append('resource_id', selectedResource.id);
+        fd.append('csrfmiddlewaretoken', csrf());
+
+        fetch('/api/projects/' + PROJECT_ID + '/add-resource/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.success) {
+                toast('Ошибка', data.error || '', 'danger');
+                return;
+            }
+            // Ресурс добавлен — теперь сохраним его параметры
+            var fd2 = new FormData();
+            fd2.append('resource_type', selectedResource.type);
+            fd2.append('resource_id', selectedResource.id);
+            var marginEl = document.getElementById('resMargin');
+            fd2.append('resource_margin', marginEl.style.display === 'none' ? '' : marginEl.value);
+            fd2.append('service_id', document.getElementById('resService').value);
+            fd2.append('work_start_date', document.getElementById('resStartDate').value);
+            fd2.append('work_end_date', document.getElementById('resEndDate').value);
+            fd2.append('working_hours', document.getElementById('hoursSection').style.display !== 'none' ? document.getElementById('resHours').value : '');
+            fd2.append('quantity', document.getElementById('quantityRow').style.display !== 'none' ? document.getElementById('resQuantity').value : 1);
+            fd2.append('use_project_dates', document.getElementById('resUseProjectDates').checked ? '1' : '0');
+            fd2.append('csrfmiddlewaretoken', csrf());
+
+            fetch('/api/projects/' + PROJECT_ID + '/update-override/', {
+                method: 'POST', body: fd2, credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data2) {
+                if (data2.success) {
+                    overridesMap[selectedResource.type + ':' + selectedResource.id] = data2.override;
+                    closeResourceSettingsModal();
+                    loadCalculation();
+                    toast('Ресурс добавлен', selectedResource.item.name, 'success');
+                } else {
+                    toast('Ошибка настройки', data2.error || '', 'danger');
+                }
+            });
+        });
+    });
+
+    // ============================================================
+    // РЕДАКТИРОВАНИЕ РЕСУРСА
+    // ============================================================
+    window.openEditResourceModal = function (type, id) {
+        var ov = overridesMap[type + ':' + id];
+        if (!ov) return;
+        selectedResource = { type: type, id: id, item: null };
+
+        // Находим в каталоге, чтобы знать метаинфо
+        var all = flattenCatalog();
+        var found = all.find(function (r) { return r.type === type && r.item.id === id; });
+        if (found) selectedResource.item = found.item;
+
+        settingsModal.classList.add('open');
+        var meta = TYPE_META[type];
+        document.getElementById('resourceSettingsSub').textContent = 'Редактирование: ' + meta.label + ' ' + (ov.name || '');
+        document.getElementById('settingsResType').value = type;
+        document.getElementById('settingsResId').value = id;
+
+        var marginField = document.getElementById('marginField');
+        marginField.style.display = (type === 'employee' || type === 'contractor') ? '' : 'none';
+        document.getElementById('resMargin').value = ov.resource_margin != null ? ov.resource_margin : '';
+
+        document.getElementById('quantityRow').style.display = type === 'equipment' ? '' : 'none';
+        document.getElementById('resQuantity').value = ov.quantity || 1;
+
+        var showHours = type === 'contractor';
+        if (type === 'subcontractor' && ov.pricing_type === 'hourly') showHours = true;
+        document.getElementById('hoursSection').style.display = showHours ? '' : 'none';
+        document.getElementById('resHours').value = ov.working_hours != null ? ov.working_hours : 0;
+
+        var svcSel = document.getElementById('resService');
+        svcSel.innerHTML = '<option value="">— Не указана —</option>';
+        SERVICES.forEach(function (s) {
+            if (s.applies_to === 'any' || s.applies_to === type) {
+                var o = document.createElement('option');
+                o.value = s.id; o.textContent = s.name;
+                if (String(ov.service_id) === String(s.id)) o.selected = true;
+                svcSel.appendChild(o);
+            }
+        });
+
+        document.getElementById('resStartDate').value = ov.work_start_date || '';
+        document.getElementById('resEndDate').value = ov.work_end_date || '';
+        document.getElementById('resUseProjectDates').checked = !!ov.use_project_dates;
+        updatePeriodInfo();
+    };
+
+    // ============================================================
+    // УДАЛЕНИЕ РЕСУРСА
+    // ============================================================
+    var deleteResModal = document.getElementById('deleteResourceModal');
+    var deletingRes = null;
+
+    window.openDeleteResourceModal = function (type, id) {
+        var ov = overridesMap[type + ':' + id];
+        deletingRes = { type: type, id: id };
+        document.getElementById('deleteResText').innerHTML = 'Ресурс <strong>' + esc(ov ? ov.name : '') + '</strong> будет удалён из проекта.';
+        deleteResModal.classList.add('open');
+        lockScroll();
+    };
+    window.closeDeleteResourceModal = function () {
+        deleteResModal.classList.remove('open');
+        unlockScroll();
+    };
+    deleteResModal.addEventListener('click', function (e) { if (e.target === deleteResModal) closeDeleteResourceModal(); });
+
+    window.confirmDeleteResource = function () {
+        if (!deletingRes) return;
+        var fd = new FormData();
+        fd.append('resource_type', deletingRes.type);
+        fd.append('resource_id', deletingRes.id);
+        fd.append('csrfmiddlewaretoken', csrf());
+
+        fetch('/api/projects/' + PROJECT_ID + '/remove-resource/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                delete overridesMap[deletingRes.type + ':' + deletingRes.id];
+                closeDeleteResourceModal();
+                loadCalculation();
+                toast('Ресурс удалён', '', 'warning');
+                deletingRes = null;
+            }
+        });
+    };
+
+    // ============================================================
+    // ДЕЙСТВИЯ С ПРОЕКТОМ
+    // ============================================================
+    window.hideProject = function () {
+        if (!confirm('Скрыть проект «' + project.name + '»?')) return;
+        var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', csrf());
+        fetch('/api/projects/' + PROJECT_ID + '/hide/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data.success) {
+                toast('Проект скрыт', '', 'warning');
+                setTimeout(function () { window.location.href = '/project/'; }, 600);
+            }
+        });
+    };
+
+    var deleteProjModal = document.getElementById('deleteProjectModal');
+    window.openDeleteModal = function () {
+        deleteProjModal.classList.add('open');
+        lockScroll();
+    };
+    window.closeDeleteModal = function () {
+        deleteProjModal.classList.remove('open');
+        unlockScroll();
+    };
+    deleteProjModal.addEventListener('click', function (e) { if (e.target === deleteProjModal) closeDeleteModal(); });
+
+    window.confirmDeleteProject = function () {
+        var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', csrf());
+        fetch('/api/projects/' + PROJECT_ID + '/delete/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data.success) {
+                toast('Проект удалён', '', 'warning');
+                setTimeout(function () { window.location.href = '/project/'; }, 600);
+            }
+        });
+    };
+
+    // ============================================================
+    // Esc
+    // ============================================================
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        if (editModal.classList.contains('open')) closeProjectEditModal();
+        if (addResModal.classList.contains('open')) closeAddResourceModal();
+        if (settingsModal.classList.contains('open')) closeResourceSettingsModal();
+        if (deleteResModal.classList.contains('open')) closeDeleteResourceModal();
+        if (deleteProjModal.classList.contains('open')) closeDeleteModal();
+    });
+
+    // ============================================================
+    // Init
+    // ============================================================
+    renderProjectHead();
+    loadCalculation();
+})();
 </script>
-<script src="{% static 'js/calculator.js' %}?v={% now 'H:i' %}"></script>
-<script src="{% static 'js/project_manage.js' %}?v={% now 'H:i' %}"></script>
 {% endblock %}

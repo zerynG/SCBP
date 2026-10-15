@@ -34,6 +34,37 @@ class Workspace(models.Model):
         return f"{self.name} ({self.subdomain})"
 
 
+class Customer(models.Model):
+    """Заказчик — глобальный каталог."""
+    CUSTOMER_TYPE_CHOICES = [
+        ('individual', 'Физическое лицо'),
+        ('ip', 'Индивидуальный предприниматель'),
+        ('legal', 'Юридическое лицо'),
+    ]
+    workspace = models.ForeignKey(
+        Workspace, on_delete=models.CASCADE,
+        related_name='customers', verbose_name="Рабочая область",
+    )
+    name = models.CharField(max_length=150, verbose_name="ФИО")
+    customer_type = models.CharField(
+        max_length=10, choices=CUSTOMER_TYPE_CHOICES, default='individual',
+        verbose_name="Тип заказчика",
+    )
+    inn = models.CharField(max_length=12, blank=True, verbose_name="ИНН")
+    organization = models.CharField(max_length=200, blank=True, verbose_name="Название организации")
+    email = models.EmailField(blank=True, verbose_name="Email")
+    phone = models.CharField(max_length=20, blank=True, verbose_name="Телефон")
+    is_active = models.BooleanField(default=True, verbose_name="Активен")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+
+    class Meta:
+        verbose_name = "Заказчик"
+        verbose_name_plural = "Заказчики"
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.get_customer_type_display()})"
+
 # ============================================================================
 # Проект
 # ============================================================================
@@ -52,7 +83,11 @@ class Project(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="Активен")
     technical_task_url = models.URLField(blank=True, verbose_name="Техническое задание (ссылка)")
     status = models.CharField(max_length=50, default='Создан', verbose_name="Статус")
-    customer = models.CharField(max_length=200, blank=True, verbose_name="Заказчик")
+    customer = models.ForeignKey(
+        'Customer', on_delete=models.SET_NULL,
+        related_name='projects', null=True, blank=True,
+        verbose_name="Основной заказчик",
+    )
     start_date = models.DateField(null=True, blank=True, verbose_name="Дата начала")
     end_date = models.DateField(null=True, blank=True, verbose_name="Дата окончания")
 
@@ -223,37 +258,6 @@ class Subcontractor(models.Model):
         return f"{self.name} ({self.get_entity_type_display()})"
 
 
-class Customer(models.Model):
-    """Заказчик — глобальный каталог."""
-    CUSTOMER_TYPE_CHOICES = [
-        ('individual', 'Физическое лицо'),
-        ('ip', 'Индивидуальный предприниматель'),
-        ('legal', 'Юридическое лицо'),
-    ]
-    workspace = models.ForeignKey(
-        Workspace, on_delete=models.CASCADE,
-        related_name='customers', verbose_name="Рабочая область",
-    )
-    name = models.CharField(max_length=150, verbose_name="ФИО")
-    customer_type = models.CharField(
-        max_length=10, choices=CUSTOMER_TYPE_CHOICES, default='individual',
-        verbose_name="Тип заказчика",
-    )
-    inn = models.CharField(max_length=12, blank=True, verbose_name="ИНН")
-    organization = models.CharField(max_length=200, blank=True, verbose_name="Название организации")
-    email = models.EmailField(blank=True, verbose_name="Email")
-    phone = models.CharField(max_length=20, blank=True, verbose_name="Телефон")
-    is_active = models.BooleanField(default=True, verbose_name="Активен")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
-
-    class Meta:
-        verbose_name = "Заказчик"
-        verbose_name_plural = "Заказчики"
-        ordering = ['name']
-
-    def __str__(self):
-        return f"{self.name} ({self.get_customer_type_display()})"
-
 
 class Equipment(models.Model):
     """Оборудование — глобальный каталог."""
@@ -391,6 +395,7 @@ class ProjectResourceOverride(models.Model):
         ('employee', 'Сотрудник'),
         ('contractor', 'Исполнитель'),
         ('subcontractor', 'Подрядчик'),
+        ('customer', 'Заказчик'),
         ('equipment', 'Оборудование'),
     ]
     project = models.ForeignKey(
@@ -401,6 +406,7 @@ class ProjectResourceOverride(models.Model):
         'Тип ресурса', max_length=20, choices=RESOURCE_TYPE_CHOICES,
     )
     resource_id = models.PositiveIntegerField('ID ресурса')
+
     resource_margin = models.DecimalField(
         'Маржинальность ресурса (%)', max_digits=5, decimal_places=2,
         null=True, blank=True, default=None,
@@ -413,6 +419,12 @@ class ProjectResourceOverride(models.Model):
     work_end_date = models.DateField('Дата окончания работы', null=True, blank=True)
     working_hours = models.PositiveIntegerField(
         'Количество рабочих часов', null=True, blank=True, default=None,
+    )
+    quantity = models.PositiveIntegerField(
+        'Количество', default=1,
+    )
+    use_project_dates = models.BooleanField(
+        'Использовать даты проекта', default=False,
     )
 
     class Meta:
