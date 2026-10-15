@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/sidebar.css' %}?v={% now 'H:i' %}">
+    {% block app_extra_css %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+
+    {% include 'partials/_sidebar.html' %}
+
+    <div class="cr">
+        <div class="cr-layout">
+            <div class="cr-main">
+                {% block app_content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/sidebar.js' %}?v={% now 'H:i' %}"></script>
+    {% block app_extra_js %}{% endblock %}
+{% endblock %}

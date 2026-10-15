@@ -1,0 +1,1453 @@
+{% extends 'base_app.html' %}
+{% load static %}
+
+{% block title %}Создание ресурсов — IQNIX TECH{% endblock %}
+
+{% block app_extra_css %}
+<style>
+    /* ============================================================
+       RESOURCES PAGE — каталог ресурсов рабочей области
+       Токены (:root), .app-btn/.app-card — уже в app.css.
+       Стили сайдбара — в sidebar.css.
+       ============================================================ */
+
+    .cr-head { margin-bottom: 1.5rem; }
+    .cr-head h1 {
+        font-size: 1.55rem; font-weight: 700;
+        color: var(--text-strong); margin: 0 0 .25rem;
+    }
+    .cr-head .subtitle {
+        color: var(--text-soft); font-size: .85rem; margin: 0;
+    }
+    .cr-panel { display: none; }
+    .cr-panel.active { display: block; animation: crFadeUp .25s ease; }
+    @keyframes crFadeUp {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .cr-card {
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        padding: 1.4rem 1.6rem; margin-bottom: 1.25rem;
+        transition: border-color .25s ease, box-shadow .25s ease;
+    }
+    .cr-card.editing {
+        border-color: var(--edit);
+        box-shadow: 0 0 0 1px var(--edit-border), 0 4px 12px var(--edit-shadow);
+    }
+    .cr-card h3 {
+        font-size: .95rem; font-weight: 700; color: var(--accent);
+        margin: 0 0 1.15rem;
+        display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+        transition: color .2s ease;
+    }
+    .cr-card.editing h3 { color: var(--edit); }
+    .cr-edit-badge {
+        display: none; font-size: .62rem; font-weight: 800;
+        letter-spacing: .08em; text-transform: uppercase;
+        color: var(--edit); border: 1px solid currentColor;
+        border-radius: 5px; padding: .15rem .45rem;
+        margin-left: auto;
+        animation: crBadgePulse 1.6s ease-in-out infinite;
+    }
+    .cr-card.editing .cr-edit-badge { display: inline-block; }
+    @keyframes crBadgePulse {
+        0%, 100% { opacity: 1; }
+        50%      { opacity: 0.55; }
+    }
+    .cr-section {
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: 1rem 1.2rem; margin-bottom: .9rem;
+    }
+    .cr-section h4 {
+        font-size: .72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .05em;
+        color: var(--accent-soft); margin: 0 0 .75rem;
+    }
+    .cr-card.editing .cr-section h4 { color: var(--edit); }
+
+    /* FORM */
+    .cr-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: .75rem;
+    }
+    .cr-row + .cr-row { margin-top: .75rem; }
+    .cr-field { display: flex; flex-direction: column; gap: .25rem; }
+    .cr-field label {
+        font-size: .7rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: .04em;
+        color: var(--text-soft);
+    }
+    .cr-field input,
+    .cr-field select,
+    .cr-field textarea {
+        width: 100% !important;
+        padding: .6rem .8rem !important;
+        background: var(--surface-2) !important;
+        border: 1px solid var(--border-2) !important;
+        border-radius: 8px !important;
+        color: var(--text) !important;
+        font-size: .85rem !important;
+        font-family: var(--font) !important;
+        outline: none !important;
+        transition: border-color .2s, box-shadow .2s !important;
+        box-shadow: none !important;
+    }
+    .cr-field textarea { resize: vertical; min-height: 70px; }
+    .cr-field input:focus,
+    .cr-field select:focus,
+    .cr-field textarea:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px var(--accent-tint) !important;
+    }
+    .cr-card.editing .cr-field input:focus,
+    .cr-card.editing .cr-field select:focus,
+    .cr-card.editing .cr-field textarea:focus {
+        border-color: var(--edit) !important;
+        box-shadow: 0 0 0 3px var(--edit-soft) !important;
+    }
+    .cr-field small { font-size: .7rem; color: var(--text-faint); }
+    .cr-field input.invalid,
+    .cr-field textarea.invalid {
+        border-color: var(--danger) !important;
+        box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.15) !important;
+    }
+    .cr-field .cr-error {
+        font-size: .7rem; color: var(--danger);
+        margin-top: .15rem; line-height: 1.3;
+        display: none;
+    }
+    .cr-field .cr-error.visible { display: block; }
+
+    /* BUTTONS */
+    .cr .cr-btn {
+        display: inline-flex !important; align-items: center !important;
+        gap: .4rem !important; padding: .55rem 1.1rem !important;
+        border-radius: 8px !important; font-size: .82rem !important;
+        font-weight: 600 !important; font-family: var(--font) !important;
+        border: none !important; outline: none !important;
+        box-shadow: none !important; cursor: pointer !important;
+        transition: all .15s !important; white-space: nowrap !important;
+        color: #fff !important;
+    }
+    .cr .cr-btn:hover { transform: translateY(-1px); }
+    .cr .cr-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .cr .cr-btn-primary { background: var(--accent) !important; }
+    .cr .cr-btn-primary:hover {
+        background: var(--accent-hover) !important;
+        box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3) !important;
+    }
+    .cr-card.editing .cr-btn-primary {
+        background: var(--edit) !important; color: #1a1a1a !important;
+    }
+    .cr-card.editing .cr-btn-primary:hover {
+        background: #e6e67a !important;
+        box-shadow: 0 4px 12px var(--edit-shadow) !important;
+    }
+    .cr .cr-btn-edit { background: var(--success-strong) !important; }
+    .cr .cr-btn-edit:hover { box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3) !important; }
+    .cr .cr-btn-danger {
+        background: rgba(248, 113, 113, 0.12) !important;
+        color: var(--danger) !important;
+    }
+    .cr .cr-btn-danger:hover { background: rgba(248, 113, 113, 0.2) !important; }
+    .cr .cr-btn-sm { padding: .45rem .75rem !important; font-size: .85rem !important; }
+
+    /* RESOURCE LIST */
+    .cr-list { display: grid; gap: .6rem; margin-top: 1rem; }
+    .cr-item {
+        display: flex; align-items: center; gap: 1.1rem;
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: 1rem 1.2rem;
+        transition: border-color .2s, background .2s;
+    }
+    .cr-item:hover {
+        border-color: rgba(139, 92, 246, 0.25);
+        background: var(--surface-2);
+    }
+    .cr-item.editing {
+        border-color: var(--edit);
+        background: var(--edit-soft);
+        box-shadow: 0 0 0 1px var(--edit-border);
+    }
+    .cr-item-info { flex: 1; min-width: 0; }
+    .cr-item-name {
+        font-weight: 600; color: var(--text-strong);
+        font-size: 1rem; line-height: 1.35;
+    }
+    .cr-item.editing .cr-item-name { color: var(--edit); }
+    .cr-item-details {
+        font-size: .9rem; color: var(--text-soft);
+        margin-top: .25rem; line-height: 1.5;
+    }
+    .cr-item-details .cr-acc { color: var(--accent-soft); font-weight: 600; }
+    .cr-item-details .cr-val { color: var(--text-soft); font-weight: 500; }
+    .cr-item-details .cr-money { color: var(--text-muted); font-weight: 500; }
+    .cr-item-cost {
+        font-weight: 700; color: var(--accent-soft);
+        font-size: 1.05rem; white-space: nowrap; flex-shrink: 0;
+    }
+    .cr-item-actions { display: flex; gap: .4rem; flex-shrink: 0; }
+    .cr-empty {
+        text-align: center; padding: 2rem 1rem;
+        color: var(--text-faint); font-size: .85rem;
+        border: 1px dashed var(--border-2);
+        border-radius: var(--radius); background: var(--surface-3);
+    }
+    .cr-hidden { display: none !important; }
+
+    /* MODAL */
+    .cr-modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0, 0, 0, 0.72);
+        backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 2000; padding: 1rem;
+        opacity: 0; visibility: hidden;
+        transition: opacity .22s ease, visibility .22s ease;
+    }
+    .cr-modal-overlay.open { opacity: 1; visibility: visible; }
+    .cr-modal {
+        position: relative;
+        background: linear-gradient(180deg, var(--surface-1), #171717);
+        border: 1px solid var(--border-3);
+        border-radius: 16px;
+        box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset,
+                    0 24px 72px rgba(0, 0, 0, 0.65);
+        padding: 1.6rem 1.7rem 1.4rem;
+        max-width: 480px; width: 100%;
+        overflow: hidden;
+        transform: translateY(14px) scale(.96);
+        transition: transform .22s cubic-bezier(.2,.9,.3,1.1);
+    }
+    .cr-modal-overlay.open .cr-modal { transform: translateY(0) scale(1); }
+    .cr-modal::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 4px;
+        background: linear-gradient(180deg, var(--accent), var(--accent-hover));
+        transition: background .2s ease;
+    }
+    .cr-modal.danger::before {
+        background: linear-gradient(180deg, var(--danger), var(--danger-strong));
+    }
+    .cr-modal-head {
+        display: flex; align-items: center;
+        gap: .85rem; margin-bottom: .85rem;
+    }
+    .cr-modal-icon {
+        width: 42px; height: 42px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        background: var(--accent-tint);
+        color: var(--accent);
+        border: 1px solid rgba(139, 92, 246, 0.25);
+    }
+    .cr-modal.danger .cr-modal-icon {
+        background: rgba(248, 113, 113, 0.12);
+        color: var(--danger);
+        border-color: rgba(248, 113, 113, 0.3);
+    }
+    .cr-modal-icon svg {
+        width: 22px; height: 22px;
+        stroke: currentColor; fill: none;
+        stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+    .cr-modal-title {
+        font-size: 1.05rem; font-weight: 700;
+        color: var(--text-strong); margin: 0;
+        line-height: 1.3;
+    }
+    .cr-modal-text {
+        font-size: .9rem; color: var(--text-muted);
+        line-height: 1.6; margin: 0 0 1.35rem;
+        word-break: break-word;
+    }
+    .cr-modal-text strong { color: var(--text-strong); font-weight: 700; }
+    .cr-modal-actions {
+        display: flex; justify-content: flex-end;
+        gap: .55rem; flex-wrap: wrap;
+    }
+    .cr .cr-btn-cancel {
+        background: var(--surface-2) !important;
+        color: var(--text) !important;
+        border: 1px solid var(--border-2) !important;
+    }
+    .cr .cr-btn-cancel:hover {
+        background: var(--surface-3) !important;
+        border-color: var(--border-3) !important;
+    }
+    .cr .cr-btn-confirm-danger {
+        background: var(--danger-strong) !important; color: #fff !important;
+    }
+    .cr .cr-btn-confirm-danger:hover {
+        background: #b91c1c !important;
+        box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35) !important;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 560px) {
+        .cr-row { grid-template-columns: 1fr; }
+        .cr-item { flex-direction: column; align-items: flex-start; }
+        .cr-item-actions { align-self: flex-end; }
+        .cr-head h1 { font-size: 1.3rem; }
+        .cr-card { padding: 1.1rem; }
+        .cr-section { padding: .85rem 1rem; }
+        .cr-item-details { font-size: .85rem; }
+    }
+</style>
+{% endblock %}
+
+{% block app_content %}
+<div class="cr-head">
+    <h1>Создание ресурсов</h1>
+    <p class="subtitle">Создайте базу ресурсов для использования в проектах</p>
+</div>
+
+{# ==================== EMPLOYEES ==================== #}
+<div id="employees" class="cr-panel active">
+    <div class="cr-card" id="employeeCard">
+        <h3>
+            <span id="employeeFormTitle">Добавить сотрудника</span>
+            <span class="cr-edit-badge">Редактирование</span>
+        </h3>
+        <form id="employeeForm" novalidate>
+            {% csrf_token %}
+            <input type="hidden" id="employeeEditId" value="">
+            <div class="cr-section">
+                <h4>Основная информация</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Фамилия *</label>
+                        <input type="text" id="employeeLastName" required>
+                    </div>
+                    <div class="cr-field">
+                        <label>Имя *</label>
+                        <input type="text" id="employeeFirstName" required>
+                    </div>
+                </div>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Отчество</label>
+                        <input type="text" id="employeeMiddleName">
+                    </div>
+                    <div class="cr-field">
+                        <label>Должность *</label>
+                        <input type="text" id="employeePosition" required>
+                    </div>
+                </div>
+            </div>
+            <div class="cr-section">
+                <h4>Финансовая информация</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Заработная плата в месяц (₽) *</label>
+                        <input type="number" id="employeeSalary" required min="0" step="0.01">
+                    </div>
+                    <div class="cr-field">
+                        <label>Налоговая ставка (%)</label>
+                        <input type="number" id="employeeTaxRate" value="13" step="0.1" required min="0">
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;gap:.5rem;margin-top:.25rem;">
+                <button type="submit" class="cr-btn cr-btn-primary">
+                    <i class="fas fa-plus"></i> <span id="employeeSubmitText">Добавить</span>
+                </button>
+                <button type="button" class="cr-btn cr-btn-danger" id="employeeCancelEdit" style="display:none" onclick="cancelEdit('employee')">Отмена</button>
+            </div>
+        </form>
+    </div>
+    <div class="cr-card">
+        <h3>Добавленные сотрудники</h3>
+        <div id="employeesContainer"></div>
+    </div>
+</div>
+
+{# ==================== EXECUTORS ==================== #}
+<div id="executors" class="cr-panel">
+    <div class="cr-card" id="executorCard">
+        <h3>
+            <span id="executorFormTitle">Добавить исполнителя</span>
+            <span class="cr-edit-badge">Редактирование</span>
+        </h3>
+        <form id="executorForm" novalidate>
+            {% csrf_token %}
+            <input type="hidden" id="executorEditId" value="">
+            <div class="cr-section">
+                <h4>Основная информация</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Фамилия *</label>
+                        <input type="text" id="executorLastName" required>
+                    </div>
+                    <div class="cr-field">
+                        <label>Имя *</label>
+                        <input type="text" id="executorFirstName" required>
+                    </div>
+                </div>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Отчество</label>
+                        <input type="text" id="executorMiddleName">
+                    </div>
+                    <div class="cr-field">
+                        <label>Тип контракта</label>
+                        <select id="executorContractType" required>
+                            <option value="gph">ГПХ</option>
+                            <option value="npd">НПД</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="cr-section">
+                <h4>Финансовая информация</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Единица измерения</label>
+                        <select id="executorUnit" onchange="toggleExecutorPricing()" required>
+                            <option value="hours">Часы</option>
+                            <option value="days">Дни</option>
+                            <option value="fixed">Полная стоимость</option>
+                        </select>
+                    </div>
+                    <div class="cr-field">
+                        <label>Налоговая ставка (%)</label>
+                        <input type="number" id="executorTaxRate" value="13" step="0.1" required min="0">
+                    </div>
+                </div>
+                <div class="cr-row">
+                    <div class="cr-field" id="executorHourlyCostGroup">
+                        <label>Стоимость за час (₽)</label>
+                        <input type="number" id="executorHourlyCost" min="0" step="0.01">
+                    </div>
+                    <div class="cr-field cr-hidden" id="executorDailyCostGroup">
+                        <label>Стоимость за день (₽)</label>
+                        <input type="number" id="executorDailyCost" min="0" step="0.01">
+                    </div>
+                    <div class="cr-field cr-hidden" id="executorFixedCostGroup">
+                        <label>Полная стоимость (₽)</label>
+                        <input type="number" id="executorFixedCost" min="0" step="0.01">
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;gap:.5rem;margin-top:.25rem;">
+                <button type="submit" class="cr-btn cr-btn-primary">
+                    <i class="fas fa-plus"></i> <span id="executorSubmitText">Добавить</span>
+                </button>
+                <button type="button" class="cr-btn cr-btn-danger" id="executorCancelEdit" style="display:none" onclick="cancelEdit('executor')">Отмена</button>
+            </div>
+        </form>
+    </div>
+    <div class="cr-card">
+        <h3>Добавленные исполнители</h3>
+        <div id="executorsContainer"></div>
+    </div>
+</div>
+
+{# ==================== SUBCONTRACTORS ==================== #}
+<div id="subcontractors" class="cr-panel">
+    <div class="cr-card" id="subcontractorCard">
+        <h3>
+            <span id="subcontractorFormTitle">Добавить субподрядчика</span>
+            <span class="cr-edit-badge">Редактирование</span>
+        </h3>
+        <form id="subcontractorForm" novalidate>
+            {% csrf_token %}
+            <input type="hidden" id="subcontractorEditId" value="">
+            <div class="cr-section">
+                <h4>Основная информация</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Наименование *</label>
+                        <input type="text" id="subcontractorName" required>
+                    </div>
+                    <div class="cr-field">
+                        <label>Тип контрагента *</label>
+                        <select id="subcontractorType" required onchange="onSubcontractorTypeChange()">
+                            <option value="legal">Юридическое лицо</option>
+                            <option value="ip">Индивидуальный предприниматель</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>ИНН</label>
+                        <input type="text" id="subcontractorINN" maxlength="12" inputmode="numeric" data-validate="inn" data-entity="legal">
+                        <div class="cr-error"></div>
+                    </div>
+                    <div class="cr-field">
+                        <label>КПП</label>
+                        <input type="text" id="subcontractorKPP" maxlength="9" inputmode="numeric" data-validate="kpp">
+                        <div class="cr-error"></div>
+                    </div>
+                    <div class="cr-field">
+                        <label>ОГРН/ОГРНИП</label>
+                        <input type="text" id="subcontractorOGRN" maxlength="15" inputmode="numeric" data-validate="ogrn" data-entity="legal">
+                        <div class="cr-error"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="cr-section">
+                <h4>Адреса</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Юридический адрес</label>
+                        <input type="text" id="subcontractorLegalAddress">
+                    </div>
+                    <div class="cr-field">
+                        <label>Фактический адрес</label>
+                        <input type="text" id="subcontractorActualAddress">
+                    </div>
+                </div>
+            </div>
+            <div class="cr-section">
+                <h4>Контакты и руководство</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Телефон</label>
+                        <input type="tel" id="subcontractorPhone" maxlength="18" data-validate="phone" placeholder="+7 (___) ___-__-__">
+                        <div class="cr-error"></div>
+                    </div>
+                    <div class="cr-field">
+                        <label>Email</label>
+                        <input type="email" id="subcontractorEmail" maxlength="120" data-validate="email">
+                        <div class="cr-error"></div>
+                    </div>
+                </div>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>ФИО руководителя</label>
+                        <input type="text" id="subcontractorDirector">
+                    </div>
+                </div>
+            </div>
+            <div class="cr-section">
+                <h4>Банковские реквизиты</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Наименование банка</label>
+                        <input type="text" id="subcontractorBankName">
+                    </div>
+                    <div class="cr-field">
+                        <label>БИК</label>
+                        <input type="text" id="subcontractorBIK" maxlength="9" inputmode="numeric" data-validate="bik">
+                        <div class="cr-error"></div>
+                    </div>
+                </div>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Расчётный счёт</label>
+                        <input type="text" id="subcontractorAccount" maxlength="20" inputmode="numeric" data-validate="account">
+                        <div class="cr-error"></div>
+                    </div>
+                    <div class="cr-field">
+                        <label>Корреспондентский счёт</label>
+                        <input type="text" id="subcontractorCorrAccount" maxlength="20" inputmode="numeric" data-validate="corrAccount">
+                        <div class="cr-error"></div>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;gap:.5rem;margin-top:.25rem;">
+                <button type="submit" class="cr-btn cr-btn-primary">
+                    <i class="fas fa-plus"></i> <span id="subcontractorSubmitText">Добавить</span>
+                </button>
+                <button type="button" class="cr-btn cr-btn-danger" id="subcontractorCancelEdit" style="display:none" onclick="cancelEdit('subcontractor')">Отмена</button>
+            </div>
+        </form>
+    </div>
+    <div class="cr-card">
+        <h3>Добавленные субподрядчики</h3>
+        <div id="subcontractorsContainer"></div>
+    </div>
+</div>
+
+{# ==================== CUSTOMERS ==================== #}
+<div id="customers" class="cr-panel">
+    <div class="cr-card" id="customerCard">
+        <h3>
+            <span id="customerFormTitle">Добавить заказчика</span>
+            <span class="cr-edit-badge">Редактирование</span>
+        </h3>
+        <form id="customerForm" novalidate>
+            {% csrf_token %}
+            <input type="hidden" id="customerEditId" value="">
+            <div class="cr-section">
+                <h4>Основная информация</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>ФИО *</label>
+                        <input type="text" id="customerName" required>
+                    </div>
+                    <div class="cr-field">
+                        <label>Тип заказчика *</label>
+                        <select id="customerType" required onchange="onCustomerTypeChange()">
+                            <option value="individual">Физическое лицо</option>
+                            <option value="ip">Индивидуальный предприниматель</option>
+                            <option value="legal">Юридическое лицо</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>ИНН</label>
+                        <input type="text" id="customerINN" maxlength="12" inputmode="numeric" data-validate="inn" data-entity="individual">
+                        <div class="cr-error"></div>
+                    </div>
+                    <div class="cr-field">
+                        <label>Название организации</label>
+                        <input type="text" id="customerOrganization">
+                    </div>
+                </div>
+            </div>
+            <div class="cr-section">
+                <h4>Контакты</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Email</label>
+                        <input type="email" id="customerEmail" maxlength="120" data-validate="email">
+                        <div class="cr-error"></div>
+                    </div>
+                    <div class="cr-field">
+                        <label>Телефон</label>
+                        <input type="tel" id="customerPhone" maxlength="18" data-validate="phone" placeholder="+7 (___) ___-__-__">
+                        <div class="cr-error"></div>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;gap:.5rem;margin-top:.25rem;">
+                <button type="submit" class="cr-btn cr-btn-primary">
+                    <i class="fas fa-plus"></i> <span id="customerSubmitText">Добавить</span>
+                </button>
+                <button type="button" class="cr-btn cr-btn-danger" id="customerCancelEdit" style="display:none" onclick="cancelEdit('customer')">Отмена</button>
+            </div>
+        </form>
+    </div>
+    <div class="cr-card">
+        <h3>Добавленные заказчики</h3>
+        <div id="customersContainer"></div>
+    </div>
+</div>
+
+{# ==================== EQUIPMENT ==================== #}
+<div id="equipment" class="cr-panel">
+    <div class="cr-card" id="equipmentCard">
+        <h3>
+            <span id="equipmentFormTitle">Добавить оборудование</span>
+            <span class="cr-edit-badge">Редактирование</span>
+        </h3>
+        <form id="equipmentForm" novalidate>
+            {% csrf_token %}
+            <input type="hidden" id="equipmentEditId" value="">
+            <div class="cr-section">
+                <h4>Основная информация</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Название *</label>
+                        <input type="text" id="equipmentName" required>
+                    </div>
+                    <div class="cr-field">
+                        <label>Тип приобретения *</label>
+                        <select id="equipmentAcquisitionType" onchange="toggleEquipmentPricing()" required>
+                            <option value="owned">Собственное</option>
+                            <option value="rented">В аренде</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="cr-row cr-hidden" id="equipmentUnitRow">
+                    <div class="cr-field">
+                        <label>Единица измерения</label>
+                        <select id="equipmentUnit" onchange="toggleEquipmentPricing()">
+                            <option value="hours">Часы</option>
+                            <option value="days">Дни</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="cr-section">
+                <h4>Финансовая информация</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label id="equipmentCostLabel">Стоимость оборудования (₽) *</label>
+                        <input type="number" id="equipmentCost" required min="0" step="0.01">
+                    </div>
+                    <div class="cr-field cr-hidden" id="equipmentOperationalCostGroup">
+                        <label>Эксплуатационная стоимость (₽)</label>
+                        <input type="number" id="equipmentOperationalCost" min="0" step="0.01">
+                    </div>
+                </div>
+            </div>
+            <div class="cr-section">
+                <h4>Описание</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Описание</label>
+                        <textarea id="equipmentDescription" rows="3"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;gap:.5rem;margin-top:.25rem;">
+                <button type="submit" class="cr-btn cr-btn-primary">
+                    <i class="fas fa-plus"></i> <span id="equipmentSubmitText">Добавить</span>
+                </button>
+                <button type="button" class="cr-btn cr-btn-danger" id="equipmentCancelEdit" style="display:none" onclick="cancelEdit('equipment')">Отмена</button>
+            </div>
+        </form>
+    </div>
+    <div class="cr-card">
+        <h3>Добавленное оборудование</h3>
+        <div id="equipmentContainer"></div>
+    </div>
+</div>
+
+{# ==================== MODAL ==================== #}
+<div class="cr-modal-overlay" id="crModalOverlay" aria-hidden="true">
+    <div class="cr-modal" id="crModal" role="dialog" aria-modal="true" aria-labelledby="crModalTitle">
+        <div class="cr-modal-head">
+            <div class="cr-modal-icon" id="crModalIcon">
+                <svg id="crModalIconSvg" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+            </div>
+            <h3 class="cr-modal-title" id="crModalTitle">Подтверждение</h3>
+        </div>
+        <p class="cr-modal-text" id="crModalText"></p>
+        <div class="cr-modal-actions">
+            <button type="button" class="cr-btn cr-btn-cancel" id="crModalCancel">Отмена</button>
+            <button type="button" class="cr-btn cr-btn-primary" id="crModalConfirm">Подтвердить</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block app_extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    // ============================================================
+    // Утилиты
+    // ============================================================
+    function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s == null ? '' : String(s);
+        return d.innerHTML;
+    }
+    function getCookie(name) {
+        var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? m.pop() : '';
+    }
+    function csrf() {
+        var inp = document.querySelector('[name=csrfmiddlewaretoken]');
+        return (inp && inp.value) ? inp.value : getCookie('csrftoken');
+    }
+    function fmt(n) { return Math.round(parseFloat(n) || 0).toLocaleString('ru-RU'); }
+
+    // ============================================================
+    // Состояние
+    // ============================================================
+    var data = {
+        employees: [],
+        executors: [],
+        subcontractors: [],
+        customers: [],
+        equipment: [],
+    };
+    var editing = {
+        employee: null,
+        executor: null,
+        subcontractor: null,
+        customer: null,
+        equipment: null,
+    };
+
+    // ============================================================
+    // API
+    // ============================================================
+    function apiList() {
+        return fetch('/api/resources/', { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                data.employees = d.employees || [];
+                data.executors = d.executors || [];
+                data.subcontractors = d.subcontractors || [];
+                data.customers = d.customers || [];
+                data.equipment = d.equipment || [];
+                renderAll();
+                updateSidebarCounters(d.counts || {});
+            })
+            .catch(function () { renderAll(); });
+    }
+
+    function apiCreate(kind, formData) {
+        return fetch('/api/resources/' + kind + '/create/', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        }).then(function (r) { return r.json(); });
+    }
+    function apiUpdate(kind, id, formData) {
+        return fetch('/api/resources/' + kind + '/' + id + '/update/', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        }).then(function (r) { return r.json(); });
+    }
+    function apiDelete(kind, id) {
+        var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', csrf());
+        return fetch('/api/resources/' + kind + '/' + id + '/delete/', {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        }).then(function (r) { return r.json(); });
+    }
+
+    function updateSidebarCounters(counts) {
+        var map = {
+            'sidebar-count-employees': counts.employees || 0,
+            'sidebar-count-executors': counts.executors || 0,
+            'sidebar-count-subcontractors': counts.subcontractors || 0,
+            'sidebar-count-customers': counts.customers || 0,
+            'sidebar-count-equipment': counts.equipment || 0,
+        };
+        Object.keys(map).forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.textContent = map[id];
+        });
+    }
+
+    // ============================================================
+    // Tabs
+    // ============================================================
+    window.showTab = function (btn, tabName) {
+        // Скрыть все панели, показать нужную
+        document.querySelectorAll('.cr-panel').forEach(function (p) { p.classList.remove('active'); });
+        var panel = document.getElementById(tabName);
+        if (panel) panel.classList.add('active');
+
+        // Подсветить в сайдбаре именно тот пункт, у которого href оканчивается на #tabName
+        document.querySelectorAll('.cr-side-link').forEach(function (t) {
+            t.classList.remove('active');
+        });
+        var sideLink = document.querySelector('.cr-side-link[href$="#' + tabName + '"]');
+        if (sideLink) sideLink.classList.add('active');
+
+        // Скролл наверх
+        if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // ============================================================
+    // Toggle pricing
+    // ============================================================
+    window.toggleExecutorPricing = function () {
+        var unit = document.getElementById('executorUnit').value;
+        document.getElementById('executorHourlyCostGroup').classList.toggle('cr-hidden', unit !== 'hours');
+        document.getElementById('executorDailyCostGroup').classList.toggle('cr-hidden', unit !== 'days');
+        document.getElementById('executorFixedCostGroup').classList.toggle('cr-hidden', unit !== 'fixed');
+    };
+    window.toggleEquipmentPricing = function () {
+        var acq = document.getElementById('equipmentAcquisitionType').value;
+        var isRented = acq === 'rented';
+        document.getElementById('equipmentUnitRow').classList.toggle('cr-hidden', !isRented);
+        document.getElementById('equipmentOperationalCostGroup').classList.toggle('cr-hidden', !isRented);
+        var label = document.getElementById('equipmentCostLabel');
+        if (isRented) {
+            var unit = document.getElementById('equipmentUnit').value;
+            label.textContent = unit === 'days'
+                ? 'Стоимость услуги за день (₽) *'
+                : 'Стоимость услуги за час (₽) *';
+        } else {
+            label.textContent = 'Стоимость оборудования (₽) *';
+        }
+    };
+
+    // ============================================================
+    // Modal confirm
+    // ============================================================
+    var modalResolver = null;
+    var modalOverlay = document.getElementById('crModalOverlay');
+    var modalRoot = document.getElementById('crModal');
+    var modalTitle = document.getElementById('crModalTitle');
+    var modalText = document.getElementById('crModalText');
+    var modalConfirm = document.getElementById('crModalConfirm');
+    var modalCancel = document.getElementById('crModalCancel');
+    var modalIconSvg = document.getElementById('crModalIconSvg');
+
+    var ICON_QUESTION = '<circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line>';
+    var ICON_DANGER = '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>';
+
+    function openModal(opts) {
+        modalTitle.textContent = opts.title || 'Подтверждение';
+        modalText.innerHTML = opts.text || '';
+        modalConfirm.textContent = opts.confirmText || 'Подтвердить';
+        modalConfirm.classList.toggle('cr-btn-confirm-danger', !!opts.danger);
+        modalConfirm.classList.toggle('cr-btn-primary', !opts.danger);
+        modalRoot.classList.toggle('danger', !!opts.danger);
+        modalIconSvg.innerHTML = opts.danger ? ICON_DANGER : ICON_QUESTION;
+        modalOverlay.classList.add('open');
+        modalOverlay.setAttribute('aria-hidden', 'false');
+        setTimeout(function () { modalConfirm.focus(); }, 60);
+    }
+    function closeModal(result) {
+        modalOverlay.classList.remove('open');
+        modalOverlay.setAttribute('aria-hidden', 'true');
+        if (modalResolver) {
+            var r = modalResolver; modalResolver = null; r(result);
+        }
+    }
+    function confirmAction(opts) {
+        return new Promise(function (resolve) {
+            modalResolver = resolve; openModal(opts);
+        });
+    }
+    modalConfirm.addEventListener('click', function () { closeModal(true); });
+    modalCancel.addEventListener('click', function () { closeModal(false); });
+    modalOverlay.addEventListener('click', function (e) {
+        if (e.target === modalOverlay) closeModal(false);
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && modalOverlay.classList.contains('open')) closeModal(false);
+    });
+
+    // ============================================================
+    // Render
+    // ============================================================
+    function setEditMode(type, editing_, resourceName) {
+        var card = document.getElementById(type + 'Card');
+        var title = document.getElementById(type + 'FormTitle');
+        var submitText = document.getElementById(type + 'SubmitText');
+        var cancelBtn = document.getElementById(type + 'CancelEdit');
+        var names = {
+            employee: 'сотрудника', executor: 'исполнителя',
+            subcontractor: 'субподрядчика', customer: 'заказчика',
+            equipment: 'оборудование'
+        };
+        if (editing_) {
+            if (card) card.classList.add('editing');
+            var suffix = resourceName ? ': ' + resourceName : '';
+            title.textContent = 'Редактирование' + suffix;
+            submitText.textContent = 'Сохранить';
+            cancelBtn.style.display = '';
+        } else {
+            if (card) card.classList.remove('editing');
+            title.textContent = 'Добавить ' + names[type];
+            submitText.textContent = 'Добавить';
+            cancelBtn.style.display = 'none';
+        }
+    }
+
+    window.cancelEdit = function (type) {
+        editing[type] = null;
+        var form = document.getElementById(type + 'Form');
+        if (form) form.reset();
+        document.getElementById(type + 'EditId').value = '';
+        if (type === 'executor') window.toggleExecutorPricing();
+        if (type === 'equipment') window.toggleEquipmentPricing();
+        document.querySelectorAll('.cr-field input.invalid').forEach(function (i) { i.classList.remove('invalid'); });
+        document.querySelectorAll('.cr-error.visible').forEach(function (e) { e.textContent = ''; e.classList.remove('visible'); });
+        setEditMode(type, false);
+    };
+
+    function renderEmployees() {
+        var c = document.getElementById('employeesContainer');
+        if (!data.employees.length) {
+            c.innerHTML = '<div class="cr-empty">Сотрудники не добавлены</div>';
+            return;
+        }
+        c.innerHTML = '<div class="cr-list">' + data.employees.map(function (e) {
+            var salary = parseFloat(e.salary) || 0;
+            var taxRate = parseFloat(e.taxRate) || 0;
+            var taxAmount = salary * taxRate / 100;
+            return ''
+                + '<div class="cr-item ' + (editing.employee === e.id ? 'editing' : '') + '">'
+                +   '<div class="cr-item-info">'
+                +     '<div class="cr-item-name">' + esc(e.name) + '</div>'
+                +     '<div class="cr-item-details">'
+                +       '<span class="cr-acc">' + esc(e.position) + '</span>'
+                +       ' · <span class="cr-acc">ЗП:</span> <span class="cr-val">' + fmt(salary) + ' ₽/мес</span>'
+                +       ' · <span class="cr-acc">Налог:</span> <span class="cr-val">' + esc(e.taxRate) + '%</span>'
+                +       ' <span class="cr-money">(' + fmt(taxAmount) + ' ₽)</span>'
+                +     '</div>'
+                +   '</div>'
+                +   '<div class="cr-item-cost">' + fmt(e.cost) + ' ₽</div>'
+                +   '<div class="cr-item-actions">'
+                +     '<button class="cr-btn cr-btn-edit cr-btn-sm" onclick="editItem(\'employee\',' + e.id + ')" title="Редактировать"><i class="fas fa-pen"></i></button>'
+                +     '<button class="cr-btn cr-btn-danger cr-btn-sm" onclick="removeItem(\'employee\',' + e.id + ')" title="Удалить"><i class="fas fa-trash"></i></button>'
+                +   '</div>'
+                + '</div>';
+        }).join('') + '</div>';
+    }
+
+    function renderExecutors() {
+        var c = document.getElementById('executorsContainer');
+        if (!data.executors.length) {
+            c.innerHTML = '<div class="cr-empty">Исполнители не добавлены</div>';
+            return;
+        }
+        var unitLabels = { hours: 'час', days: 'день', fixed: 'полная стоимость' };
+        c.innerHTML = '<div class="cr-list">' + data.executors.map(function (e) {
+            var taxRate = parseFloat(e.taxRate) || 0;
+            var unit = e.unit || 'hours';
+            var baseVal, baseLabel;
+            if (unit === 'fixed') {
+                baseVal = parseFloat(e.fixedCost) || 0;
+                baseLabel = '<span class="cr-acc">Полная стоимость:</span> <span class="cr-val">' + fmt(baseVal) + ' ₽</span>';
+            } else if (unit === 'days') {
+                baseVal = parseFloat(e.dailyCost) || 0;
+                baseLabel = '<span class="cr-acc">Стоимость:</span> <span class="cr-val">' + fmt(baseVal) + ' ₽/день</span>';
+            } else {
+                baseVal = parseFloat(e.hourlyCost) || 0;
+                baseLabel = '<span class="cr-acc">Стоимость:</span> <span class="cr-val">' + fmt(baseVal) + ' ₽/час</span>';
+            }
+            var taxAmount = baseVal * taxRate / 100;
+            return ''
+                + '<div class="cr-item ' + (editing.executor === e.id ? 'editing' : '') + '">'
+                +   '<div class="cr-item-info">'
+                +     '<div class="cr-item-name">' + esc(e.name) + '</div>'
+                +     '<div class="cr-item-details">'
+                +       '<span class="cr-acc">' + esc(e.contractType).toUpperCase() + '</span>'
+                +       ' · ' + baseLabel
+                +       ' · <span class="cr-acc">Ед. изм.:</span> <span class="cr-val">' + (unitLabels[unit] || 'час') + '</span>'
+                +       ' · <span class="cr-acc">Налог:</span> <span class="cr-val">' + esc(e.taxRate) + '%</span>'
+                +       ' <span class="cr-money">(' + fmt(taxAmount) + ' ₽)</span>'
+                +     '</div>'
+                +   '</div>'
+                +   '<div class="cr-item-cost">' + fmt(e.cost) + ' ₽</div>'
+                +   '<div class="cr-item-actions">'
+                +     '<button class="cr-btn cr-btn-edit cr-btn-sm" onclick="editItem(\'executor\',' + e.id + ')"><i class="fas fa-pen"></i></button>'
+                +     '<button class="cr-btn cr-btn-danger cr-btn-sm" onclick="removeItem(\'executor\',' + e.id + ')"><i class="fas fa-trash"></i></button>'
+                +   '</div>'
+                + '</div>';
+        }).join('') + '</div>';
+    }
+
+    function renderSubcontractors() {
+        var c = document.getElementById('subcontractorsContainer');
+        if (!data.subcontractors.length) {
+            c.innerHTML = '<div class="cr-empty">Субподрядчики не добавлены</div>';
+            return;
+        }
+        c.innerHTML = '<div class="cr-list">' + data.subcontractors.map(function (s) {
+            var typeLabel = s.type === 'ip' ? 'ИП' : 'Юр. лицо';
+            var details = [];
+            if (s.inn) details.push('<span class="cr-acc">ИНН:</span> <span class="cr-val">' + esc(s.inn) + '</span>');
+            if (s.ogrn) details.push('<span class="cr-acc">ОГРН:</span> <span class="cr-val">' + esc(s.ogrn) + '</span>');
+            if (s.phone) details.push('<span class="cr-acc">тел.:</span> <span class="cr-val">' + esc(s.phone) + '</span>');
+            if (s.email) details.push('<span class="cr-acc">email:</span> <span class="cr-val">' + esc(s.email) + '</span>');
+            if (s.bankName) details.push('<span class="cr-acc">банк:</span> <span class="cr-val">' + esc(s.bankName) + '</span>');
+            return ''
+                + '<div class="cr-item ' + (editing.subcontractor === s.id ? 'editing' : '') + '">'
+                +   '<div class="cr-item-info">'
+                +     '<div class="cr-item-name">' + esc(s.name) + '</div>'
+                +     '<div class="cr-item-details">'
+                +       '<span class="cr-acc">' + typeLabel + '</span>'
+                +       (details.length ? ' · ' + details.join(' · ') : '')
+                +     '</div>'
+                +   '</div>'
+                +   '<div class="cr-item-actions">'
+                +     '<button class="cr-btn cr-btn-edit cr-btn-sm" onclick="editItem(\'subcontractor\',' + s.id + ')"><i class="fas fa-pen"></i></button>'
+                +     '<button class="cr-btn cr-btn-danger cr-btn-sm" onclick="removeItem(\'subcontractor\',' + s.id + ')"><i class="fas fa-trash"></i></button>'
+                +   '</div>'
+                + '</div>';
+        }).join('') + '</div>';
+    }
+
+    function renderCustomers() {
+        var c = document.getElementById('customersContainer');
+        if (!data.customers.length) {
+            c.innerHTML = '<div class="cr-empty">Заказчики не добавлены</div>';
+            return;
+        }
+        var typeLabels = { individual: 'Физ. лицо', ip: 'ИП', legal: 'Юр. лицо' };
+        c.innerHTML = '<div class="cr-list">' + data.customers.map(function (cu) {
+            var details = [];
+            if (cu.organization) details.push('<span class="cr-acc">Организация:</span> <span class="cr-val">' + esc(cu.organization) + '</span>');
+            if (cu.inn) details.push('<span class="cr-acc">ИНН:</span> <span class="cr-val">' + esc(cu.inn) + '</span>');
+            if (cu.email) details.push('<span class="cr-acc">email:</span> <span class="cr-val">' + esc(cu.email) + '</span>');
+            if (cu.phone) details.push('<span class="cr-acc">тел.:</span> <span class="cr-val">' + esc(cu.phone) + '</span>');
+            return ''
+                + '<div class="cr-item ' + (editing.customer === cu.id ? 'editing' : '') + '">'
+                +   '<div class="cr-item-info">'
+                +     '<div class="cr-item-name">' + esc(cu.name) + '</div>'
+                +     '<div class="cr-item-details">'
+                +       '<span class="cr-acc">' + (typeLabels[cu.type] || 'Физ. лицо') + '</span>'
+                +       (details.length ? ' · ' + details.join(' · ') : '')
+                +     '</div>'
+                +   '</div>'
+                +   '<div class="cr-item-actions">'
+                +     '<button class="cr-btn cr-btn-edit cr-btn-sm" onclick="editItem(\'customer\',' + cu.id + ')"><i class="fas fa-pen"></i></button>'
+                +     '<button class="cr-btn cr-btn-danger cr-btn-sm" onclick="removeItem(\'customer\',' + cu.id + ')"><i class="fas fa-trash"></i></button>'
+                +   '</div>'
+                + '</div>';
+        }).join('') + '</div>';
+    }
+
+    function renderEquipment() {
+        var c = document.getElementById('equipmentContainer');
+        if (!data.equipment.length) {
+            c.innerHTML = '<div class="cr-empty">Оборудование не добавлено</div>';
+            return;
+        }
+        c.innerHTML = '<div class="cr-list">' + data.equipment.map(function (eq) {
+            var isRented = eq.acquisitionType === 'rented';
+            var unitLabels = { hours: 'час', days: 'день' };
+            var unit = eq.unit || 'hours';
+            var cost = parseFloat(eq.cost) || 0;
+            var op = parseFloat(eq.operationalCost) || 0;
+            var details = [];
+            if (isRented) {
+                details.push('<span class="cr-acc">В аренде</span>');
+                details.push('<span class="cr-acc">Ед. изм.:</span> <span class="cr-val">' + (unitLabels[unit] || 'час') + '</span>');
+                details.push('<span class="cr-acc">Стоимость:</span> <span class="cr-val">' + fmt(cost) + ' ₽/' + (unit === 'days' ? 'день' : 'час') + '</span>');
+                if (op) details.push('<span class="cr-acc">Эксплуатация:</span> <span class="cr-val">' + fmt(op) + ' ₽</span>');
+            } else {
+                details.push('<span class="cr-acc">Собственное</span>');
+                details.push('<span class="cr-acc">Стоимость:</span> <span class="cr-val">' + fmt(cost) + ' ₽</span>');
+            }
+            if (eq.description) details.push('<span class="cr-acc">Описание:</span> <span class="cr-val">' + esc(eq.description) + '</span>');
+            return ''
+                + '<div class="cr-item ' + (editing.equipment === eq.id ? 'editing' : '') + '">'
+                +   '<div class="cr-item-info">'
+                +     '<div class="cr-item-name">' + esc(eq.name) + '</div>'
+                +     '<div class="cr-item-details">' + details.join(' · ') + '</div>'
+                +   '</div>'
+                +   '<div class="cr-item-cost">' + fmt(eq.cost) + ' ₽</div>'
+                +   '<div class="cr-item-actions">'
+                +     '<button class="cr-btn cr-btn-edit cr-btn-sm" onclick="editItem(\'equipment\',' + eq.id + ')"><i class="fas fa-pen"></i></button>'
+                +     '<button class="cr-btn cr-btn-danger cr-btn-sm" onclick="removeItem(\'equipment\',' + eq.id + ')"><i class="fas fa-trash"></i></button>'
+                +   '</div>'
+                + '</div>';
+        }).join('') + '</div>';
+    }
+
+    function renderAll() {
+        renderEmployees();
+        renderExecutors();
+        renderSubcontractors();
+        renderCustomers();
+        renderEquipment();
+    }
+
+    // ============================================================
+    // Edit / Remove
+    // ============================================================
+    window.editItem = function (type, id) {
+        var item;
+        if (type === 'employee') item = data.employees.find(function (x) { return x.id === id; });
+        if (type === 'executor') item = data.executors.find(function (x) { return x.id === id; });
+        if (type === 'subcontractor') item = data.subcontractors.find(function (x) { return x.id === id; });
+        if (type === 'customer') item = data.customers.find(function (x) { return x.id === id; });
+        if (type === 'equipment') item = data.equipment.find(function (x) { return x.id === id; });
+        if (!item) return;
+        editing[type] = id;
+
+        if (type === 'employee') {
+            var parts = (item.name || '').split(' ');
+            document.getElementById('employeeLastName').value = parts[0] || '';
+            document.getElementById('employeeFirstName').value = parts[1] || '';
+            document.getElementById('employeeMiddleName').value = parts.slice(2).join(' ');
+            document.getElementById('employeePosition').value = item.position || '';
+            document.getElementById('employeeSalary').value = item.salary || '';
+            document.getElementById('employeeTaxRate').value = item.taxRate || 13;
+            document.getElementById('employeeEditId').value = id;
+            setEditMode('employee', true, item.name);
+            window.showTab(null, 'employees');
+            document.getElementById('employeeCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        if (type === 'executor') {
+            var p2 = (item.name || '').split(' ');
+            document.getElementById('executorLastName').value = p2[0] || '';
+            document.getElementById('executorFirstName').value = p2[1] || '';
+            document.getElementById('executorMiddleName').value = p2.slice(2).join(' ');
+            document.getElementById('executorContractType').value = item.contractType || 'gph';
+            document.getElementById('executorUnit').value = item.unit || 'hours';
+            document.getElementById('executorTaxRate').value = item.taxRate || 13;
+            document.getElementById('executorHourlyCost').value = item.hourlyCost || '';
+            document.getElementById('executorDailyCost').value = item.dailyCost || '';
+            document.getElementById('executorFixedCost').value = item.fixedCost || '';
+            document.getElementById('executorEditId').value = id;
+            window.toggleExecutorPricing();
+            setEditMode('executor', true, item.name);
+            window.showTab(null, 'executors');
+            document.getElementById('executorCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        if (type === 'subcontractor') {
+            document.getElementById('subcontractorName').value = item.name || '';
+            document.getElementById('subcontractorType').value = item.type || 'legal';
+            document.getElementById('subcontractorINN').value = item.inn || '';
+            document.getElementById('subcontractorKPP').value = item.kpp || '';
+            document.getElementById('subcontractorOGRN').value = item.ogrn || '';
+            document.getElementById('subcontractorLegalAddress').value = item.legalAddress || '';
+            document.getElementById('subcontractorActualAddress').value = item.actualAddress || '';
+            document.getElementById('subcontractorPhone').value = item.phone || '';
+            document.getElementById('subcontractorEmail').value = item.email || '';
+            document.getElementById('subcontractorDirector').value = item.director || '';
+            document.getElementById('subcontractorBankName').value = item.bankName || '';
+            document.getElementById('subcontractorAccount').value = item.account || '';
+            document.getElementById('subcontractorCorrAccount').value = item.corrAccount || '';
+            document.getElementById('subcontractorBIK').value = item.bik || '';
+            document.getElementById('subcontractorEditId').value = id;
+            onSubcontractorTypeChange();
+            setEditMode('subcontractor', true, item.name);
+            window.showTab(null, 'subcontractors');
+            document.getElementById('subcontractorCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        if (type === 'customer') {
+            document.getElementById('customerName').value = item.name || '';
+            document.getElementById('customerType').value = item.type || 'individual';
+            document.getElementById('customerINN').value = item.inn || '';
+            document.getElementById('customerOrganization').value = item.organization || '';
+            document.getElementById('customerEmail').value = item.email || '';
+            document.getElementById('customerPhone').value = item.phone || '';
+            document.getElementById('customerEditId').value = id;
+            onCustomerTypeChange();
+            setEditMode('customer', true, item.name);
+            window.showTab(null, 'customers');
+            document.getElementById('customerCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        if (type === 'equipment') {
+            document.getElementById('equipmentName').value = item.name || '';
+            document.getElementById('equipmentAcquisitionType').value = item.acquisitionType || 'owned';
+            document.getElementById('equipmentUnit').value = item.unit || 'hours';
+            document.getElementById('equipmentCost').value = item.cost || '';
+            document.getElementById('equipmentOperationalCost').value = item.operationalCost || '';
+            document.getElementById('equipmentDescription').value = item.description || '';
+            document.getElementById('equipmentEditId').value = id;
+            window.toggleEquipmentPricing();
+            setEditMode('equipment', true, item.name);
+            window.showTab(null, 'equipment');
+            document.getElementById('equipmentCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
+    window.removeItem = function (type, id) {
+        var item;
+        if (type === 'employee') item = data.employees.find(function (x) { return x.id === id; });
+        if (type === 'executor') item = data.executors.find(function (x) { return x.id === id; });
+        if (type === 'subcontractor') item = data.subcontractors.find(function (x) { return x.id === id; });
+        if (type === 'customer') item = data.customers.find(function (x) { return x.id === id; });
+        if (type === 'equipment') item = data.equipment.find(function (x) { return x.id === id; });
+        if (!item) return;
+        var titles = {
+            employee: 'Удалить сотрудника?',
+            executor: 'Удалить исполнителя?',
+            subcontractor: 'Удалить субподрядчика?',
+            customer: 'Удалить заказчика?',
+            equipment: 'Удалить оборудование?',
+        };
+        confirmAction({
+            title: titles[type] || 'Удалить ресурс?',
+            text: 'Вы действительно хотите удалить <strong>' + esc(item.name) + '</strong>?',
+            confirmText: 'Удалить',
+            danger: true,
+        }).then(function (ok) {
+            if (!ok) return;
+            apiDelete(type, id).then(function (res) {
+                if (res.success) {
+                    if (editing[type] === id) window.cancelEdit(type);
+                    apiList();
+                }
+            });
+        });
+    };
+
+    // ============================================================
+    // Валидация (упрощённая — ключевое на сервере)
+    // ============================================================
+    window.onSubcontractorTypeChange = function () {
+        var type = document.getElementById('subcontractorType').value;
+        var inn = document.getElementById('subcontractorINN');
+        var ogrn = document.getElementById('subcontractorOGRN');
+        if (inn) inn.dataset.entity = type;
+        if (ogrn) ogrn.dataset.entity = type;
+    };
+    window.onCustomerTypeChange = function () {
+        var type = document.getElementById('customerType').value;
+        var inn = document.getElementById('customerINN');
+        if (inn) inn.dataset.entity = type;
+    };
+
+    // ============================================================
+    // Формы
+    // ============================================================
+    function submitForm(kind, type, formEl, buildFd, onSuccess) {
+        var fd = buildFd();
+        fd.append('csrfmiddlewaretoken', csrf());
+        var editIdEl = document.getElementById(type + 'EditId');
+        var editId = editIdEl ? editIdEl.value : '';
+        var promise = editId
+            ? apiUpdate(kind, editId, fd)
+            : apiCreate(kind, fd);
+
+        promise.then(function (res) {
+            if (res.success) {
+                onSuccess();
+                apiList();
+            } else {
+                alert(res.error || 'Ошибка сохранения');
+            }
+        }).catch(function (err) {
+            console.error(err);
+            alert('Ошибка сети');
+        });
+    }
+
+    // Employees
+    document.getElementById('employeeForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var last = document.getElementById('employeeLastName').value.trim();
+        var first = document.getElementById('employeeFirstName').value.trim();
+        var middle = document.getElementById('employeeMiddleName').value.trim();
+        var name = middle ? (last + ' ' + first + ' ' + middle) : (last + ' ' + first);
+        if (!name || !document.getElementById('employeePosition').value.trim() || !document.getElementById('employeeSalary').value) {
+            alert('Заполните обязательные поля');
+            return;
+        }
+        submitForm('employees', 'employee', this, function () {
+            var fd = new FormData();
+            fd.append('name', name);
+            fd.append('position', document.getElementById('employeePosition').value.trim());
+            fd.append('salary', document.getElementById('employeeSalary').value);
+            fd.append('taxRate', document.getElementById('employeeTaxRate').value);
+            return fd;
+        }, function () {
+            document.getElementById('employeeForm').reset();
+            window.cancelEdit('employee');
+        });
+    });
+
+    // Executors
+    document.getElementById('executorForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var last = document.getElementById('executorLastName').value.trim();
+        var first = document.getElementById('executorFirstName').value.trim();
+        var middle = document.getElementById('executorMiddleName').value.trim();
+        var name = middle ? (last + ' ' + first + ' ' + middle) : (last + ' ' + first);
+        if (!name) { alert('Укажите ФИО'); return; }
+        submitForm('contractors', 'executor', this, function () {
+            var fd = new FormData();
+            fd.append('name', name);
+            fd.append('contractType', document.getElementById('executorContractType').value);
+            fd.append('unit', document.getElementById('executorUnit').value);
+            fd.append('taxRate', document.getElementById('executorTaxRate').value);
+            fd.append('hourlyCost', document.getElementById('executorHourlyCost').value);
+            fd.append('dailyCost', document.getElementById('executorDailyCost').value);
+            fd.append('fixedCost', document.getElementById('executorFixedCost').value);
+            return fd;
+        }, function () {
+            document.getElementById('executorForm').reset();
+            window.cancelEdit('executor');
+        });
+    });
+
+    // Subcontractors
+    document.getElementById('subcontractorForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = document.getElementById('subcontractorName').value.trim();
+        if (!name) { alert('Укажите наименование'); return; }
+        submitForm('subcontractors', 'subcontractor', this, function () {
+            var fd = new FormData();
+            fd.append('name', name);
+            fd.append('type', document.getElementById('subcontractorType').value);
+            fd.append('inn', document.getElementById('subcontractorINN').value);
+            fd.append('kpp', document.getElementById('subcontractorKPP').value);
+            fd.append('ogrn', document.getElementById('subcontractorOGRN').value);
+            fd.append('legalAddress', document.getElementById('subcontractorLegalAddress').value);
+            fd.append('actualAddress', document.getElementById('subcontractorActualAddress').value);
+            fd.append('phone', document.getElementById('subcontractorPhone').value);
+            fd.append('email', document.getElementById('subcontractorEmail').value);
+            fd.append('director', document.getElementById('subcontractorDirector').value);
+            fd.append('bankName', document.getElementById('subcontractorBankName').value);
+            fd.append('bik', document.getElementById('subcontractorBIK').value);
+            fd.append('account', document.getElementById('subcontractorAccount').value);
+            fd.append('corrAccount', document.getElementById('subcontractorCorrAccount').value);
+            return fd;
+        }, function () {
+            document.getElementById('subcontractorForm').reset();
+            window.cancelEdit('subcontractor');
+        });
+    });
+
+    // Customers
+    document.getElementById('customerForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = document.getElementById('customerName').value.trim();
+        if (!name) { alert('Укажите ФИО'); return; }
+        submitForm('customers', 'customer', this, function () {
+            var fd = new FormData();
+            fd.append('name', name);
+            fd.append('type', document.getElementById('customerType').value);
+            fd.append('inn', document.getElementById('customerINN').value);
+            fd.append('organization', document.getElementById('customerOrganization').value);
+            fd.append('email', document.getElementById('customerEmail').value);
+            fd.append('phone', document.getElementById('customerPhone').value);
+            return fd;
+        }, function () {
+            document.getElementById('customerForm').reset();
+            window.cancelEdit('customer');
+        });
+    });
+
+    // Equipment
+    document.getElementById('equipmentForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = document.getElementById('equipmentName').value.trim();
+        var cost = document.getElementById('equipmentCost').value;
+        if (!name || !cost) { alert('Укажите название и стоимость'); return; }
+        submitForm('equipment', 'equipment', this, function () {
+            var fd = new FormData();
+            fd.append('name', name);
+            fd.append('acquisitionType', document.getElementById('equipmentAcquisitionType').value);
+            fd.append('unit', document.getElementById('equipmentUnit').value);
+            fd.append('cost', cost);
+            fd.append('operationalCost', document.getElementById('equipmentOperationalCost').value);
+            fd.append('description', document.getElementById('equipmentDescription').value);
+            return fd;
+        }, function () {
+            document.getElementById('equipmentForm').reset();
+            window.cancelEdit('equipment');
+        });
+    });
+
+    // ============================================================
+    // Init
+    // ============================================================
+    window.toggleEquipmentPricing();
+    apiList();
+        // ============================================================
+    // Открыть таб из hash при загрузке + отслеживать изменения
+    // ============================================================
+    function applyHash() {
+        var hash = (window.location.hash || '').replace('#', '');
+        var valid = ['employees', 'executors', 'equipment', 'customers', 'subcontractors'];
+        if (valid.indexOf(hash) !== -1) {
+            window.showTab(null, hash);
+        } else if (!hash) {
+            // если hash нет — по умолчанию «Сотрудники»
+            window.showTab(null, 'employees');
+        }
+    }
+
+    // При загрузке
+    applyHash();
+
+    // При смене hash в адресной строке (стрелки назад/вперёд, клики по ссылкам с #)
+    window.addEventListener('hashchange', applyHash);
+})();
+</script>
+{% endblock %}

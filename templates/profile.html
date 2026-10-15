@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}Личный кабинет - IQNIX TECH{% endblock %}
+
+{% block extra_css %}
+<style>
+    body { background: #1a1a1a !important; color: white; }
+    main { background: #1a1a1a !important; }
+    .content { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+
+    .profile-header {
+        display: flex; align-items: center; gap: 1.5rem; padding: 2rem 0; border-bottom: 1px solid #333;
+    }
+    .avatar {
+        width: 80px; height: 80px; border-radius: 50%; background: #8B5CF6; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.5rem; color: #fff; box-shadow: 0 8px 30px rgba(0,0,0,.5);
+    }
+    .user-meta h1 { margin: 0; font-size: 1.8rem; font-weight: 700; }
+    .user-meta p { margin: .25rem 0 0; color: #ccc; }
+
+    .quick-actions { display: flex; gap: .75rem; margin-top: .75rem; }
+    .btn-action { background: #2a2a2a; color: #fff; border: 1px solid rgba(255,255,255,.06) !important; outline: none !important; padding: .6rem 1rem; border-radius: 10px; font-size: .85rem; font-weight: 600; transition: all .2s; text-decoration: none; font-family: 'Manrope', sans-serif; cursor: pointer; }
+    .btn-action.primary { background: #8B5CF6; border-color: #8B5CF6 !important; }
+    .btn-action:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,.4); text-decoration: none; color: #fff; }
+
+    .grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 2rem; margin-top: 2rem; }
+
+    .card { background: #222; border-radius: 14px; padding: 1.5rem; border: 1px solid rgba(255,255,255,.06); }
+    .card h3 { font-size: 1.2rem; font-weight: 600; margin-bottom: 1rem; color: #fff; }
+    .card p, .card li, .card span { color: #ccc; }
+
+    .user-info-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .info-item { background: #1a1a1a; border: 1px solid rgba(255,255,255,.06); border-radius: 10px; padding: 1rem; }
+    .info-item .label { color: #9aa0a6; font-size: .85rem; }
+    .info-item .value { color: #fff; font-weight: 600; margin-top: .25rem; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: .5rem; }
+    .stat { background: #1a1a1a; border: 1px solid rgba(255,255,255,.06); border-radius: 10px; padding: 1rem; }
+    .stat .num { font-size: 1.5rem; font-weight: 700; color: #fff; }
+    .stat .cap { font-size: .85rem; color: #9aa0a6; }
+
+    .projects-list { display: grid; grid-template-columns: 1fr; gap: .75rem; }
+    .project-item { display: flex; align-items: center; justify-content: space-between; background: #1a1a1a; border: 1px solid rgba(255,255,255,.06); border-radius: 10px; padding: .9rem 1rem; }
+    .project-item .title { font-weight: 600; color: #fff; }
+    .project-item .meta { color: #9aa0a6; font-size: .85rem; }
+    .project-item .actions a { background: #8B5CF6; color: #fff; border: none !important; outline: none; padding: .45rem .8rem; border-radius: 8px; font-size: .8rem; font-weight: 600; text-decoration: none; transition: all .15s; }
+    .project-item .actions a:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139,92,246,.3); }
+    
+    @media (max-width: 992px) {
+        .grid { grid-template-columns: 1fr; }
+        .user-info-list { grid-template-columns: 1fr; }
+        .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<main>
+    <div class="content">
+        <div class="profile-header">
+            <div class="avatar">{{ user.username|first|upper }}</div>
+            <div class="user-meta">
+                <h1>Личный кабинет</h1>
+                <p>Добро пожаловать, {{ user.first_name|default:user.username }}!</p>
+                <div class="quick-actions">
+                    <a href="{% url 'project_list' %}" class="btn-action primary">Мои проекты</a>
+                    <a href="{% url 'create_projects_resources' %}" class="btn-action">Создать проект</a>
+                    <a href="{% url 'logout' %}" class="btn-action">Выйти</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <section class="card">
+                <h3>Информация о пользователе</h3>
+                <div class="user-info-list">
+                    <div class="info-item">
+                        <span class="label">Имя пользователя</span>
+                        <div class="value">{{ user.username }}</div>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Имя</span>
+                        <div class="value">{{ user.first_name|default:"Не указано" }}</div>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Фамилия</span>
+                        <div class="value">{{ user.last_name|default:"Не указано" }}</div>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Email</span>
+                        <div class="value">{{ user.email|default:"Не указан" }}</div>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Дата регистрации</span>
+                        <div class="value">{{ user.date_joined|date:"d.m.Y H:i" }}</div>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Последний вход</span>
+                        <div class="value">{{ user.last_login|date:"d.m.Y H:i"|default:"Никогда" }}</div>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Статус</span>
+                        <div class="value">
+                            {% if user.is_staff %}
+                                Администратор
+                            {% else %}
+                                Пользователь
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top:1.5rem;">Статистика</h3>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="num">{{ stats.projects_total }}</div>
+                        <div class="cap">Всего проектов</div>
+                    </div>
+                    <div class="stat">
+                        <div class="num">{{ stats.projects_active }}</div>
+                        <div class="cap">Активные проекты</div>
+                    </div>
+                    <div class="stat">
+                        <div class="num">{{ stats.employees_total }}</div>
+                        <div class="cap">Сотрудники</div>
+                    </div>
+                    <div class="stat">
+                        <div class="num">{{ stats.contractors_total }}</div>
+                        <div class="cap">Исполнители</div>
+                    </div>
+                    <div class="stat">
+                        <div class="num">{{ stats.subcontractors_total }}</div>
+                        <div class="cap">Подрядчики</div>
+                    </div>
+                    <div class="stat">
+                        <div class="num">{{ stats.equipment_total }}</div>
+                        <div class="cap">Оборудование</div>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="card">
+                <h3>Последние проекты</h3>
+                {% if recent_projects %}
+                    <div class="projects-list">
+                        {% for p in recent_projects %}
+                            <div class="project-item">
+                                <div>
+                                    <div class="title">{{ p.name }}</div>
+                                    <div class="meta">Создан: {{ p.created_at|date:"d.m.Y H:i" }} • Статус: {{ p.status }}</div>
+                                </div>
+                                <div class="actions">
+                                    <a href="{% url 'project_manage' p.id %}">Открыть</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>Проектов пока нет. Создайте первый проект.</p>
+                {% endif %}
+            </aside>
+        </div>
+    </div>
+</main>
+{% endblock %}

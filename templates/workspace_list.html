@@ -1,0 +1,842 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Рабочие области — IQNIX TECH{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ============================================================
+       WORKSPACES PAGE — стили для списка и создания рабочих областей.
+       Токены (:root) и .app-btn/.app-card — уже в app.css.
+       ============================================================ */
+
+    .ws-wrap {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem 2rem 4rem;
+    }
+
+    /* --- Шапка страницы --- */
+    .ws-head {
+        display: flex; align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem; flex-wrap: wrap;
+        margin-bottom: 2rem;
+    }
+    .ws-head h1 {
+        font-size: 1.6rem; font-weight: 700;
+        color: var(--text-strong);
+        margin: 0 0 .25rem;
+    }
+    .ws-head .sub {
+        color: var(--text-soft); font-size: .9rem;
+        margin: 0;
+    }
+
+    /* --- Кнопки --- */
+    .ws-btn {
+        display: inline-flex; align-items: center;
+        gap: .4rem; padding: .55rem 1.1rem;
+        border-radius: 8px; font-size: .82rem;
+        font-weight: 600; font-family: var(--font);
+        border: none; outline: none;
+        cursor: pointer; transition: all .15s;
+        white-space: nowrap; color: #fff;
+        text-decoration: none;
+    }
+    .ws-btn:hover { transform: translateY(-1px); }
+    .ws-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .ws-btn-primary { background: var(--accent); }
+    .ws-btn-primary:hover {
+        background: var(--accent-hover);
+        box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
+    }
+    .ws-btn-secondary {
+        background: var(--surface-2); color: var(--text);
+        border: 1px solid var(--border-2);
+    }
+    .ws-btn-secondary:hover {
+        background: var(--surface-3);
+        border-color: var(--border-3);
+    }
+    .ws-btn-sm { padding: .45rem .75rem; font-size: .8rem; }
+
+    /* --- Список областей --- */
+    .ws-workspaces {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 1.25rem;
+    }
+    .ws-ws-card {
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem 1.5rem 1.25rem;
+        display: flex; flex-direction: column;
+        gap: .85rem;
+        transition: all .25s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .ws-ws-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-soft), transparent);
+        opacity: 0;
+        transition: opacity .25s ease;
+    }
+    .ws-ws-card:hover {
+        border-color: var(--border-3);
+        background: var(--surface-2);
+        transform: translateY(-3px);
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.32);
+    }
+    .ws-ws-card:hover::before { opacity: 1; }
+
+    .ws-ws-head {
+        display: flex; align-items: flex-start;
+        justify-content: space-between;
+        gap: .75rem;
+    }
+    .ws-ws-name {
+        font-size: 1.1rem; font-weight: 700;
+        color: var(--text-strong);
+        margin: 0; line-height: 1.3;
+        word-break: break-word;
+    }
+    .ws-ws-status {
+        font-size: .62rem; font-weight: 700;
+        letter-spacing: .05em; text-transform: uppercase;
+        color: var(--success);
+        border: 1px solid currentColor;
+        border-radius: 5px;
+        padding: .12rem .45rem;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+    .ws-ws-sub {
+        color: var(--accent-soft); font-size: .8rem;
+        font-weight: 600; margin: 0;
+        display: flex; align-items: center; gap: .35rem;
+    }
+    .ws-ws-sub i { font-size: .7rem; }
+    .ws-ws-desc {
+        color: var(--text-muted); font-size: .85rem;
+        margin: 0; line-height: 1.5;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        min-height: 2.5em;
+    }
+    .ws-ws-meta {
+        display: flex; gap: 1.25rem; flex-wrap: wrap;
+        padding-top: .85rem;
+        border-top: 1px solid var(--border-1);
+        margin-top: auto;
+    }
+    .ws-ws-meta-item {
+        display: flex; flex-direction: column; gap: .1rem;
+        min-width: 0;
+    }
+    .ws-ws-meta-label {
+        font-size: .62rem; text-transform: uppercase;
+        letter-spacing: .04em; color: var(--text-faint);
+        font-weight: 600;
+    }
+    .ws-ws-meta-value {
+        font-size: .82rem; color: var(--text-strong);
+        font-weight: 600;
+        overflow: hidden; text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .ws-ws-footer {
+        display: flex; gap: .4rem; flex-wrap: wrap;
+        margin-top: .75rem;
+    }
+
+    /* --- Пустое состояние --- */
+    .ws-empty-state {
+        text-align: center;
+        padding: 4rem 1.5rem 4.5rem;
+        background: var(--surface-1);
+        border: 1px dashed var(--border-2);
+        border-radius: var(--radius-lg);
+    }
+    .ws-empty-icon {
+        width: 80px; height: 80px;
+        border-radius: 20px;
+        background: var(--accent-tint);
+        color: var(--accent-soft);
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 2rem;
+        margin-bottom: 1.25rem;
+        border: 1px solid rgba(139, 92, 246, 0.22);
+    }
+    .ws-empty-title {
+        font-size: 1.35rem; font-weight: 700;
+        color: var(--text-strong);
+        margin: 0 0 .5rem;
+    }
+    .ws-empty-text {
+        font-size: .92rem; color: var(--text-soft);
+        max-width: 480px; margin: 0 auto 1.75rem;
+        line-height: 1.6;
+    }
+
+    /* --- Модалка --- */
+    .ws-modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0, 0, 0, 0.72);
+        backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 2000; padding: 1rem;
+        opacity: 0; visibility: hidden;
+        transition: opacity .22s ease, visibility .22s ease;
+        overflow-y: auto;
+    }
+    .ws-modal-overlay.open { opacity: 1; visibility: visible; }
+    .ws-modal {
+        background: linear-gradient(180deg, var(--surface-1), #171717);
+        border: 1px solid var(--border-3);
+        border-radius: 16px;
+        box-shadow: 0 24px 72px rgba(0, 0, 0, 0.65);
+        padding: 1.75rem 1.85rem 1.5rem;
+        max-width: 720px; width: 100%;
+        margin: auto;
+        max-height: 92vh;
+        overflow-y: auto;
+        transform: translateY(14px) scale(.96);
+        transition: transform .22s cubic-bezier(.2,.9,.3,1.1);
+        position: relative;
+    }
+    .ws-modal::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        border-radius: 16px 16px 0 0;
+        background: linear-gradient(90deg, var(--accent), var(--accent-soft), var(--accent), transparent 90%);
+    }
+    .ws-modal-overlay.open .ws-modal {
+        transform: translateY(0) scale(1);
+    }
+    .ws-modal-head {
+        display: flex; align-items: center;
+        justify-content: space-between;
+        gap: .5rem; margin-bottom: 1rem;
+    }
+    .ws-modal-title {
+        font-size: 1.15rem; font-weight: 700;
+        color: var(--text-strong); margin: 0;
+    }
+    .ws-modal-sub {
+        font-size: .82rem; color: var(--text-soft);
+        margin: 0 0 1.5rem;
+    }
+    .ws-modal-close {
+        background: transparent; border: none;
+        color: var(--text-soft); cursor: pointer;
+        font-size: 1.1rem;
+        padding: .35rem; border-radius: 6px;
+        transition: all .15s;
+    }
+    .ws-modal-close:hover {
+        background: var(--surface-2);
+        color: var(--text-strong);
+    }
+    .ws-modal-actions {
+        display: flex; justify-content: flex-end;
+        gap: .55rem; flex-wrap: wrap;
+        margin-top: 1.5rem;
+    }
+
+    /* --- Форма --- */
+    .ws-section {
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: 1rem 1.2rem;
+        margin-bottom: .9rem;
+    }
+    .ws-section h4 {
+        font-size: .72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .05em;
+        color: var(--accent-soft);
+        margin: 0 0 .75rem;
+    }
+    .ws-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: .75rem;
+    }
+    .ws-row + .ws-row { margin-top: .75rem; }
+    .ws-field { display: flex; flex-direction: column; gap: .25rem; }
+    .ws-field label {
+        font-size: .7rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: .04em;
+        color: var(--text-soft);
+    }
+    .ws-field input,
+    .ws-field select,
+    .ws-field textarea {
+        width: 100%;
+        padding: .6rem .8rem;
+        background: var(--surface-2);
+        border: 1px solid var(--border-2);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: .85rem;
+        font-family: var(--font);
+        outline: none;
+        transition: border-color .2s, box-shadow .2s;
+    }
+    .ws-field textarea { resize: vertical; min-height: 70px; }
+    .ws-field input:focus,
+    .ws-field select:focus,
+    .ws-field textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-tint);
+    }
+    .ws-field input.invalid,
+    .ws-field textarea.invalid {
+        border-color: var(--danger);
+        box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.15);
+    }
+    .ws-error {
+        font-size: .7rem; color: var(--danger);
+        margin-top: .15rem; display: none; line-height: 1.3;
+    }
+    .ws-error.visible { display: block; }
+
+    .ws-subdomain-preview {
+        display: flex; align-items: center;
+        gap: .25rem; font-size: .78rem;
+        color: var(--text-soft);
+        margin-top: .35rem;
+        min-height: 1.1em;
+    }
+    .ws-subdomain-preview strong {
+        color: var(--accent-soft); font-weight: 600;
+    }
+    .ws-status-msg {
+        font-size: .72rem; margin-top: .15rem;
+        display: none;
+    }
+    .ws-status-msg.visible { display: block; }
+    .ws-status-msg.ok { color: var(--success); }
+    .ws-status-msg.err { color: var(--danger); }
+
+    /* --- Тост --- */
+    .ws-toast-wrap {
+        position: fixed;
+        top: calc(var(--header-height) + 1rem);
+        right: 1rem;
+        z-index: 3000;
+        display: flex; flex-direction: column;
+        gap: .5rem;
+        pointer-events: none;
+    }
+    .ws-toast {
+        pointer-events: auto;
+        background: var(--surface-1);
+        border: 1px solid var(--border-3);
+        border-left: 3px solid var(--accent);
+        border-radius: var(--radius);
+        padding: .75rem 1rem;
+        font-size: .85rem;
+        color: var(--text);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+        min-width: 260px; max-width: 360px;
+        transform: translateX(120%);
+        transition: transform .25s ease;
+    }
+    .ws-toast.visible { transform: translateX(0); }
+    .ws-toast.success { border-left-color: var(--success); }
+    .ws-toast.danger  { border-left-color: var(--danger); }
+    .ws-toast.warning { border-left-color: var(--warning); }
+    .ws-toast-title {
+        font-weight: 700; color: var(--text-strong);
+        margin-bottom: .15rem; font-size: .82rem;
+    }
+
+    /* --- Адаптив --- */
+    @media (max-width: 560px) {
+        .ws-wrap { padding: 1.5rem 1rem 3rem; }
+        .ws-row { grid-template-columns: 1fr; }
+        .ws-head h1 { font-size: 1.35rem; }
+        .ws-workspaces { grid-template-columns: 1fr; }
+        .ws-ws-card { padding: 1.25rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ws-wrap">
+
+    <!-- ===================== HEAD ===================== -->
+    <div class="ws-head">
+        <div>
+            <h1>Рабочие области</h1>
+            <p class="sub">Выберите рабочую область или создайте новую для работы с проектами и ресурсами.</p>
+        </div>
+        <button class="ws-btn ws-btn-primary" onclick="openCreateModal()">
+            <i class="fas fa-plus"></i> Создать рабочую область
+        </button>
+    </div>
+
+    <!-- ===================== LIST ===================== -->
+    <div id="workspacesList"></div>
+</div>
+
+<!-- ===================== MODAL: CREATE ===================== -->
+<div class="ws-modal-overlay" id="createModal" aria-hidden="true">
+    <div class="ws-modal" role="dialog" aria-modal="true">
+        <div class="ws-modal-head">
+            <h3 class="ws-modal-title">Создание рабочей области</h3>
+            <button class="ws-modal-close" onclick="closeCreateModal()" aria-label="Закрыть">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <p class="ws-modal-sub">Заполните базовые данные — вы станете администратором области и сможете добавлять других пользователей.</p>
+
+        <form id="createWsForm" novalidate>
+            {% csrf_token %}
+            <div class="ws-section">
+                <h4>Рабочая область</h4>
+                <div class="ws-row">
+                    <div class="ws-field" style="grid-column: 1 / -1;">
+                        <label>Название рабочей области *</label>
+                        <input type="text" id="wsName" required maxlength="120" placeholder="Например: Разработка маркетплейса">
+                        <div class="ws-error" id="wsNameError"></div>
+                    </div>
+                </div>
+                <div class="ws-row">
+                    <div class="ws-field" style="grid-column: 1 / -1;">
+                        <label>Поддомен *</label>
+                        <input type="text" id="wsSubdomain" required maxlength="40" pattern="[a-z0-9-]+" placeholder="my-workspace">
+                        <div class="ws-subdomain-preview" id="subdomainPreview">
+                            Адрес: <strong>—</strong>.iqnix.tech
+                        </div>
+                        <div class="ws-status-msg" id="subdomainStatus"></div>
+                        <div class="ws-error" id="wsSubdomainError"></div>
+                    </div>
+                </div>
+                <div class="ws-row">
+                    <div class="ws-field" style="grid-column: 1 / -1;">
+                        <label>Описание</label>
+                        <textarea id="wsDescription" maxlength="500" placeholder="Краткое описание рабочей области (необязательно)"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ws-section">
+                <h4>Администратор области</h4>
+                <div class="ws-row">
+                    <div class="ws-field">
+                        <label>ФИО *</label>
+                        <input type="text" id="adminName" required placeholder="Иванов Иван Иванович">
+                        <div class="ws-error" id="adminNameError"></div>
+                    </div>
+                    <div class="ws-field">
+                        <label>Email *</label>
+                        <input type="email" id="adminEmail" required placeholder="admin@example.com">
+                        <div class="ws-error" id="adminEmailError"></div>
+                    </div>
+                </div>
+                <div class="ws-row">
+                    <div class="ws-field">
+                        <label>Телефон</label>
+                        <input type="tel" id="adminPhone" placeholder="+7 (___) ___-__-__" maxlength="18">
+                        <div class="ws-error" id="adminPhoneError"></div>
+                    </div>
+                    <div class="ws-field">
+                        <label>Должность</label>
+                        <input type="text" id="adminRole" placeholder="Например: Руководитель проектов">
+                    </div>
+                </div>
+            </div>
+
+            <div class="ws-modal-actions">
+                <button type="button" class="ws-btn ws-btn-secondary" onclick="closeCreateModal()">Отмена</button>
+                <button type="submit" class="ws-btn ws-btn-primary" id="createSubmitBtn">
+                    <i class="fas fa-rocket"></i> Создать
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ===================== TOASTS ===================== -->
+<div class="ws-toast-wrap" id="toastWrap"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    // ============================================================
+    // Утилиты
+    // ============================================================
+    function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s == null ? '' : String(s);
+        return d.innerHTML;
+    }
+
+    function getCookie(name) {
+        var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? m.pop() : '';
+    }
+
+    function toast(title, text, kind) {
+        var wrap = document.getElementById('toastWrap');
+        var el = document.createElement('div');
+        el.className = 'ws-toast ' + (kind || '');
+        el.innerHTML = '<div class="ws-toast-title">' + esc(title) + '</div>' +
+                       '<div>' + esc(text || '') + '</div>';
+        wrap.appendChild(el);
+        requestAnimationFrame(function () { el.classList.add('visible'); });
+        setTimeout(function () {
+            el.classList.remove('visible');
+            setTimeout(function () { el.remove(); }, 300);
+        }, 3400);
+    }
+
+    function setError(id, message) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        if (message) {
+            el.textContent = message;
+            el.classList.add('visible');
+        } else {
+            el.textContent = '';
+            el.classList.remove('visible');
+        }
+    }
+
+    function formatPhone(v) {
+        var d = v.replace(/\D/g, '');
+        if (!d) return '';
+        if (d.charAt(0) === '8') d = '7' + d.slice(1);
+        if (d.charAt(0) !== '7') d = '7' + d;
+        d = d.slice(0, 11);
+        var p = d.slice(1);
+        var out = '+7';
+        if (p.length) out += ' (' + p.slice(0, 3);
+        if (p.length >= 3) out += ')';
+        if (p.length > 3) out += ' ' + p.slice(3, 6);
+        if (p.length > 6) out += '-' + p.slice(6, 8);
+        if (p.length > 8) out += '-' + p.slice(8, 10);
+        return out;
+    }
+
+    function slugify(v) {
+        return (v || '').toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .trim()
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .slice(0, 40);
+    }
+
+    // ============================================================
+    // Данные
+    // ============================================================
+    var workspaces = [];
+    var subdomainManuallyEdited = false;
+    var subdomainCheckTimer = null;
+    var subdomainLastChecked = null;
+
+    // ============================================================
+    // Загрузка списка с сервера
+    // ============================================================
+    function loadWorkspaces() {
+        return fetch('/api/workspaces/', { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : { workspaces: [] }; })
+            .then(function (data) {
+                workspaces = data.workspaces || [];
+                renderList();
+            })
+            .catch(function () { renderList(); });
+    }
+
+    // ============================================================
+    // Рендер списка
+    // ============================================================
+    function renderList() {
+        var container = document.getElementById('workspacesList');
+
+        if (!workspaces.length) {
+            container.innerHTML = ''
+                + '<div class="ws-empty-state">'
+                +   '<div class="ws-empty-icon"><i class="fas fa-layer-group"></i></div>'
+                +   '<h2 class="ws-empty-title">У вас пока нет рабочих областей</h2>'
+                +   '<p class="ws-empty-text">'
+                +     'Рабочая область — это пространство, в котором хранятся проекты, ресурсы и команда. '
+                +     'Создайте первую, чтобы начать работу.'
+                +   '</p>'
+                +   '<button class="ws-btn ws-btn-primary" onclick="openCreateModal()">'
+                +     '<i class="fas fa-plus"></i> Создать рабочую область'
+                +   '</button>'
+                + '</div>';
+            return;
+        }
+
+        var cards = workspaces.map(function (w) {
+            var created = '';
+            try {
+                created = new Date(w.createdAt).toLocaleDateString('ru-RU');
+            } catch (e) { created = '—'; }
+            var adminName = (w.admin && w.admin.name) || '—';
+            return ''
+                + '<div class="ws-ws-card">'
+                +   '<div class="ws-ws-head">'
+                +     '<h3 class="ws-ws-name">' + esc(w.name) + '</h3>'
+                +     '<span class="ws-ws-status">Активна</span>'
+                +   '</div>'
+                +   '<p class="ws-ws-sub"><i class="fas fa-link"></i> ' + esc(w.subdomain) + '.iqnix.tech</p>'
+                +   '<p class="ws-ws-desc">' + esc(w.description || 'Описание не указано') + '</p>'
+                +   '<div class="ws-ws-meta">'
+                +     '<div class="ws-ws-meta-item">'
+                +       '<span class="ws-ws-meta-label">Администратор</span>'
+                +       '<span class="ws-ws-meta-value" title="' + esc(adminName) + '">' + esc(adminName) + '</span>'
+                +     '</div>'
+                +     '<div class="ws-ws-meta-item">'
+                +       '<span class="ws-ws-meta-label">Создана</span>'
+                +       '<span class="ws-ws-meta-value">' + esc(created) + '</span>'
+                +     '</div>'
+                +   '</div>'
+                +   '<div class="ws-ws-footer">'
+                +     '<button class="ws-btn ws-btn-primary ws-btn-sm" onclick="openOverview(' + w.id + ')">'
+                +       '<i class="fas fa-folder-open"></i> Открыть'
+                +     '</button>'
+                +   '</div>'
+                + '</div>';
+        }).join('');
+
+        container.innerHTML = '<div class="ws-workspaces">' + cards + '</div>';
+    }
+
+    // ============================================================
+    // Модалка создания
+    // ============================================================
+    var createModal = document.getElementById('createModal');
+    var wsName = document.getElementById('wsName');
+    var wsSubdomain = document.getElementById('wsSubdomain');
+    var wsDescription = document.getElementById('wsDescription');
+    var adminName = document.getElementById('adminName');
+    var adminEmail = document.getElementById('adminEmail');
+    var adminPhone = document.getElementById('adminPhone');
+    var adminRole = document.getElementById('adminRole');
+    var subdomainPreview = document.getElementById('subdomainPreview');
+    var subdomainStatus = document.getElementById('subdomainStatus');
+    var createSubmitBtn = document.getElementById('createSubmitBtn');
+
+    window.openCreateModal = function () {
+        document.getElementById('createWsForm').reset();
+        subdomainManuallyEdited = false;
+        subdomainLastChecked = null;
+        updateSubdomainPreview();
+        ['wsNameError', 'wsSubdomainError', 'adminNameError', 'adminEmailError', 'adminPhoneError']
+            .forEach(function (id) { setError(id, ''); });
+        createModal.classList.add('open');
+        setTimeout(function () { wsName.focus(); }, 100);
+    };
+
+    window.closeCreateModal = function () {
+        createModal.classList.remove('open');
+    };
+
+    createModal.addEventListener('click', function (e) {
+        if (e.target === createModal) window.closeCreateModal();
+    });
+
+    // Автозаполнение поддомена из названия
+    wsName.addEventListener('input', function () {
+        if (!subdomainManuallyEdited) {
+            wsSubdomain.value = slugify(wsName.value);
+            scheduleSubdomainCheck();
+        }
+        setError('wsNameError', wsName.value.trim() ? '' : 'Введите название области');
+    });
+
+    wsSubdomain.addEventListener('input', function () {
+        subdomainManuallyEdited = true;
+        var cleaned = wsSubdomain.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        if (cleaned !== wsSubdomain.value) wsSubdomain.value = cleaned;
+        scheduleSubdomainCheck();
+    });
+
+    adminPhone.addEventListener('input', function () {
+        adminPhone.value = formatPhone(adminPhone.value);
+    });
+
+    function updateSubdomainPreview() {
+        var v = wsSubdomain.value.trim();
+        if (!v) {
+            subdomainPreview.innerHTML = 'Адрес: <strong>—</strong>.iqnix.tech';
+            subdomainStatus.classList.remove('visible');
+            return;
+        }
+        subdomainPreview.innerHTML = 'Адрес: <strong>' + esc(v) + '</strong>.iqnix.tech';
+    }
+
+    function scheduleSubdomainCheck() {
+        updateSubdomainPreview();
+        setError('wsSubdomainError', '');
+        subdomainLastChecked = null;
+
+        clearTimeout(subdomainCheckTimer);
+        var v = wsSubdomain.value.trim().toLowerCase();
+
+        if (!v) {
+            subdomainStatus.classList.remove('visible');
+            return;
+        }
+        if (v.length < 3) {
+            subdomainStatus.textContent = 'Минимум 3 символа';
+            subdomainStatus.className = 'ws-status-msg visible err';
+            return;
+        }
+        subdomainCheckTimer = setTimeout(function () {
+            checkSubdomainOnServer(v);
+        }, 350);
+    }
+
+    function checkSubdomainOnServer(subdomain) {
+        var fd = new FormData();
+        fd.append('subdomain', subdomain);
+        fd.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+
+        fetch('/api/workspaces/check-subdomain/', {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            // Если пользователь успел изменить поле — игнорируем устаревший ответ
+            if (wsSubdomain.value.trim().toLowerCase() !== subdomain) return;
+            subdomainLastChecked = subdomain;
+            if (data.available) {
+                subdomainStatus.textContent = 'Поддомен свободен';
+                subdomainStatus.className = 'ws-status-msg visible ok';
+            } else {
+                subdomainStatus.textContent = data.reason || 'Поддомен недоступен';
+                subdomainStatus.className = 'ws-status-msg visible err';
+            }
+        })
+        .catch(function () {
+            subdomainStatus.classList.remove('visible');
+        });
+    }
+
+    // ============================================================
+    // Отправка формы
+    // ============================================================
+    document.getElementById('createWsForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        ['wsNameError', 'wsSubdomainError', 'adminNameError', 'adminEmailError', 'adminPhoneError']
+            .forEach(function (id) { setError(id, ''); });
+
+        var name = wsName.value.trim();
+        var subdomain = wsSubdomain.value.trim().toLowerCase();
+        var adminNameVal = adminName.value.trim();
+        var adminEmailVal = adminEmail.value.trim();
+        var adminPhoneVal = adminPhone.value.trim();
+
+        // Клиентская валидация (быстрая проверка до запроса)
+        var ok = true;
+        if (!name) { setError('wsNameError', 'Введите название'); ok = false; }
+        if (!subdomain) { setError('wsSubdomainError', 'Введите поддомен'); ok = false; }
+        else if (subdomainLastChecked !== subdomain) {
+            // Сервер ещё не подтвердил — попросим подождать/перепроверим вручную
+            setError('wsSubdomainError', 'Проверяем поддомен…');
+            checkSubdomainOnServer(subdomain);
+            ok = false;
+        }
+        if (!adminNameVal) { setError('adminNameError', 'Введите ФИО'); ok = false; }
+        if (!adminEmailVal) { setError('adminEmailError', 'Введите email'); ok = false; }
+        if (adminPhoneVal && !/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/.test(adminPhoneVal)) {
+            setError('adminPhoneError', 'Телефон должен содержать 10 цифр');
+            ok = false;
+        }
+        if (!ok) return;
+
+        var fd = new FormData();
+        fd.append('name', name);
+        fd.append('subdomain', subdomain);
+        fd.append('description', wsDescription.value.trim());
+        fd.append('admin_name', adminNameVal);
+        fd.append('admin_email', adminEmailVal);
+        fd.append('admin_phone', adminPhoneVal);
+        fd.append('admin_role', adminRole.value.trim());
+        fd.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+
+        createSubmitBtn.disabled = true;
+
+        fetch('/api/workspaces/create/', {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+        })
+        .then(function (r) { return r.json().then(function (d) { return { status: r.status, data: d }; }); })
+        .then(function (res) {
+            createSubmitBtn.disabled = false;
+            var data = res.data;
+
+            if (!data.success) {
+                // Раскладываем ошибки сервера по полям
+                var errs = data.errors || {};
+                if (errs.name) setError('wsNameError', errs.name);
+                if (errs.subdomain) {
+                    setError('wsSubdomainError', errs.subdomain);
+                    subdomainStatus.textContent = errs.subdomain;
+                    subdomainStatus.className = 'ws-status-msg visible err';
+                }
+                if (errs.admin_name) setError('adminNameError', errs.admin_name);
+                if (errs.admin_email) setError('adminEmailError', errs.admin_email);
+                if (errs.admin_phone) setError('adminPhoneError', errs.admin_phone);
+                return;
+            }
+
+            // Успех
+            workspaces.unshift(data.workspace);
+            window.closeCreateModal();
+            renderList();
+            toast('Рабочая область создана', data.workspace.name, 'success');
+        })
+        .catch(function () {
+            createSubmitBtn.disabled = false;
+            toast('Ошибка сети', 'Не удалось создать рабочую область', 'danger');
+        });
+    });
+
+    // ============================================================
+    // Открытие обзора (пока — заглушка на Волну 4)
+    // ============================================================
+    window.openOverview = function (id) {
+        window.location.href = '/workspaces/' + id + '/';
+    };
+
+    // ============================================================
+    // Закрытие модалки по Esc
+    // ============================================================
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && createModal.classList.contains('open')) {
+            window.closeCreateModal();
+        }
+    });
+
+    // ============================================================
+    // Init
+    // ============================================================
+    loadWorkspaces();
+})();
+</script>
+{% endblock %}

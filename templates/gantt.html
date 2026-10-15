@@ -1,0 +1,650 @@
+{% extends 'base.html' %}
+
+{% block title %}Расписание сотрудников — IQNIX TECH{% endblock %}
+
+{% block extra_css %}
+<style>
+    body { background: #1a1a1a; color: #e0e0e0; padding-top: 96px; }
+    main, .scrollable { background: #1a1a1a !important; min-height: calc(100vh - 96px); }
+
+    .gantt-page { max-width: 1600px; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
+
+    /* Header */
+    .gantt-page-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 1.5rem; flex-wrap: wrap; gap: .75rem;
+    }
+    .gantt-page-header h1 {
+        font-size: 1.4rem; font-weight: 800; color: #fff; margin: 0;
+    }
+    .gantt-page-header .back-link {
+        font-size: .82rem; color: #888; text-decoration: none;
+        transition: color .15s;
+    }
+    .gantt-page-header .back-link:hover { color: #a78bfa; }
+
+    /* Form panel */
+    .gantt-form-panel {
+        background: #1e1e1e; border: 1px solid rgba(255,255,255,.06);
+        border-radius: 14px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+    }
+    .gantt-form-panel h3 {
+        font-size: .72rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .06em; color: #666; margin: 0 0 .75rem;
+    }
+    .gantt-form-row {
+        display: flex; gap: .75rem; flex-wrap: wrap; align-items: flex-end;
+    }
+    .gantt-fm {
+        display: flex; flex-direction: column; gap: .25rem;
+    }
+    .gantt-fm label {
+        font-size: .68rem; font-weight: 600; text-transform: uppercase;
+        letter-spacing: .04em; color: #555;
+    }
+    .gantt-fm select,
+    .gantt-fm input {
+        background: #111; border: 1px solid rgba(255,255,255,.08);
+        border-radius: 8px; color: #ddd; font-size: .82rem;
+        padding: .45rem .65rem; min-width: 0;
+        font-family: 'Manrope', sans-serif;
+    }
+    .gantt-fm select:focus,
+    .gantt-fm input:focus {
+        outline: none; border-color: rgba(139,92,246,.4);
+    }
+    .gantt-btn {
+        display: inline-flex; align-items: center; gap: .35rem;
+        padding: .45rem 1rem; border: none; border-radius: 8px;
+        font-size: .82rem; font-weight: 600; cursor: pointer;
+        transition: all .15s; font-family: 'Manrope', sans-serif;
+    }
+    .gantt-btn-primary {
+        background: rgba(139,92,246,.15); color: #a78bfa;
+    }
+    .gantt-btn-primary:hover { background: rgba(139,92,246,.25); }
+
+    /* Legend */
+    .gantt-legend {
+        display: flex; gap: 1.25rem; margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .gantt-legend-item {
+        display: flex; align-items: center; gap: .4rem;
+        font-size: .75rem; color: #888;
+    }
+    .gantt-legend-dot {
+        width: 12px; height: 12px; border-radius: 3px;
+    }
+
+    /* Chart container */
+    .gantt-chart-wrap {
+        overflow-x: auto;
+        border-radius: 14px;
+        background: #111;
+        border: 1px solid rgba(255,255,255,.06);
+    }
+    .gantt-chart { min-width: 800px; position: relative; }
+    .gantt-empty {
+        text-align: center; padding: 3rem 1rem; color: #444;
+    }
+    .gantt-empty i { font-size: 2.5rem; margin-bottom: .75rem; display: block; }
+    .gantt-empty p { font-size: .85rem; margin: 0; }
+
+    /* Header row */
+    .gantt-header {
+        display: flex; position: sticky; top: 0; z-index: 2;
+        background: #151515; border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .gantt-header-label {
+        min-width: 220px; max-width: 220px; padding: .5rem .75rem;
+        font-size: .68rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .04em; color: #555;
+        border-right: 1px solid rgba(255,255,255,.06);
+    }
+    .gantt-header-timeline {
+        flex: 1; display: flex; overflow: hidden;
+    }
+    .gantt-col-header {
+        text-align: center;
+        font-size: .6rem; color: #555; padding: .4rem .1rem;
+        border-right: 1px solid rgba(255,255,255,.03);
+    }
+    .gantt-col-header.weekend { color: #553; background: rgba(255,200,0,.02); }
+    .gantt-col-header.today { color: #8B5CF6; font-weight: 700; }
+
+    /* Data rows */
+    .gantt-row {
+        display: flex; border-bottom: 1px solid rgba(255,255,255,.03);
+        transition: background .12s;
+    }
+    .gantt-row:hover { background: rgba(255,255,255,.02); }
+    .gantt-row-label {
+        min-width: 220px; max-width: 220px; padding: .5rem .75rem;
+        border-right: 1px solid rgba(255,255,255,.06);
+        display: flex; flex-direction: column; justify-content: center;
+    }
+    .gantt-row-name {
+        font-size: .8rem; font-weight: 600; color: #ddd;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .gantt-row-position {
+        font-size: .65rem; color: #666;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .gantt-row-timeline {
+        flex: 1; position: relative; min-height: 40px;
+    }
+
+    /* Grid columns */
+    .gantt-grid-col {
+        position: absolute; top: 0; bottom: 0;
+        border-right: 1px solid rgba(255,255,255,.02);
+    }
+    .gantt-grid-col.weekend { background: rgba(255,200,0,.02); }
+
+    /* Today line */
+    .gantt-today-line {
+        position: absolute; top: 0; bottom: 0; width: 2px;
+        background: #8B5CF6; z-index: 3; pointer-events: none;
+        opacity: .7;
+    }
+
+    /* Bars */
+    .gantt-bar {
+        position: absolute; top: 5px; bottom: 5px;
+        border-radius: 4px; min-width: 4px;
+        display: flex; align-items: center; padding: 0 .4rem;
+        font-size: .6rem; font-weight: 600; color: #fff;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        cursor: default; transition: filter .15s; z-index: 2;
+    }
+    .gantt-bar:hover { filter: brightness(1.2); }
+    .gantt-bar.status-work { background: #10B981; }
+    .gantt-bar.status-dayoff { background: #F59E0B; }
+    .gantt-bar.status-other_project { background: #6366F1; }
+
+    .gantt-bar .gantt-delete-entry {
+        margin-left: auto; padding-left: .35rem;
+        cursor: pointer; opacity: 0; transition: opacity .15s;
+        font-size: .6rem;
+    }
+    .gantt-bar:hover .gantt-delete-entry { opacity: .7; }
+    .gantt-bar:hover .gantt-delete-entry:hover { opacity: 1; }
+
+    /* No employees message */
+    .gantt-no-employees {
+        text-align: center; padding: 3rem 1rem; color: #555;
+    }
+    .gantt-no-employees i { font-size: 2rem; margin-bottom: .5rem; display: block; color: #444; }
+    .gantt-no-employees a { color: #a78bfa; text-decoration: none; }
+    .gantt-no-employees a:hover { text-decoration: underline; }
+
+    /* Date chips */
+    .date-chip {
+        display: inline-flex; align-items: center; gap: .3rem;
+        background: rgba(139,92,246,.12); color: #a78bfa;
+        padding: .2rem .55rem; border-radius: 6px;
+        font-size: .72rem; font-weight: 600;
+    }
+    .date-chip-remove {
+        cursor: pointer; opacity: .6; transition: opacity .12s;
+        font-size: .6rem;
+    }
+    .date-chip-remove:hover { opacity: 1; color: #f87171; }
+
+    @media (max-width: 900px) {
+        .gantt-page { padding: 1rem; }
+        .gantt-page-header h1 { font-size: 1.1rem; }
+        .gantt-form-row { flex-direction: column; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gantt-page">
+    <!-- Header -->
+    <div class="gantt-page-header">
+        <div>
+            <h1><i class="fas fa-stream" style="color:#fbbf24;margin-right:.5rem;"></i>Расписание сотрудников</h1>
+            <span style="font-size:.82rem;color:#666;">Все сотрудники из всех проектов</span>
+        </div>
+        <a href="{% url 'index' %}" class="back-link">
+            <i class="fas fa-arrow-left"></i> На главную
+        </a>
+    </div>
+
+    <!-- Add entry form -->
+    <div class="gantt-form-panel">
+        <h3>Добавить запись расписания</h3>
+
+        <!-- Row 1: employee, status, project -->
+        <div class="gantt-form-row" style="margin-bottom:.75rem;">
+            <div class="gantt-fm" style="min-width:180px;flex:1.5;">
+                <label>Сотрудник</label>
+                <select id="schedule-employee">
+                    <option value="">— выберите —</option>
+                </select>
+            </div>
+            <div class="gantt-fm" style="min-width:140px;">
+                <label>Статус</label>
+                <select id="schedule-status">
+                    <option value="work">Работает</option>
+                    <option value="dayoff">Выходной / Отпуск</option>
+                    <option value="other_project">Занят другим проектом</option>
+                </select>
+            </div>
+            <div class="gantt-fm" id="other-project-block" style="min-width:180px;flex:1;display:none;">
+                <label>Проект</label>
+                <select id="schedule-other-project">
+                    <option value="">— выберите проект —</option>
+                    <option value="__custom__">Ввести вручную...</option>
+                </select>
+            </div>
+            <div class="gantt-fm" id="custom-project-block" style="min-width:180px;flex:1;display:none;">
+                <label>Название проекта</label>
+                <input type="text" id="schedule-custom-project" placeholder="Введите название">
+            </div>
+            <div class="gantt-fm" style="min-width:160px;flex:1;">
+                <label>Примечание</label>
+                <input type="text" id="schedule-note" placeholder="Необязательно">
+            </div>
+        </div>
+
+        <!-- Row 2: date mode toggle + dates -->
+        <div class="gantt-form-row" style="align-items:flex-start;">
+            <div class="gantt-fm" style="min-width:140px;">
+                <label>Режим дат</label>
+                <select id="schedule-date-mode">
+                    <option value="range">Период</option>
+                    <option value="dates">Отдельные даты</option>
+                </select>
+            </div>
+
+            <!-- Range mode -->
+            <div id="date-range-block" class="gantt-form-row" style="gap:.75rem;flex:1;">
+                <div class="gantt-fm" style="min-width:130px;">
+                    <label>Начало</label>
+                    <input type="date" id="schedule-start">
+                </div>
+                <div class="gantt-fm" style="min-width:130px;">
+                    <label>Окончание</label>
+                    <input type="date" id="schedule-end">
+                </div>
+            </div>
+
+            <!-- Individual dates mode -->
+            <div id="date-individual-block" style="flex:1;display:none;">
+                <div style="display:flex;gap:.5rem;align-items:flex-end;margin-bottom:.5rem;">
+                    <div class="gantt-fm" style="min-width:130px;">
+                        <label>Дата</label>
+                        <input type="date" id="schedule-single-date">
+                    </div>
+                    <button type="button" class="gantt-btn gantt-btn-primary" id="add-date-btn" style="height:34px;">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div id="selected-dates-list" style="display:flex;flex-wrap:wrap;gap:.35rem;"></div>
+            </div>
+
+            <button type="button" class="gantt-btn gantt-btn-primary" id="schedule-add-btn" style="align-self:flex-end;">
+                <i class="fas fa-check"></i> Сохранить
+            </button>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="gantt-legend">
+        <div class="gantt-legend-item">
+            <div class="gantt-legend-dot" style="background:#10B981;"></div> Работает
+        </div>
+        <div class="gantt-legend-item">
+            <div class="gantt-legend-dot" style="background:#F59E0B;"></div> Выходной / Отпуск
+        </div>
+        <div class="gantt-legend-item">
+            <div class="gantt-legend-dot" style="background:#6366F1;"></div> Занят другим проектом
+        </div>
+        <div class="gantt-legend-item">
+            <div class="gantt-legend-dot" style="background:transparent;border:2px solid #8B5CF6;width:8px;height:8px;"></div> Сегодня
+        </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="gantt-chart-wrap">
+        <div class="gantt-chart" id="gantt-chart">
+            <div class="gantt-empty" id="gantt-empty">
+                <i class="fas fa-calendar-alt"></i>
+                <p>Записей расписания нет. Добавьте период работы или отдыха для сотрудника.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const CSRF = '{{ csrf_token }}';
+    const employees = JSON.parse('{{ employees_json|escapejs }}');
+    const projects = JSON.parse('{{ projects_json|escapejs }}');
+    let schedule = JSON.parse('{{ schedule_json|escapejs }}');
+
+    // Populate employee dropdown
+    const empSelect = document.getElementById('schedule-employee');
+    employees.forEach(e => {
+        const o = document.createElement('option');
+        o.value = e.id;
+        o.textContent = `${e.name}${e.position ? ' — ' + e.position : ''} (${e.project_name})`;
+        empSelect.appendChild(o);
+    });
+
+    // Populate other-project dropdown
+    const otherProjectSelect = document.getElementById('schedule-other-project');
+    projects.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.name;
+        o.textContent = p.name;
+        otherProjectSelect.insertBefore(o, otherProjectSelect.lastElementChild);
+    });
+
+    // Show/hide project fields based on status
+    const statusSelect = document.getElementById('schedule-status');
+    const otherProjectBlock = document.getElementById('other-project-block');
+    const customProjectBlock = document.getElementById('custom-project-block');
+
+    statusSelect.addEventListener('change', () => {
+        const isOther = statusSelect.value === 'other_project';
+        otherProjectBlock.style.display = isOther ? '' : 'none';
+        if (!isOther) {
+            customProjectBlock.style.display = 'none';
+            otherProjectSelect.value = '';
+        }
+    });
+
+    otherProjectSelect.addEventListener('change', () => {
+        customProjectBlock.style.display = otherProjectSelect.value === '__custom__' ? '' : 'none';
+    });
+
+    const STATUS_LABELS = {
+        'work': 'Работает',
+        'dayoff': 'Выходной',
+        'other_project': 'Другой проект',
+    };
+
+    function escHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function renderGantt() {
+        const container = document.getElementById('gantt-chart');
+        const emptyEl = document.getElementById('gantt-empty');
+
+        if (!schedule.length || !employees.length) {
+            container.innerHTML = '';
+            container.appendChild(emptyEl);
+            emptyEl.style.display = '';
+            if (!employees.length) {
+                emptyEl.innerHTML = `<i class="fas fa-users"></i>
+                    <p>Нет сотрудников ни в одном проекте.<br>
+                    <a href="/project/">Добавьте сотрудников</a> в проекты для настройки расписания.</p>`;
+            }
+            return;
+        }
+        emptyEl.style.display = 'none';
+
+        // Determine date range from schedule + project dates
+        let minDate = null, maxDate = null;
+        schedule.forEach(s => {
+            const sd = new Date(s.start_date);
+            const ed = new Date(s.end_date);
+            if (!minDate || sd < minDate) minDate = new Date(sd);
+            if (!maxDate || ed > maxDate) maxDate = new Date(ed);
+        });
+
+        // Padding
+        minDate.setDate(minDate.getDate() - 3);
+        maxDate.setDate(maxDate.getDate() + 3);
+
+        const totalDays = Math.ceil((maxDate - minDate) / 86400000) + 1;
+        const colWidth = Math.max(26, Math.min(44, 1100 / totalDays));
+
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const monthNames = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+
+        let html = '';
+
+        // Header
+        html += '<div class="gantt-header">';
+        html += '<div class="gantt-header-label">Сотрудник</div>';
+        html += '<div class="gantt-header-timeline">';
+        for (let i = 0; i < totalDays; i++) {
+            const d = new Date(minDate);
+            d.setDate(d.getDate() + i);
+            const wd = d.getDay();
+            const isWeekend = (wd === 0 || wd === 6);
+            const isToday = d.getTime() === today.getTime();
+            let cls = 'gantt-col-header';
+            if (isWeekend) cls += ' weekend';
+            if (isToday) cls += ' today';
+            const dayNum = d.getDate();
+            const label = dayNum === 1 || i === 0 ? `${dayNum} ${monthNames[d.getMonth()]}` : dayNum;
+            html += `<div class="${cls}" style="min-width:${colWidth}px;max-width:${colWidth}px;">${label}</div>`;
+        }
+        html += '</div></div>';
+
+        // Group schedule by employee
+        const empMap = {};
+        employees.forEach(e => { empMap[e.id] = { ...e, entries: [] }; });
+        schedule.forEach(s => {
+            if (empMap[s.employee_id]) {
+                empMap[s.employee_id].entries.push(s);
+            }
+        });
+
+        // Rows — only employees with schedule entries
+        Object.values(empMap).filter(emp => emp.entries.length > 0).forEach(emp => {
+            html += '<div class="gantt-row">';
+            html += `<div class="gantt-row-label">`;
+            html += `<div class="gantt-row-name">${escHtml(emp.name)}</div>`;
+            html += `<div class="gantt-row-position">${escHtml(emp.position || '')} · ${escHtml(emp.project_name)}</div>`;
+            html += `</div>`;
+            html += `<div class="gantt-row-timeline" style="min-width:${totalDays * colWidth}px;">`;
+
+            // Grid columns
+            for (let i = 0; i < totalDays; i++) {
+                const d = new Date(minDate);
+                d.setDate(d.getDate() + i);
+                const wd = d.getDay();
+                const isWeekend = (wd === 0 || wd === 6);
+                html += `<div class="gantt-grid-col${isWeekend ? ' weekend' : ''}" style="left:${i*colWidth}px;width:${colWidth}px;"></div>`;
+            }
+
+            // Today line
+            const todayOffset = Math.floor((today - minDate) / 86400000);
+            if (todayOffset >= 0 && todayOffset < totalDays) {
+                html += `<div class="gantt-today-line" style="left:${todayOffset * colWidth + colWidth/2}px;"></div>`;
+            }
+
+            // Bars for this employee
+            emp.entries.forEach(entry => {
+                const sd = new Date(entry.start_date);
+                const ed = new Date(entry.end_date);
+                const startOffset = Math.max(0, Math.floor((sd - minDate) / 86400000));
+                const duration = Math.max(1, Math.floor((ed - sd) / 86400000) + 1);
+                const leftPx = startOffset * colWidth;
+                const widthPx = duration * colWidth;
+                const label = entry.note || STATUS_LABELS[entry.status] || entry.status;
+
+                html += `<div class="gantt-bar status-${entry.status}" style="left:${leftPx}px;width:${widthPx}px;" title="${escHtml(label)}">`;
+                html += `<span>${escHtml(label)}</span>`;
+                html += `<span class="gantt-delete-entry" data-id="${entry.id}" title="Удалить"><i class="fas fa-times"></i></span>`;
+                html += `</div>`;
+            });
+
+            html += `</div></div>`;
+        });
+
+        container.innerHTML = html;
+
+        // Delete handlers
+        container.querySelectorAll('.gantt-delete-entry').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const entryId = btn.dataset.id;
+                if (!confirm('Удалить запись расписания?')) return;
+                fetch(`/gantt/delete/${entryId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': CSRF,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        schedule = schedule.filter(s => String(s.id) !== String(entryId));
+                        renderGantt();
+                    }
+                });
+            });
+        });
+    }
+
+    // === Date mode toggle ===
+    const dateModeSelect = document.getElementById('schedule-date-mode');
+    const dateRangeBlock = document.getElementById('date-range-block');
+    const dateIndividualBlock = document.getElementById('date-individual-block');
+    let selectedDates = [];
+
+    dateModeSelect.addEventListener('change', () => {
+        const isRange = dateModeSelect.value === 'range';
+        dateRangeBlock.style.display = isRange ? '' : 'none';
+        dateIndividualBlock.style.display = isRange ? 'none' : '';
+    });
+
+    // Add individual date chip
+    function renderDateChips() {
+        const list = document.getElementById('selected-dates-list');
+        list.innerHTML = selectedDates.map((d, i) => {
+            const display = new Date(d + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+            return `<span class="date-chip">${display}<span class="date-chip-remove" data-idx="${i}"><i class="fas fa-times"></i></span></span>`;
+        }).join('');
+        list.querySelectorAll('.date-chip-remove').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedDates.splice(parseInt(btn.dataset.idx), 1);
+                renderDateChips();
+            });
+        });
+    }
+
+    document.getElementById('add-date-btn').addEventListener('click', () => {
+        const dateVal = document.getElementById('schedule-single-date').value;
+        if (!dateVal) return;
+        if (!selectedDates.includes(dateVal)) {
+            selectedDates.push(dateVal);
+            selectedDates.sort();
+            renderDateChips();
+        }
+        document.getElementById('schedule-single-date').value = '';
+    });
+
+    // Build note with project name for "other_project"
+    function buildNote() {
+        let note = document.getElementById('schedule-note').value.trim();
+        const status = document.getElementById('schedule-status').value;
+        if (status === 'other_project') {
+            const otherVal = otherProjectSelect.value;
+            let projectName = '';
+            if (otherVal === '__custom__') {
+                projectName = document.getElementById('schedule-custom-project').value.trim();
+            } else if (otherVal) {
+                projectName = otherVal;
+            }
+            if (projectName) {
+                note = note ? `${projectName}: ${note}` : projectName;
+            }
+        }
+        return note;
+    }
+
+    // Send one entry to server
+    function sendEntry(employeeId, status, startDate, endDate, note) {
+        const fd = new FormData();
+        fd.append('employee_id', employeeId);
+        fd.append('status', status);
+        fd.append('start_date', startDate);
+        fd.append('end_date', endDate);
+        fd.append('note', note);
+        fd.append('csrfmiddlewaretoken', CSRF);
+        return fetch('/gantt/add/', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd,
+        }).then(r => r.json());
+    }
+
+    // Clear form after success
+    function clearForm() {
+        document.getElementById('schedule-start').value = '';
+        document.getElementById('schedule-end').value = '';
+        document.getElementById('schedule-note').value = '';
+        otherProjectSelect.value = '';
+        document.getElementById('schedule-custom-project').value = '';
+        customProjectBlock.style.display = 'none';
+        selectedDates = [];
+        renderDateChips();
+        document.getElementById('schedule-single-date').value = '';
+    }
+
+    // Add entry (handles both range and individual dates)
+    document.getElementById('schedule-add-btn').addEventListener('click', async () => {
+        const employeeId = document.getElementById('schedule-employee').value;
+        const status = document.getElementById('schedule-status').value;
+        const mode = dateModeSelect.value;
+        const note = buildNote();
+
+        if (!employeeId) {
+            alert('Выберите сотрудника');
+            return;
+        }
+
+        if (mode === 'range') {
+            const startDate = document.getElementById('schedule-start').value;
+            const endDate = document.getElementById('schedule-end').value;
+            if (!startDate || !endDate) {
+                alert('Укажите даты начала и окончания');
+                return;
+            }
+            if (endDate < startDate) {
+                alert('Дата окончания не может быть раньше начала');
+                return;
+            }
+            const data = await sendEntry(employeeId, status, startDate, endDate, note);
+            if (data.success) {
+                schedule.push(data.entry);
+                renderGantt();
+                clearForm();
+            } else {
+                alert(data.error || 'Ошибка');
+            }
+        } else {
+            // Individual dates mode
+            if (!selectedDates.length) {
+                alert('Добавьте хотя бы одну дату');
+                return;
+            }
+            for (const dateVal of selectedDates) {
+                const data = await sendEntry(employeeId, status, dateVal, dateVal, note);
+                if (data.success) {
+                    schedule.push(data.entry);
+                }
+            }
+            renderGantt();
+            clearForm();
+        }
+    });
+
+    renderGantt();
+});
+</script>
+{% endblock %}

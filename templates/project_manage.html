@@ -1,0 +1,819 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load l10n %}
+
+{% block title %}Управление проектом: {{ project.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ========================================================
+       PROJECT MANAGE — self-contained dark UI
+       All selectors scoped to .pm to avoid Bootstrap leaks
+       ======================================================== */
+    /* Глобальные body/scrollable стили заданы в base.html + app.css */
+
+    /* === Reset Bootstrap inside .pm === */
+    .pm *, .pm *::before, .pm *::after { box-sizing: border-box; }
+    .pm button, .pm a.pm-btn, .pm input, .pm select, .pm textarea {
+        font-family: 'Manrope', sans-serif;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+
+    /* === Layout === */
+    .pm { max-width: 1600px; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
+
+    /* --- Top grid: project meta + finance --- */
+    .pm-top {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .pm-card {
+        background: #1a1a1a;
+        border: 1px solid rgba(255,255,255,.06);
+        border-radius: 14px;
+        padding: 1.25rem 1.5rem;
+    }
+    .pm-card-title {
+        font-size: .72rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .06em; color: #9a9a9a; margin-bottom: .75rem;
+    }
+
+    /* KPI cards */
+    .kpi-row { display: flex; gap: .75rem; flex-wrap: wrap; }
+    .kpi {
+        flex: 1; min-width: 130px;
+        background: #1a1a1a; border: 1px solid rgba(255,255,255,.06);
+        border-radius: 10px; padding: .65rem .85rem; text-align: center;
+    }
+    .kpi-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .04em; color: #9a9a9a; margin-bottom: .15rem; }
+    .kpi-value { font-size: 1.1rem; font-weight: 700; color: #fff; }
+    .kpi-value.positive { color: #34d399; }
+    .kpi-value.negative { color: #f87171; }
+
+    /* --- Shared form field --- */
+    .pm .fm { display: flex; flex-direction: column; gap: .2rem; }
+    .pm .fm label {
+        font-size: .68rem; color: #9a9a9a; font-weight: 600;
+        text-transform: uppercase; letter-spacing: .04em;
+    }
+    .pm .fm input,
+    .pm .fm textarea,
+    .pm .fm select {
+        background: #1a1a1a !important;
+        border: 1px solid rgba(255,255,255,.08) !important;
+        border-radius: 8px !important;
+        color: #e0e0e0 !important;
+        padding: .45rem .65rem !important;
+        font-size: .82rem !important;
+        font-family: 'Manrope', sans-serif !important;
+        transition: border-color .2s, box-shadow .2s;
+        outline: none !important;
+        box-shadow: none !important;
+        width: 100%;
+    }
+    .pm .fm input:focus,
+    .pm .fm textarea:focus,
+    .pm .fm select:focus {
+        border-color: #8B5CF6 !important;
+        box-shadow: 0 0 0 3px rgba(139,92,246,.12) !important;
+    }
+    .pm .fm textarea { resize: vertical; min-height: 32px; }
+    .pm .fm select {
+        cursor: pointer;
+        padding-right: 1.6rem !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E") !important;
+        background-repeat: no-repeat !important;
+        background-position: right .65rem center !important;
+        background-size: 10px 6px !important;
+    }
+    .pm .fm select option { background: #1a1a1a; color: #e0e0e0; }
+    .pm .fm.full { grid-column: 1 / -1; }
+
+    /* Project meta grid */
+    .pm-meta { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .75rem; }
+
+    /* === Buttons — hard override of Bootstrap === */
+    .pm .pm-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center;
+        gap: .4rem;
+        padding: .5rem 1rem !important;
+        border-radius: 8px !important;
+        font-size: .8rem !important;
+        font-weight: 600 !important;
+        font-family: 'Manrope', sans-serif !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        cursor: pointer;
+        transition: background .15s, box-shadow .15s, transform .1s;
+        text-decoration: none !important;
+        white-space: nowrap;
+        line-height: 1.4;
+    }
+    .pm .pm-btn:hover { text-decoration: none !important; transform: translateY(-1px); }
+    .pm .pm-btn:active { transform: translateY(0); }
+    .pm .pm-btn:focus-visible { outline: 2px solid #8B5CF6 !important; outline-offset: 2px; }
+    .pm .pm-btn i { font-size: .75rem; }
+
+    .pm .pm-btn-primary { background: #8B5CF6 !important; color: #fff !important; }
+    .pm .pm-btn-primary:hover { background: #7c3aed !important; box-shadow: 0 4px 16px rgba(139,92,246,.3) !important; }
+
+    .pm .pm-btn-secondary { background: #252525 !important; color: #aaa !important; }
+    .pm .pm-btn-secondary:hover { background: #333 !important; color: #fff !important; }
+
+    .pm .pm-btn-success { background: #059669 !important; color: #fff !important; }
+    .pm .pm-btn-success:hover { background: #047857 !important; box-shadow: 0 4px 16px rgba(5,150,105,.25) !important; }
+
+    .pm .pm-btn-danger { background: #dc2626 !important; color: #fff !important; }
+    .pm .pm-btn-danger:hover { background: #b91c1c !important; }
+    .pm .pm-btn-sm { padding: .25rem .5rem; font-size: .75rem; min-height: auto; }
+
+    /* --- Action bar --- */
+    .pm-actions {
+        display: flex; align-items: center; gap: .5rem;
+        margin-bottom: 1.25rem; flex-wrap: wrap;
+    }
+    .pm-actions .spacer { flex: 1; }
+
+    /* === Summary table === */
+    .pm-table-wrap {
+        background: #1a1a1a;
+        border: 1px solid rgba(255,255,255,.06);
+        border-radius: 14px;
+        overflow: hidden;
+    }
+    .pm-table-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: .85rem 1.25rem;
+        border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .pm-table-header h3 { font-size: .95rem; font-weight: 700; color: #fff; margin: 0; }
+    .pm-table-header .badge-count {
+        font-size: .7rem; color: #555; background: #222;
+        padding: .2rem .55rem; border-radius: 20px;
+    }
+    .pm-table-scroll { overflow-x: auto; }
+
+    .pm-table {
+        width: 100%; border-collapse: collapse; font-size: .8rem;
+    }
+    .pm-table thead th {
+        background: #151515;
+        color: #555; font-weight: 700; font-size: .65rem;
+        text-transform: uppercase; letter-spacing: .05em;
+        padding: .65rem .6rem;
+        border-bottom: 1px solid rgba(255,255,255,.06);
+        white-space: nowrap;
+        position: sticky; top: 0; z-index: 2;
+    }
+    .pm-table tbody td {
+        padding: .5rem .6rem;
+        border-bottom: 1px solid rgba(255,255,255,.03);
+        vertical-align: middle;
+        color: #bbb;
+    }
+    .pm-table tbody tr { transition: background .12s; }
+    .pm-table tbody tr:hover { background: rgba(255,255,255,.02); }
+
+    /* Type badge */
+    .type-badge {
+        display: inline-block;
+        padding: .2rem .55rem;
+        border-radius: 6px;
+        font-size: .65rem;
+        font-weight: 700;
+        letter-spacing: .02em;
+        white-space: nowrap;
+    }
+    .type-badge.employee { background: rgba(59,130,246,.12); color: #60a5fa; }
+    .type-badge.contractor { background: rgba(245,158,11,.12); color: #fbbf24; }
+    .type-badge.subcontractor { background: rgba(16,185,129,.12); color: #34d399; }
+    .type-badge.equipment { background: rgba(139,92,246,.12); color: #a78bfa; }
+
+    /* === Группировка по типам === */
+    .pm-group-head td {
+        padding: 0 !important; border: none !important;
+        position: sticky; top: 0; z-index: 3; background: #1c1c1c;
+    }
+    .pm-gh {
+        display: flex; align-items: center; gap: .6rem;
+        padding: .6rem .85rem; border-top: 1px solid rgba(255,255,255,.05);
+        border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .pm-gh-ic { width: 28px; height: 28px; border-radius: 8px; display: inline-flex;
+        align-items: center; justify-content: center; font-size: .8rem; }
+    .pm-gh-name { font-weight: 800; color: #fff; font-size: .9rem; }
+    .pm-gh-cnt { font-size: .68rem; color: #888; background: rgba(255,255,255,.06);
+        padding: .08rem .5rem; border-radius: 20px; }
+    .pm-gh-sub { margin-left: auto; text-align: right; }
+    .pm-gh-sub .l { display: block; font-size: .58rem; text-transform: uppercase;
+        letter-spacing: .05em; color: #777; }
+    .pm-gh-sub .v { font-size: .9rem; font-weight: 800; color: #fff; }
+    .g-employee .pm-gh-ic { background: rgba(59,130,246,.14); color: #60a5fa; }
+    .g-contractor .pm-gh-ic { background: rgba(245,158,11,.14); color: #fbbf24; }
+    .g-subcontractor .pm-gh-ic { background: rgba(16,185,129,.14); color: #34d399; }
+    .g-equipment .pm-gh-ic { background: rgba(139,92,246,.14); color: #a78bfa; }
+
+    /* Компактная шапка колонок внутри группы */
+    .pm-cols th {
+        background: #131313; color: #555; font-weight: 700; font-size: .62rem;
+        text-transform: uppercase; letter-spacing: .04em; text-align: left;
+        padding: .4rem .6rem; border-bottom: 1px solid rgba(255,255,255,.05);
+        white-space: nowrap;
+    }
+
+    /* Цветовой акцент строки по типу (inset, чтобы не ломать border-collapse) */
+    .resource-row td:first-child { position: relative; }
+    .pm-row-employee td:first-child { box-shadow: inset 3px 0 0 #60a5fa; }
+    .pm-row-contractor td:first-child { box-shadow: inset 3px 0 0 #fbbf24; }
+    .pm-row-subcontractor td:first-child { box-shadow: inset 3px 0 0 #34d399; }
+    .pm-row-equipment td:first-child { box-shadow: inset 3px 0 0 #a78bfa; }
+    .resource-row td { padding-top: .6rem !important; padding-bottom: .6rem !important; }
+    .resource-row .cell-name { font-weight: 600; color: #eee; padding-left: 1rem !important; }
+
+    /* Table inline inputs */
+    .pm-table input[type="text"],
+    .pm-table input[type="number"],
+    .pm-table input[type="date"],
+    .pm-table select {
+        background: transparent !important;
+        border: 1px solid rgba(255,255,255,.06) !important;
+        border-radius: 6px !important;
+        color: #ddd !important;
+        padding: .3rem .4rem !important;
+        font-size: .78rem !important;
+        font-family: 'Manrope', sans-serif !important;
+        width: 100%; min-width: 80px;
+        transition: border-color .2s, box-shadow .2s;
+        outline: none !important;
+        box-shadow: none !important;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+    .pm-table input:focus,
+    .pm-table select:focus {
+        border-color: #8B5CF6 !important;
+        background: rgba(139,92,246,.04) !important;
+        box-shadow: 0 0 0 2px rgba(139,92,246,.1) !important;
+    }
+    .pm-table select {
+        min-width: 120px; cursor: pointer;
+        padding-right: 1.4rem !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E") !important;
+        background-repeat: no-repeat !important;
+        background-position: right .4rem center !important;
+        background-size: 10px 6px !important;
+    }
+    .pm-table select option { background: #1a1a1a; color: #ddd; }
+    .pm-table input[type="date"] { min-width: 125px; }
+    .pm-table input[type="number"] { min-width: 55px; }
+    .pm-table .margin-input { max-width: 65px; text-align: right; }
+    .pm-table .hours-input { max-width: 65px; }
+
+    /* Computed cells */
+    .cell-computed { color: #666; white-space: nowrap; }
+    .cell-cost { font-weight: 600; color: #eee; white-space: nowrap; }
+    .cell-final { font-weight: 700; color: #a78bfa; white-space: nowrap; }
+    .rate-unit { font-size: .6rem; color: #444; font-weight: 500; margin-left: 1px; }
+
+    /* Row actions */
+    .row-actions { display: flex; gap: .35rem; align-items: center; justify-content: center; }
+    .row-btn {
+        width: 28px; height: 28px; border-radius: 6px;
+        border: none !important; outline: none !important; box-shadow: none !important;
+        display: inline-flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: all .15s; font-size: .72rem;
+        padding: 0; line-height: 1;
+    }
+    .row-btn-delete { background: rgba(239,68,68,.08); color: #f87171; }
+    .row-btn-delete:hover { background: rgba(239,68,68,.2); color: #fca5a5; }
+
+    /* Auto-save indicator */
+    .save-indicator {
+        display: none;
+        font-size: .6rem; font-weight: 600;
+        color: #34d399; white-space: nowrap;
+        padding: .1rem .35rem; border-radius: 4px;
+        background: rgba(52,211,153,.06);
+    }
+    .save-indicator.visible { display: inline-block; animation: fadeInOut 2s ease forwards; }
+    @keyframes fadeInOut { 0%{opacity:0} 15%{opacity:1} 75%{opacity:1} 100%{opacity:0;display:none} }
+
+    /* Totals footer */
+    .pm-table tfoot td {
+        padding: .75rem .6rem;
+        border-top: 2px solid #8B5CF6;
+        font-weight: 700; color: #fff;
+        background: #151515;
+        font-size: .82rem;
+    }
+
+    /* === Quick-add panel === */
+    .pm-add-panel {
+        background: #1a1a1a;
+        border: 1px solid rgba(255,255,255,.06);
+        border-radius: 14px;
+        margin-top: 1.25rem;
+        overflow: hidden;
+    }
+    .pm-add-tabs {
+        display: flex;
+        border-bottom: 1px solid rgba(255,255,255,.06);
+        background: #151515;
+    }
+    .pm-add-tab {
+        flex: 1;
+        padding: .7rem .5rem;
+        text-align: center;
+        font-size: .75rem; font-weight: 600; color: #555;
+        cursor: pointer;
+        border: none !important; outline: none !important; box-shadow: none !important;
+        background: transparent !important;
+        transition: color .2s, background .2s;
+        font-family: 'Manrope', sans-serif;
+        border-bottom: 2px solid transparent !important;
+    }
+    .pm-add-tab:hover { color: #999; background: rgba(255,255,255,.02) !important; }
+    .pm-add-tab.active {
+        color: #8B5CF6 !important;
+        border-bottom: 2px solid #8B5CF6 !important;
+        background: rgba(139,92,246,.03) !important;
+    }
+    .pm-add-tab i { margin-right: .3rem; }
+
+    .pm-add-content { display: none; padding: 1.25rem 1.5rem; }
+    .pm-add-content.active { display: block; }
+
+    .pm-add-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: .75rem;
+    }
+    .pm-add-form .catalog-row {
+        grid-column: 1 / -1;
+        display: flex; gap: .75rem; align-items: flex-end;
+        padding-bottom: .85rem;
+        border-bottom: 1px solid rgba(255,255,255,.05);
+        margin-bottom: .35rem;
+    }
+    .pm-add-form .catalog-row .fm { flex: 1; }
+    .pm-add-form .fm-row {
+        display: flex; gap: .5rem; align-items: center;
+        grid-column: 1 / -1;
+        margin-top: .75rem;
+        padding-top: .75rem;
+        border-top: 1px solid rgba(255,255,255,.04);
+    }
+
+    /* --- Responsive --- */
+    @media (max-width: 1024px) {
+        .pm-top { grid-template-columns: 1fr; }
+        .pm-meta { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+        .pm { padding: 1rem .75rem; }
+        .kpi-row { flex-direction: column; }
+        .pm-add-form { grid-template-columns: 1fr; }
+        .pm-add-tabs { flex-wrap: wrap; }
+        .pm-add-tab { flex: 1 1 45%; }
+    }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 3rem 1rem; color: #444; }
+    .empty-state i { font-size: 2rem; margin-bottom: .75rem; display: block; color: #333; }
+    .empty-state p { font-size: .85rem; }
+
+    /* Resource name cell */
+    .cell-name { font-weight: 600; color: #eee; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pm">
+    <!-- === TOP: Project info + KPIs === -->
+    <form method="post" action="{% url 'project_manage' project.id %}" id="projectForm">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="update_project">
+
+        <div class="pm-top">
+            <!-- Left: Project meta -->
+            <div class="pm-card">
+                <div class="pm-card-title">Проект</div>
+                <div class="pm-meta">
+                    <div class="fm">
+                        <label>Название</label>
+                        <input type="text" name="name" value="{{ project.name }}" required>
+                    </div>
+                    <div class="fm">
+                        <label>Заказчик</label>
+                        <input type="text" name="customer" value="{{ project.customer }}">
+                    </div>
+                    <div class="fm">
+                        <label>Статус</label>
+                        <input type="text" name="status" value="{{ project.status }}" placeholder="В работе">
+                    </div>
+                    <div class="fm">
+                        <label>ТЗ (ссылка)</label>
+                        <input type="url" name="technical_task_url" value="{{ project.technical_task_url }}" placeholder="https://...">
+                    </div>
+                    <div class="fm">
+                        <label>Дата начала</label>
+                        <input type="date" name="start_date" value="{{ project.start_date|date:'Y-m-d' }}">
+                    </div>
+                    <div class="fm">
+                        <label>Дата окончания</label>
+                        <input type="date" name="end_date" value="{{ project.end_date|date:'Y-m-d' }}">
+                    </div>
+                    <div class="fm full">
+                        <label>Описание</label>
+                        <textarea name="description" rows="1">{{ project.description }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Financial KPIs -->
+            <div class="pm-card">
+                <div class="pm-card-title">Финансовые показатели</div>
+                <div class="pm-meta" style="margin-bottom:.75rem;">
+                    <div class="fm">
+                        <label for="pm-tax-rate" title="Страховые взносы на ФОТ. Начисляются ТОЛЬКО на оклад штатных сотрудников и входят в себестоимость. По умолчанию 0.">Страховые взносы на ФОТ (%)</label>
+                        <input id="pm-tax-rate" type="number" step="0.01" min="0" max="999.99" name="tax_rate" value="{{ project.tax_rate|unlocalize }}">
+                    </div>
+                    <div class="fm">
+                        <label for="pm-margin" title="Наценка к себестоимости ресурса (рентабельность).">Наценка / рентабельность (%)</label>
+                        <input id="pm-margin" type="number" step="0.01" min="0" max="999.99" name="margin" value="{{ project.margin|unlocalize }}">
+                    </div>
+                    <div class="fm">
+                        <label for="pm-vat-rate" title="НДС на итоговую цену (output). Начисляется один раз на цену с наценкой, в прибыль не входит. По умолчанию 0 (напр. УСН без НДС).">НДС (%)</label>
+                        <input id="pm-vat-rate" type="number" step="0.01" min="0" max="999.99" name="vat_rate" value="{{ project.vat_rate|unlocalize }}">
+                    </div>
+                    <div class="fm">
+                        <label for="pm-wh-per-day" title="Количество рабочих часов в одном рабочем дне. Используется для отображения часов сотрудника и для расчёта оборудования при базе «рабочие часы».">Часов в дне (КЧЧ)</label>
+                        <input id="pm-wh-per-day" type="number" step="0.01" min="0.01" max="24" name="work_hours_per_day" value="{{ project.work_hours_per_day|unlocalize }}">
+                    </div>
+                    {% comment %}
+                        «Дней в месяце (fallback)» и «База часов оборудования» убраны из UI:
+                        календари обновляются регулярно, а оборудование всегда считается по
+                        календарным дням периода. Значения хранятся как hidden, чтобы расчёт
+                        и форма продолжали работать.
+                    {% endcomment %}
+                    <input type="hidden" name="working_days_per_month_fallback" value="{{ project.working_days_per_month_fallback|default:22 }}">
+                    <input type="hidden" name="equipment_hour_basis" value="calendar">
+                </div>
+                <div class="kpi-row">
+                    <div class="kpi">
+                        <div class="kpi-label">Себестоимость</div>
+                        <div class="kpi-value" id="finance-base-cost">{{ base_cost|floatformat:2 }} ₽</div>
+                    </div>
+                    <div class="kpi">
+                        <div class="kpi-label">Цена без НДС</div>
+                        <div class="kpi-value" id="finance-final-price">{{ final_price|floatformat:2 }} ₽</div>
+                    </div>
+                    <div class="kpi">
+                        <div class="kpi-label">Чистая прибыль</div>
+                        <div class="kpi-value {% if net_profit >= 0 %}positive{% else %}negative{% endif %}" id="finance-net-profit">{{ net_profit|floatformat:2 }} ₽</div>
+                    </div>
+                    <div class="kpi" id="finance-vat-card"{% if not project.vat_rate %} style="display:none;"{% endif %}>
+                        <div class="kpi-label">НДС</div>
+                        <div class="kpi-value" id="finance-vat">{{ vat_amount|floatformat:2 }} ₽</div>
+                    </div>
+                    <div class="kpi" id="finance-price-with-vat-card"{% if not project.vat_rate %} style="display:none;"{% endif %}>
+                        <div class="kpi-label">Цена с НДС</div>
+                        <div class="kpi-value" id="finance-price-with-vat">{{ price_with_vat|floatformat:2 }} ₽</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action bar -->
+        <div class="pm-actions">
+            <button type="submit" class="pm-btn pm-btn-primary">
+                <i class="fas fa-save"></i> Сохранить проект
+            </button>
+            <a href="{% url 'generate_documents' project.id %}" class="pm-btn pm-btn-success">
+                <i class="fas fa-file-alt"></i> Документы
+            </a>
+            <span class="spacer"></span>
+            <a href="{% url 'index' %}" class="pm-btn pm-btn-secondary">
+                <i class="fas fa-arrow-left"></i> Назад
+            </a>
+        </div>
+    </form>
+
+    <!-- Hidden forms for resource override AJAX-save (rendered outside the table to keep valid HTML) -->
+    {% for r in resources %}
+    <form id="update-{{ r.resource_type }}-{{ r.resource_id }}"
+          method="post"
+          action="{% url 'update_resource' project.id %}"
+          hidden>
+        {% csrf_token %}
+        <input type="hidden" name="resource_type" value="{{ r.resource_type }}">
+        <input type="hidden" name="resource_id" value="{{ r.resource_id }}">
+    </form>
+    {% endfor %}
+
+    <!-- === SUMMARY TABLE === -->
+    <div class="pm-table-wrap">
+        <div class="pm-table-header">
+            <h3>Ресурсы проекта</h3>
+            <span class="badge-count">{{ resources|length }} ресурс(ов)</span>
+        </div>
+        <div class="pm-table-scroll">
+            {% if resources %}
+            <table class="pm-table">
+                {% regroup resources by resource_type as type_groups %}
+                {% for g in type_groups %}
+                <tbody class="pm-group g-{{ g.grouper }}">
+                    <tr class="pm-group-head">
+                        <td colspan="11">
+                            <div class="pm-gh">
+                                <span class="pm-gh-ic"><i class="fas fa-{% if g.grouper == 'employee' %}user{% elif g.grouper == 'contractor' %}user-tie{% elif g.grouper == 'subcontractor' %}building{% else %}server{% endif %}"></i></span>
+                                <span class="pm-gh-name">{% if g.grouper == 'employee' %}Сотрудники{% elif g.grouper == 'contractor' %}Исполнители{% elif g.grouper == 'subcontractor' %}Подрядчики{% else %}Оборудование{% endif %}</span>
+                                <span class="pm-gh-cnt">{{ g.list|length }}</span>
+                                <span class="pm-gh-sub"><span class="l">Подытог · итого</span><span class="v" id="subtotal-{{ g.grouper }}">—</span></span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="pm-cols">
+                        <th>Название</th>
+                        <th>Услуга</th>
+                        <th>Наценка %</th>
+                        <th>Начало</th>
+                        <th>Окончание</th>
+                        <th>Раб. дни</th>
+                        <th>Часы</th>
+                        <th>Ставка</th>
+                        <th>Себестоимость</th>
+                        <th>Итого</th>
+                        <th style="width:70px;"></th>
+                    </tr>
+                    {% for r in g.list %}
+                    <tr class="resource-row pm-row-{{ r.resource_type }}"
+                        data-resource-type="{{ r.resource_type }}"
+                        data-resource-id="{{ r.resource_id }}"
+                        data-tax-rate="{{ project.tax_rate|default:0|unlocalize }}"
+                        data-working-days-per-month="22"
+                        data-base-monthly-cost="{{ r.base_monthly_cost|default:''|unlocalize }}"
+                        data-base-estimated-cost="{{ r.base_estimated_cost|default:''|unlocalize }}"
+                        data-base-estimated-hours="{{ r.base_estimated_hours|default:'' }}"
+                        data-base-contract-amount="{{ r.base_contract_amount|default:''|unlocalize }}"
+                        data-base-total-cost="{{ r.base_total_cost|default:''|unlocalize }}"
+                        data-base-total-monthly-cost="{{ r.base_total_monthly_cost|default:''|unlocalize }}"
+                        data-has-monthly-cost="{{ r.has_monthly_cost|default:False }}"
+                        data-hourly-rate="{{ r.hourly_rate|default:''|unlocalize }}"
+                        data-pricing-type="{{ r.pricing_type|default:'month' }}"
+                        data-rate="{{ r.rate|default:''|unlocalize }}"
+                        data-quantity="{{ r.quantity|default:1 }}">
+
+                        <td class="cell-name">{{ r.name }}</td>
+                        <td>
+                            <select name="service"
+                                    aria-label="Услуга для {{ r.name }}"
+                                    form="update-{{ r.resource_type }}-{{ r.resource_id }}">
+                                <option value="">—</option>
+                                {% for svc in services %}
+                                {% if svc.applies_to == 'any' or svc.applies_to == r.resource_type or r.service_id == svc.id %}
+                                <option value="{{ svc.id }}" {% if r.service_id == svc.id %}selected{% endif %}>{{ svc.name }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" name="resource_margin"
+                                   class="margin-input"
+                                   aria-label="Маржа в процентах для {{ r.name }}"
+                                   placeholder="по проекту"
+                                   title="Оставьте пустым, чтобы использовать маржу проекта. Введите 0 для явного 0%."
+                                   form="update-{{ r.resource_type }}-{{ r.resource_id }}"
+                                   value="{{ r.margin_percent|default_if_none:''|unlocalize }}">
+                        </td>
+                        <td>
+                            <input type="date" name="work_start_date"
+                                   aria-label="Дата начала работ для {{ r.name }}"
+                                   form="update-{{ r.resource_type }}-{{ r.resource_id }}"
+                                   value="{% if r.start_date %}{{ r.start_date|date:'Y-m-d' }}{% endif %}">
+                        </td>
+                        <td>
+                            <input type="date" name="work_end_date"
+                                   aria-label="Дата окончания работ для {{ r.name }}"
+                                   form="update-{{ r.resource_type }}-{{ r.resource_id }}"
+                                   value="{% if r.end_date %}{{ r.end_date|date:'Y-m-d' }}{% endif %}">
+                        </td>
+                        <td class="cell-computed">
+                            <span class="js-work-days">{{ r.work_days|default:"—" }}</span>
+                        </td>
+                        <td>
+                            {% if r.resource_type == 'contractor' %}
+                                <input type="number" name="working_hours"
+                                       class="hours-input editable-hours"
+                                       aria-label="Количество рабочих часов для {{ r.name }}"
+                                       form="update-{{ r.resource_type }}-{{ r.resource_id }}"
+                                       value="{{ r.work_hours|default_if_none:'' }}"
+                                       min="0" step="1">
+                            {% elif r.resource_type == 'subcontractor' and r.pricing_type == 'hourly' %}
+                                <input type="number" name="working_hours"
+                                       class="hours-input editable-hours"
+                                       aria-label="Количество рабочих часов для {{ r.name }}"
+                                       form="update-{{ r.resource_type }}-{{ r.resource_id }}"
+                                       value="{{ r.work_hours|default_if_none:'' }}"
+                                       min="0" step="1">
+                            {% else %}
+                                <span class="cell-computed js-work-hours">{{ r.work_hours|default:"—" }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="cell-computed">
+                            <span class="js-monthly-cost">
+                                {% if r.monthly_cost %}
+                                    {{ r.monthly_cost|floatformat:2 }} ₽<span class="rate-unit">{% if r.resource_type == 'employee' %}/мес{% elif r.resource_type == 'contractor' %}/час{% elif r.resource_type == 'subcontractor' %}{% if r.pricing_type == 'hourly' %}/час{% else %}/фикс{% endif %}{% elif r.resource_type == 'equipment' %}/{% if r.pricing_type == 'day' %}дн{% elif r.pricing_type == 'hour' %}час{% elif r.pricing_type == 'minute' %}мин{% else %}мес{% endif %}{% endif %}</span>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="cell-cost">
+                            <span class="js-cost">
+                                {% if r.cost %}{{ r.cost|floatformat:2 }} ₽{% else %}—{% endif %}
+                            </span>
+                        </td>
+                        <td class="cell-final">
+                            <span class="js-final-cost">
+                                {% if r.final_cost %}{{ r.final_cost|floatformat:2 }} ₽{% else %}—{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="row-actions">
+                                <span class="save-indicator" data-indicator="{{ r.resource_type }}-{{ r.resource_id }}">Saved</span>
+                                {% if r.delete_name and r.delete_id %}
+                                <form method="post" action="{% url r.delete_name project.id r.delete_id %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="row-btn row-btn-delete"
+                                            title="Удалить"
+                                            onclick="return confirm('Удалить ресурс?')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% endfor %}
+                <tfoot>
+                    <tr>
+                        <td colspan="8" style="text-align:right;font-size:.75rem;letter-spacing:.03em;">ИТОГО ПО ПРОЕКТУ:</td>
+                        <td id="tfoot-base-cost">{{ base_cost|floatformat:2 }} ₽</td>
+                        <td id="tfoot-final-cost">{{ final_price|floatformat:2 }} ₽</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-box-open"></i>
+                <p>Ресурсы не добавлены. Используйте панель ниже для добавления.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- === QUICK-ADD PANEL === -->
+    <div class="pm-add-panel">
+        <div class="pm-add-tabs">
+            <button type="button" class="pm-add-tab active" data-tab="add-employee">
+                <i class="fas fa-users"></i> Сотрудник
+            </button>
+            <button type="button" class="pm-add-tab" data-tab="add-contractor">
+                <i class="fas fa-user-tie"></i> Исполнитель
+            </button>
+            <button type="button" class="pm-add-tab" data-tab="add-subcontractor">
+                <i class="fas fa-building"></i> Подрядчик
+            </button>
+            <button type="button" class="pm-add-tab" data-tab="add-equipment">
+                <i class="fas fa-tools"></i> Оборудование
+            </button>
+        </div>
+
+        <!-- Add Employee -->
+        <div class="pm-add-content active" id="add-employee">
+            <form method="post" action="{% url 'add_employee' project.id %}" id="addEmployeeForm">
+                {% csrf_token %}
+                <input type="hidden" name="name" id="emp_name">
+                <input type="hidden" name="position" id="emp_position">
+                <input type="hidden" name="monthly_salary" id="emp_salary">
+                <div class="pm-add-form">
+                    <div class="catalog-row">
+                        <div class="fm" style="flex:1;">
+                            <label>Выберите сотрудника из каталога</label>
+                            <select id="catalogEmployeeSelect"></select>
+                        </div>
+                        <button type="button" class="pm-btn pm-btn-primary" id="fillEmployeeFromCatalogBtn"><i class="fas fa-plus"></i> Добавить</button>
+                        <a href="{% url 'create_projects_resources' %}" class="pm-btn pm-btn-secondary"><i class="fas fa-database"></i> Каталог ресурсов</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Add Contractor -->
+        <div class="pm-add-content" id="add-contractor">
+            <form method="post" action="{% url 'add_contractor' project.id %}" id="addContractorForm">
+                {% csrf_token %}
+                <input type="hidden" name="name">
+                <input type="hidden" name="contract_type" value="gph">
+                <input type="hidden" name="hourly_rate">
+                <input type="hidden" name="estimated_hours" value="1">
+                <input type="hidden" name="actual_hours" value="0">
+                <div class="pm-add-form">
+                    <div class="catalog-row">
+                        <div class="fm" style="flex:1;">
+                            <label>Выберите исполнителя из каталога</label>
+                            <select id="catalogExecutorSelect"></select>
+                        </div>
+                        <button type="button" class="pm-btn pm-btn-primary" id="fillContractorFromCatalogBtn"><i class="fas fa-plus"></i> Добавить</button>
+                        <a href="{% url 'create_projects_resources' %}" class="pm-btn pm-btn-secondary"><i class="fas fa-database"></i> Каталог ресурсов</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Add Subcontractor -->
+        <div class="pm-add-content" id="add-subcontractor">
+            <form method="post" action="{% url 'add_subcontractor' project.id %}" id="addSubcontractorForm">
+                {% csrf_token %}
+                <input type="hidden" name="name">
+                <input type="hidden" name="entity_type" value="individual">
+                <input type="hidden" name="pricing_type" id="sub_pricing_type" value="fixed">
+                <input type="hidden" name="contract_amount" id="sub_contract_amount">
+                <input type="hidden" name="hourly_rate" id="sub_hourly_rate">
+                <input type="hidden" name="estimated_hours" id="sub_estimated_hours">
+                <input type="hidden" name="contract_date">
+                <input type="hidden" name="work_description" value="Из каталога">
+                <div class="pm-add-form">
+                    <div class="catalog-row">
+                        <div class="fm" style="flex:1;">
+                            <label>Выберите подрядчика из каталога</label>
+                            <select id="catalogSubcontractorSelect"></select>
+                        </div>
+                        <button type="button" class="pm-btn pm-btn-primary" id="fillSubcontractorFromCatalogBtn"><i class="fas fa-plus"></i> Добавить</button>
+                        <a href="{% url 'create_projects_resources' %}" class="pm-btn pm-btn-secondary"><i class="fas fa-database"></i> Каталог ресурсов</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Add Equipment -->
+        <div class="pm-add-content" id="add-equipment">
+            <form method="post" action="{% url 'add_equipment' project.id %}" id="addEquipmentForm">
+                {% csrf_token %}
+                <input type="hidden" name="name">
+                <input type="hidden" name="pricing_type" value="month">
+                <input type="hidden" name="operational_cost">
+                <input type="hidden" name="cost">
+                <input type="hidden" name="model">
+                <input type="hidden" name="manufacturer">
+                <input type="hidden" name="quantity" value="1">
+                <input type="hidden" name="purchase_date">
+                <div class="pm-add-form">
+                    <div class="catalog-row">
+                        <div class="fm" style="flex:1;">
+                            <label>Выберите оборудование из каталога</label>
+                            <select id="catalogEquipmentSelect"></select>
+                        </div>
+                        <button type="button" class="pm-btn pm-btn-primary" id="fillEquipmentFromCatalogBtn"><i class="fas fa-plus"></i> Добавить</button>
+                        <a href="{% url 'create_projects_resources' %}" class="pm-btn pm-btn-secondary"><i class="fas fa-database"></i> Каталог ресурсов</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ calendars_json|json_script:'pm-calendars' }}
+{{ employee_schedule_json|json_script:'pm-schedule' }}
+{{ catalog_db_json|json_script:'pm-catalog-db' }}
+<script>
+    window.__PM_CONFIG__ = {
+        csrfToken: document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+        projectId: Number('{{ project.id }}'),
+        calendars: JSON.parse(document.getElementById('pm-calendars').textContent || '{}'),
+        employeeSchedule: JSON.parse(document.getElementById('pm-schedule').textContent || '{}'),
+        catalogDb: JSON.parse(document.getElementById('pm-catalog-db').textContent || '{}'),
+        workHoursPerDay: Number('{{ project.work_hours_per_day|unlocalize }}') || 8,
+        equipmentHourBasis: '{{ project.equipment_hour_basis|default:"calendar" }}',
+        workingDaysPerMonthFallback: Number('{{ project.working_days_per_month_fallback|default:22 }}') || 22,
+    };
+</script>
+<script src="{% static 'js/calculator.js' %}?v={% now 'H:i' %}"></script>
+<script src="{% static 'js/project_manage.js' %}?v={% now 'H:i' %}"></script>
+{% endblock %}

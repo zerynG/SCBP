@@ -1,0 +1,1080 @@
+{% extends 'base_app.html' %}
+{% load static %}
+
+{% block title %}{{ workspace.name }} — Рабочая область{% endblock %}
+
+{% block app_extra_css %}
+<style>
+    /* ============================================================
+       WORKSPACE DETAIL — обзор одной рабочей области
+       Токены (:root), .app-card, .app-btn — в app.css.
+       Сайдбар — в sidebar.css.
+       ============================================================ */
+
+    .ws-hero {
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        padding: 2rem 1.75rem;
+        margin-bottom: 1.75rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .ws-hero::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-soft), var(--accent), transparent 90%);
+        background-size: 200% 100%;
+        animation: wsGradient 6s ease infinite;
+    }
+    @keyframes wsGradient {
+        0%, 100% { background-position: 0% 50%; }
+        50%      { background-position: 100% 50%; }
+    }
+    .ws-hero-head {
+        display: flex; align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem; flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+    .ws-hero h1 {
+        font-size: 1.55rem; font-weight: 700;
+        color: var(--text-strong);
+        margin: 0 0 .35rem;
+        word-break: break-word;
+    }
+    .ws-hero-sub {
+        color: var(--accent-soft); font-size: .85rem;
+        font-weight: 600; margin: 0 0 .75rem;
+        display: flex; align-items: center; gap: .35rem;
+    }
+    .ws-hero-desc {
+        color: var(--text-muted); font-size: .92rem;
+        max-width: 720px; margin: 0;
+    }
+    .ws-hero-actions {
+        display: flex; gap: .5rem; flex-wrap: wrap;
+    }
+    .ws-hero-meta {
+        display: flex; gap: 1.75rem; flex-wrap: wrap;
+        margin-top: 1.25rem; padding-top: 1.25rem;
+        border-top: 1px solid var(--border-1);
+    }
+    .ws-meta-item {
+        display: flex; flex-direction: column; gap: .15rem;
+        min-width: 0;
+    }
+    .ws-meta-label {
+        font-size: .68rem; text-transform: uppercase;
+        letter-spacing: .04em; color: var(--text-faint);
+        font-weight: 600;
+    }
+    .ws-meta-value {
+        font-size: .92rem; color: var(--text-strong);
+        font-weight: 600;
+        word-break: break-word;
+    }
+    .ws-status-pill {
+        display: inline-flex; align-items: center;
+        gap: .35rem;
+        font-size: .7rem; font-weight: 700;
+        letter-spacing: .05em; text-transform: uppercase;
+        color: var(--success);
+        border: 1px solid currentColor;
+        border-radius: 5px;
+        padding: .15rem .55rem;
+        white-space: nowrap;
+    }
+    .ws-status-pill::before {
+        content: '';
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--success);
+        box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55);
+        animation: wsPulse 1.8s ease-out infinite;
+    }
+    .ws-status-pill.inactive {
+        color: var(--danger);
+    }
+    .ws-status-pill.inactive::before {
+        background: var(--danger);
+        animation: none;
+        box-shadow: none;
+    }
+    @keyframes wsPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55); }
+        70%      { box-shadow: 0 0 0 8px rgba(52, 211, 153, 0); }
+    }
+
+    /* Кнопки */
+    .ws-btn {
+        display: inline-flex; align-items: center;
+        gap: .4rem; padding: .55rem 1.1rem;
+        border-radius: 8px; font-size: .82rem;
+        font-weight: 600; font-family: var(--font);
+        border: none; outline: none;
+        cursor: pointer; transition: all .15s;
+        white-space: nowrap; color: #fff;
+        text-decoration: none;
+    }
+    .ws-btn:hover { transform: translateY(-1px); }
+    .ws-btn-primary { background: var(--accent); }
+    .ws-btn-primary:hover {
+        background: var(--accent-hover);
+        box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
+    }
+    .ws-btn-secondary {
+        background: var(--surface-2); color: var(--text);
+        border: 1px solid var(--border-2);
+    }
+    .ws-btn-secondary:hover {
+        background: var(--surface-3);
+        border-color: var(--border-3);
+    }
+    .ws-btn-danger {
+        background: rgba(248, 113, 113, 0.12);
+        color: var(--danger);
+    }
+    .ws-btn-danger:hover { background: rgba(248, 113, 113, 0.2); }
+    .ws-btn-confirm-danger {
+        background: var(--danger-strong); color: #fff;
+    }
+    .ws-btn-confirm-danger:hover {
+        background: #b91c1c;
+        box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+    }
+    .ws-btn-sm { padding: .45rem .75rem; font-size: .8rem; }
+
+    /* Действия */
+    .ws-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem; margin-bottom: 1.75rem;
+    }
+    .ws-action {
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        padding: 1.4rem 1.3rem;
+        cursor: pointer;
+        transition: all .2s ease;
+        display: flex; flex-direction: column; gap: .6rem;
+        position: relative;
+        color: var(--text);
+        text-decoration: none;
+    }
+    .ws-action:hover {
+        background: var(--surface-2);
+        border-color: var(--border-3);
+        transform: translateY(-3px);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+    }
+    .ws-action-icon {
+        width: 48px; height: 48px;
+        border-radius: var(--radius);
+        background: var(--accent-tint);
+        color: var(--accent-soft);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.15rem;
+        border: 1px solid rgba(139, 92, 246, 0.22);
+        transition: all .2s ease;
+    }
+    .ws-action:hover .ws-action-icon {
+        background: rgba(139, 92, 246, 0.22);
+        color: var(--accent);
+        border-color: var(--accent);
+    }
+    .ws-action-title {
+        font-size: .95rem; font-weight: 700;
+        color: var(--text-strong);
+        margin: 0;
+    }
+    .ws-action-desc {
+        font-size: .8rem; color: var(--text-soft);
+        margin: 0;
+    }
+    .ws-action.disabled {
+        opacity: .55; cursor: not-allowed;
+        pointer-events: none;
+    }
+    .ws-action .badge-soon {
+        position: absolute; top: 1rem; right: 1rem;
+        font-size: .6rem; font-weight: 700;
+        letter-spacing: .05em; text-transform: uppercase;
+        color: var(--warning);
+        border: 1px solid currentColor;
+        border-radius: 5px;
+        padding: .08rem .35rem;
+    }
+
+    /* Ресурсы */
+    .ws-res-card {
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem 1.6rem;
+        margin-bottom: 1.5rem;
+    }
+    .ws-res-head {
+        display: flex; align-items: center;
+        justify-content: space-between;
+        gap: 1rem; flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+    .ws-res-title {
+        font-size: 1rem; font-weight: 700;
+        color: var(--text-strong);
+        margin: 0;
+        display: flex; align-items: center; gap: .55rem;
+    }
+    .ws-res-title i { color: var(--accent-soft); font-size: .9rem; }
+    .ws-res-count {
+        font-size: .72rem; font-weight: 700;
+        color: var(--accent);
+        background: var(--accent-tint);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 6px;
+        padding: .12rem .55rem;
+    }
+    .ws-filter-chips {
+        display: flex; gap: .35rem; flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+    .ws-chip {
+        padding: .4rem .85rem;
+        background: var(--surface-2);
+        border: 1px solid var(--border-2);
+        border-radius: 20px;
+        font-size: .78rem; font-weight: 600;
+        color: var(--text-muted);
+        cursor: pointer; transition: all .15s;
+        font-family: var(--font);
+    }
+    .ws-chip:hover {
+        background: var(--surface-3);
+        color: var(--text-strong);
+    }
+    .ws-chip.active {
+        background: var(--accent-tint);
+        border-color: rgba(139, 92, 246, 0.4);
+        color: var(--accent);
+    }
+    .ws-chip-count {
+        font-size: .68rem; font-weight: 700;
+        color: var(--text-faint);
+        margin-left: .3rem;
+    }
+    .ws-chip.active .ws-chip-count { color: var(--accent); }
+
+    .ws-res-list { display: grid; gap: .6rem; }
+    .ws-res-item {
+        display: flex; align-items: center;
+        gap: 1rem;
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: .95rem 1.15rem;
+        cursor: pointer;
+        transition: all .18s ease;
+        text-decoration: none;
+        color: var(--text);
+    }
+    .ws-res-item:hover {
+        border-color: rgba(139, 92, 246, 0.35);
+        background: var(--surface-2);
+        transform: translateX(3px);
+    }
+    .ws-res-icon {
+        width: 40px; height: 40px;
+        border-radius: 10px;
+        background: var(--accent-tint);
+        color: var(--accent-soft);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .95rem;
+        flex-shrink: 0;
+        border: 1px solid rgba(139, 92, 246, 0.22);
+    }
+    .ws-res-info { flex: 1; min-width: 0; }
+    .ws-res-name {
+        font-size: .95rem; font-weight: 600;
+        color: var(--text-strong);
+        line-height: 1.35;
+        display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    }
+    .ws-res-type {
+        font-size: .62rem; font-weight: 700;
+        letter-spacing: .05em; text-transform: uppercase;
+        color: var(--accent-soft);
+        background: var(--accent-tint);
+        border-radius: 5px;
+        padding: .1rem .4rem;
+    }
+    .ws-res-details {
+        font-size: .82rem; color: var(--text-soft);
+        margin-top: .2rem; line-height: 1.5;
+    }
+    .ws-res-details .acc { color: var(--accent-soft); font-weight: 600; }
+    .ws-res-details .val { color: var(--text-soft); }
+    .ws-res-arrow {
+        color: var(--text-faint);
+        font-size: .85rem;
+        flex-shrink: 0;
+        transition: color .18s ease, transform .18s ease;
+    }
+    .ws-res-item:hover .ws-res-arrow {
+        color: var(--accent);
+        transform: translateX(3px);
+    }
+    .ws-res-empty {
+        text-align: center; padding: 2.5rem 1rem;
+        color: var(--text-faint); font-size: .85rem;
+        border: 1px dashed var(--border-2);
+        border-radius: var(--radius);
+        background: var(--surface-3);
+    }
+    .ws-res-empty i {
+        font-size: 1.75rem; display: block;
+        margin-bottom: .5rem; color: var(--text-faint);
+    }
+
+    /* Модалка */
+    .ws-modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0, 0, 0, 0.72);
+        backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 2000; padding: 1rem;
+        opacity: 0; visibility: hidden;
+        transition: opacity .22s ease, visibility .22s ease;
+        overflow-y: auto;
+    }
+    .ws-modal-overlay.open { opacity: 1; visibility: visible; }
+    .ws-modal {
+        background: linear-gradient(180deg, var(--surface-1), #171717);
+        border: 1px solid var(--border-3);
+        border-radius: 16px;
+        box-shadow: 0 24px 72px rgba(0, 0, 0, 0.65);
+        padding: 1.75rem 1.85rem 1.5rem;
+        max-width: 720px; width: 100%;
+        margin: auto;
+        max-height: 92vh;
+        overflow-y: auto;
+        transform: translateY(14px) scale(.96);
+        transition: transform .22s cubic-bezier(.2,.9,.3,1.1);
+        position: relative;
+    }
+    .ws-modal::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        border-radius: 16px 16px 0 0;
+        background: linear-gradient(90deg, var(--accent), var(--accent-soft), var(--accent), transparent 90%);
+    }
+    .ws-modal-overlay.open .ws-modal {
+        transform: translateY(0) scale(1);
+    }
+    .ws-modal-title {
+        font-size: 1.15rem; font-weight: 700;
+        color: var(--text-strong); margin: 0 0 .35rem;
+    }
+    .ws-modal-text {
+        font-size: .9rem; color: var(--text-muted);
+        line-height: 1.6; margin: 0 0 1.35rem;
+    }
+    .ws-modal-text strong { color: var(--text-strong); font-weight: 700; }
+    .ws-modal-actions {
+        display: flex; justify-content: flex-end;
+        gap: .55rem; flex-wrap: wrap;
+        margin-top: 1.5rem;
+    }
+
+    /* Форма внутри модалки */
+    .ws-section {
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: 1rem 1.2rem;
+        margin-bottom: .9rem;
+    }
+    .ws-section h4 {
+        font-size: .72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .05em;
+        color: var(--accent-soft); margin: 0 0 .75rem;
+    }
+    .ws-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: .75rem;
+    }
+    .ws-row + .ws-row { margin-top: .75rem; }
+    .ws-field { display: flex; flex-direction: column; gap: .25rem; }
+    .ws-field label {
+        font-size: .7rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: .04em;
+        color: var(--text-soft);
+    }
+    .ws-field input,
+    .ws-field textarea {
+        width: 100%;
+        padding: .6rem .8rem;
+        background: var(--surface-2);
+        border: 1px solid var(--border-2);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: .85rem;
+        font-family: var(--font);
+        outline: none;
+        transition: border-color .2s, box-shadow .2s;
+    }
+    .ws-field textarea { resize: vertical; min-height: 70px; }
+    .ws-field input:focus,
+    .ws-field textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-tint);
+    }
+    .ws-error {
+        font-size: .7rem; color: var(--danger);
+        margin-top: .15rem; display: none;
+    }
+    .ws-error.visible { display: block; }
+    .ws-subdomain-preview {
+        font-size: .78rem; color: var(--text-soft);
+        margin-top: .35rem;
+    }
+    .ws-subdomain-preview strong { color: var(--accent-soft); }
+    .ws-status-msg {
+        font-size: .72rem; margin-top: .15rem;
+        display: none;
+    }
+    .ws-status-msg.visible { display: block; }
+    .ws-status-msg.ok { color: var(--success); }
+    .ws-status-msg.err { color: var(--danger); }
+
+    /* Тосты */
+    .ws-toast-wrap {
+        position: fixed;
+        top: calc(var(--header-height) + 1rem);
+        right: 1rem;
+        z-index: 3000;
+        display: flex; flex-direction: column;
+        gap: .5rem;
+        pointer-events: none;
+    }
+    .ws-toast {
+        pointer-events: auto;
+        background: var(--surface-1);
+        border: 1px solid var(--border-3);
+        border-left: 3px solid var(--accent);
+        border-radius: var(--radius);
+        padding: .75rem 1rem;
+        font-size: .85rem;
+        color: var(--text);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+        min-width: 260px; max-width: 360px;
+        transform: translateX(120%);
+        transition: transform .25s ease;
+    }
+    .ws-toast.visible { transform: translateX(0); }
+    .ws-toast.success { border-left-color: var(--success); }
+    .ws-toast.danger  { border-left-color: var(--danger); }
+    .ws-toast.warning { border-left-color: var(--warning); }
+    .ws-toast-title {
+        font-weight: 700; color: var(--text-strong);
+        margin-bottom: .15rem; font-size: .82rem;
+    }
+
+    @media (max-width: 560px) {
+        .ws-hero { padding: 1.5rem 1.25rem; }
+        .ws-hero h1 { font-size: 1.25rem; }
+        .ws-hero-meta { gap: 1.25rem; }
+        .ws-res-card { padding: 1.2rem; }
+        .ws-row { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block app_content %}
+{# JSON для JS #}
+{{ workspace_json|json_script:'ws-data' }}
+{{ resources_json|json_script:'ws-resources' }}
+
+<!-- ===================== HERO ===================== -->
+<section class="ws-hero">
+    <div class="ws-hero-head">
+        <div style="min-width: 0; flex: 1;">
+            <h1 id="wsTitle">{{ workspace.name }}</h1>
+            <p class="ws-hero-sub">
+                <i class="fas fa-link"></i>
+                <span id="wsSubdomain">{{ workspace.subdomain }}.iqnix.tech</span>
+            </p>
+            <p class="ws-hero-desc" id="wsDesc">{{ workspace.description|default:'Описание не указано' }}</p>
+        </div>
+        <div class="ws-hero-actions">
+            <a class="ws-btn ws-btn-secondary" href="{% url 'workspace_list' %}">
+                <i class="fas fa-layer-group"></i> Все рабочие области
+            </a>
+            <button class="ws-btn ws-btn-secondary" onclick="openEditModal()">
+                <i class="fas fa-pen"></i> Редактировать
+            </button>
+            <button class="ws-btn ws-btn-secondary" id="toggleActiveBtn" onclick="openToggleModal()">
+                <i class="fas fa-power-off"></i> <span id="toggleBtnText">Деактивировать</span>
+            </button>
+            <button class="ws-btn ws-btn-danger" onclick="openDeleteModal()">
+                <i class="fas fa-trash"></i> Удалить
+            </button>
+        </div>
+    </div>
+
+    <div class="ws-hero-meta">
+        <div class="ws-meta-item">
+            <span class="ws-meta-label">Администратор</span>
+            <span class="ws-meta-value" id="wsAdminName">{{ workspace.admin_name }}</span>
+        </div>
+        <div class="ws-meta-item">
+            <span class="ws-meta-label">Email</span>
+            <span class="ws-meta-value" id="wsAdminEmail">{{ workspace.admin_email }}</span>
+        </div>
+        <div class="ws-meta-item">
+            <span class="ws-meta-label">Создана</span>
+            <span class="ws-meta-value" id="wsCreatedAt">{{ workspace.created_at|date:"d.m.Y" }}</span>
+        </div>
+        <div class="ws-meta-item">
+            <span class="ws-meta-label">Статус</span>
+            <span class="ws-meta-value">
+                <span class="ws-status-pill {% if not workspace.is_active %}inactive{% endif %}" id="wsStatus">
+                    {% if workspace.is_active %}Активна{% else %}Неактивна{% endif %}
+                </span>
+            </span>
+        </div>
+    </div>
+</section>
+
+<!-- ===================== ДЕЙСТВИЯ ===================== -->
+<section class="ws-actions-grid">
+    <a class="ws-action" href="{% url 'resources_page' %}#employees">
+        <div class="ws-action-icon"><i class="fas fa-plus"></i></div>
+        <h3 class="ws-action-title">Добавить ресурс</h3>
+        <p class="ws-action-desc">Сотрудники, исполнители, субподрядчики, заказчики, оборудование.</p>
+    </a>
+    <div class="ws-action disabled" title="Скоро">
+        <span class="badge-soon">Скоро</span>
+        <div class="ws-action-icon"><i class="fas fa-project-diagram"></i></div>
+        <h3 class="ws-action-title">Создать проект</h3>
+        <p class="ws-action-desc">Проект внутри рабочей области с собственными ресурсами.</p>
+    </div>
+    <div class="ws-action disabled" title="Скоро">
+        <span class="badge-soon">Скоро</span>
+        <div class="ws-action-icon"><i class="fas fa-calculator"></i></div>
+        <h3 class="ws-action-title">Сметы</h3>
+        <p class="ws-action-desc">Конструктор смет на основе ресурсов рабочей области.</p>
+    </div>
+    <div class="ws-action disabled" title="Скоро">
+        <span class="badge-soon">Скоро</span>
+        <div class="ws-action-icon"><i class="fas fa-file-alt"></i></div>
+        <h3 class="ws-action-title">Документы</h3>
+        <p class="ws-action-desc">Экспорт коммерческих предложений и договоров.</p>
+    </div>
+</section>
+
+<!-- ===================== РЕСУРСЫ ===================== -->
+<section class="ws-res-card">
+    <div class="ws-res-head">
+        <h2 class="ws-res-title">
+            <i class="fas fa-cubes"></i>
+            Ресурсы рабочей области
+            <span class="ws-res-count" id="resTotalCount">0</span>
+        </h2>
+    </div>
+
+    <div class="ws-filter-chips" id="resFilterChips">
+        <button class="ws-chip active" data-filter="all">Все <span class="ws-chip-count" id="cntAll">0</span></button>
+        <button class="ws-chip" data-filter="employee">Сотрудники <span class="ws-chip-count" id="cntEmployee">0</span></button>
+        <button class="ws-chip" data-filter="executor">Исполнители <span class="ws-chip-count" id="cntExecutor">0</span></button>
+        <button class="ws-chip" data-filter="subcontractor">Субподрядчики <span class="ws-chip-count" id="cntSubcontractor">0</span></button>
+        <button class="ws-chip" data-filter="customer">Заказчики <span class="ws-chip-count" id="cntCustomer">0</span></button>
+        <button class="ws-chip" data-filter="equipment">Оборудование <span class="ws-chip-count" id="cntEquipment">0</span></button>
+    </div>
+
+    <div class="ws-res-list" id="resList"></div>
+</section>
+
+<!-- ===================== МОДАЛКА: РЕДАКТИРОВАНИЕ ===================== -->
+<div class="ws-modal-overlay" id="editModal" aria-hidden="true">
+    <div class="ws-modal" role="dialog" aria-modal="true">
+        <h3 class="ws-modal-title">Редактирование рабочей области</h3>
+        <p class="ws-modal-text">Измените данные и сохраните изменения.</p>
+        <form id="editWsForm" novalidate>
+            {% csrf_token %}
+            <div class="ws-section">
+                <h4>Рабочая область</h4>
+                <div class="ws-row">
+                    <div class="ws-field" style="grid-column: 1 / -1;">
+                        <label>Название *</label>
+                        <input type="text" id="editWsName" required maxlength="120">
+                        <div class="ws-error" id="editWsNameError"></div>
+                    </div>
+                </div>
+                <div class="ws-row">
+                    <div class="ws-field" style="grid-column: 1 / -1;">
+                        <label>Поддомен *</label>
+                        <input type="text" id="editWsSubdomain" required maxlength="40">
+                        <div class="ws-subdomain-preview" id="editSubdomainPreview">Адрес: <strong>—</strong>.iqnix.tech</div>
+                        <div class="ws-status-msg" id="editSubdomainStatus"></div>
+                    </div>
+                </div>
+                <div class="ws-row">
+                    <div class="ws-field" style="grid-column: 1 / -1;">
+                        <label>Описание</label>
+                        <textarea id="editWsDescription" maxlength="500"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ws-section">
+                <h4>Администратор</h4>
+                <div class="ws-row">
+                    <div class="ws-field">
+                        <label>ФИО *</label>
+                        <input type="text" id="editAdminName" required>
+                        <div class="ws-error" id="editAdminNameError"></div>
+                    </div>
+                    <div class="ws-field">
+                        <label>Email *</label>
+                        <input type="email" id="editAdminEmail" required>
+                        <div class="ws-error" id="editAdminEmailError"></div>
+                    </div>
+                </div>
+                <div class="ws-row">
+                    <div class="ws-field">
+                        <label>Телефон</label>
+                        <input type="tel" id="editAdminPhone" maxlength="18">
+                        <div class="ws-error" id="editAdminPhoneError"></div>
+                    </div>
+                    <div class="ws-field">
+                        <label>Должность</label>
+                        <input type="text" id="editAdminRole">
+                    </div>
+                </div>
+            </div>
+
+            <div class="ws-modal-actions">
+                <button type="button" class="ws-btn ws-btn-secondary" onclick="closeEditModal()">Отмена</button>
+                <button type="submit" class="ws-btn ws-btn-primary">
+                    <i class="fas fa-save"></i> Сохранить
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ===================== МОДАЛКА: АКТИВАЦИЯ ===================== -->
+<div class="ws-modal-overlay" id="toggleModal" aria-hidden="true">
+    <div class="ws-modal" role="dialog" aria-modal="true" style="max-width: 460px;">
+        <h3 class="ws-modal-title" id="toggleTitle">Деактивировать?</h3>
+        <p class="ws-modal-text" id="toggleText"></p>
+        <div class="ws-modal-actions">
+            <button type="button" class="ws-btn ws-btn-secondary" onclick="closeToggleModal()">Отмена</button>
+            <button type="button" class="ws-btn ws-btn-primary" onclick="confirmToggle()">
+                <i class="fas fa-power-off"></i> Подтвердить
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== МОДАЛКА: УДАЛЕНИЕ ===================== -->
+<div class="ws-modal-overlay" id="deleteModal" aria-hidden="true">
+    <div class="ws-modal" role="dialog" aria-modal="true" style="max-width: 460px;">
+        <h3 class="ws-modal-title">Удалить рабочую область?</h3>
+        <p class="ws-modal-text">
+            Область <strong>{{ workspace.name }}</strong> и все связанные данные будут удалены безвозвратно.
+        </p>
+        <div class="ws-modal-actions">
+            <button type="button" class="ws-btn ws-btn-secondary" onclick="closeDeleteModal()">Отмена</button>
+            <button type="button" class="ws-btn ws-btn-confirm-danger" onclick="confirmDelete()">
+                <i class="fas fa-trash"></i> Удалить
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ТОСТЫ -->
+<div class="ws-toast-wrap" id="toastWrap"></div>
+{% endblock %}
+
+{% block app_extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    // ============================================================
+    // Данные из сервера
+    // ============================================================
+    var WS = JSON.parse(document.getElementById('ws-data').textContent || '{}');
+    var RES = JSON.parse(document.getElementById('ws-resources').textContent || '{}');
+
+    // ============================================================
+    // Утилиты
+    // ============================================================
+    function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s == null ? '' : String(s);
+        return d.innerHTML;
+    }
+    function fmt(n) { return Math.round(parseFloat(n) || 0).toLocaleString('ru-RU'); }
+    function getCookie(name) {
+        var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? m.pop() : '';
+    }
+    function csrf() {
+        var inp = document.querySelector('[name=csrfmiddlewaretoken]');
+        return (inp && inp.value) ? inp.value : getCookie('csrftoken');
+    }
+
+    function toast(title, text, kind) {
+        var wrap = document.getElementById('toastWrap');
+        var el = document.createElement('div');
+        el.className = 'ws-toast ' + (kind || '');
+        el.innerHTML = '<div class="ws-toast-title">' + esc(title) + '</div><div>' + esc(text || '') + '</div>';
+        wrap.appendChild(el);
+        requestAnimationFrame(function () { el.classList.add('visible'); });
+        setTimeout(function () {
+            el.classList.remove('visible');
+            setTimeout(function () { el.remove(); }, 300);
+        }, 3400);
+    }
+
+    function lockScroll() {
+        var sbw = window.innerWidth - document.documentElement.clientWidth;
+        document.documentElement.style.setProperty('--scrollbar-comp', sbw + 'px');
+        document.body.classList.add('modal-open');
+    }
+    function unlockScroll() {
+        if (!document.querySelector('.ws-modal-overlay.open')) {
+            document.body.classList.remove('modal-open');
+            document.documentElement.style.removeProperty('--scrollbar-comp');
+        }
+    }
+
+    // ============================================================
+    // Ресурсы — плоский список
+    // ============================================================
+    var TYPE_META = {
+        employee:      { label: 'Сотрудник',    icon: 'fa-user-tie',  hash: 'employees' },
+        executor:      { label: 'Исполнитель',  icon: 'fa-user',      hash: 'executors' },
+        subcontractor: { label: 'Субподрядчик', icon: 'fa-building',  hash: 'subcontractors' },
+        customer:      { label: 'Заказчик',     icon: 'fa-handshake', hash: 'customers' },
+        equipment:     { label: 'Оборудование', icon: 'fa-tools',     hash: 'equipment' },
+    };
+
+    function collectAll() {
+        var out = [];
+        (RES.employees || []).forEach(function (x)      { out.push({ type: 'employee',      item: x }); });
+        (RES.executors || []).forEach(function (x)      { out.push({ type: 'executor',      item: x }); });
+        (RES.subcontractors || []).forEach(function (x) { out.push({ type: 'subcontractor', item: x }); });
+        (RES.customers || []).forEach(function (x)      { out.push({ type: 'customer',      item: x }); });
+        (RES.equipment || []).forEach(function (x)      { out.push({ type: 'equipment',     item: x }); });
+        return out;
+    }
+
+    var currentFilter = 'all';
+
+    function updateCounters(all) {
+        var counts = { all: all.length, employee: 0, executor: 0, subcontractor: 0, customer: 0, equipment: 0 };
+        all.forEach(function (r) { if (counts[r.type] !== undefined) counts[r.type]++; });
+        document.getElementById('resTotalCount').textContent = counts.all;
+        document.getElementById('cntAll').textContent = counts.all;
+        document.getElementById('cntEmployee').textContent = counts.employee;
+        document.getElementById('cntExecutor').textContent = counts.executor;
+        document.getElementById('cntSubcontractor').textContent = counts.subcontractor;
+        document.getElementById('cntCustomer').textContent = counts.customer;
+        document.getElementById('cntEquipment').textContent = counts.equipment;
+    }
+
+    function buildDetails(type, item) {
+        var parts = [];
+        if (type === 'employee') {
+            if (item.position) parts.push('<span class="acc">Должность:</span> <span class="val">' + esc(item.position) + '</span>');
+            if (item.salary) parts.push('<span class="acc">ЗП:</span> <span class="val">' + fmt(item.salary) + ' ₽/мес</span>');
+            if (item.taxRate) parts.push('<span class="acc">Налог:</span> <span class="val">' + esc(item.taxRate) + '%</span>');
+        } else if (type === 'executor') {
+            if (item.contractType) parts.push('<span class="acc">Контракт:</span> <span class="val">' + esc(item.contractType).toUpperCase() + '</span>');
+            var rate = item.hourlyCost || item.dailyCost || item.fixedCost;
+            if (rate) parts.push('<span class="acc">Ставка:</span> <span class="val">' + fmt(rate) + ' ₽</span>');
+        } else if (type === 'subcontractor') {
+            if (item.inn) parts.push('<span class="acc">ИНН:</span> <span class="val">' + esc(item.inn) + '</span>');
+            if (item.phone) parts.push('<span class="acc">тел.:</span> <span class="val">' + esc(item.phone) + '</span>');
+        } else if (type === 'customer') {
+            if (item.organization) parts.push('<span class="acc">Организация:</span> <span class="val">' + esc(item.organization) + '</span>');
+            if (item.email) parts.push('<span class="acc">email:</span> <span class="val">' + esc(item.email) + '</span>');
+        } else if (type === 'equipment') {
+            parts.push('<span class="acc">Тип:</span> <span class="val">' + (item.acquisitionType === 'rented' ? 'В аренде' : 'Собственное') + '</span>');
+            if (item.cost) parts.push('<span class="acc">Стоимость:</span> <span class="val">' + fmt(item.cost) + ' ₽</span>');
+        }
+        return parts.join(' · ') || '<span class="val">—</span>';
+    }
+
+    function renderResources() {
+        var listEl = document.getElementById('resList');
+        var all = collectAll();
+        updateCounters(all);
+
+        var filtered = currentFilter === 'all' ? all : all.filter(function (r) { return r.type === currentFilter; });
+
+        if (!filtered.length) {
+            listEl.innerHTML = '<div class="ws-res-empty"><i class="fas fa-inbox"></i><p>Ресурсов пока нет</p></div>';
+            return;
+        }
+
+        listEl.innerHTML = filtered.map(function (r) {
+            var meta = TYPE_META[r.type];
+            var title = r.item.name || '—';
+            var details = buildDetails(r.type, r.item);
+            var href = '/resources/#' + meta.hash;
+            return ''
+                + '<a class="ws-res-item" href="' + href + '">'
+                +   '<div class="ws-res-icon"><i class="fas ' + meta.icon + '"></i></div>'
+                +   '<div class="ws-res-info">'
+                +     '<div class="ws-res-name"><span class="ws-res-type">' + esc(meta.label) + '</span>' + esc(title) + '</div>'
+                +     '<div class="ws-res-details">' + details + '</div>'
+                +   '</div>'
+                +   '<i class="fas fa-arrow-right ws-res-arrow"></i>'
+                + '</a>';
+        }).join('');
+    }
+
+    document.querySelectorAll('#resFilterChips .ws-chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            document.querySelectorAll('#resFilterChips .ws-chip').forEach(function (c) { c.classList.remove('active'); });
+            chip.classList.add('active');
+            currentFilter = chip.dataset.filter;
+            renderResources();
+        });
+    });
+
+    // ============================================================
+    // Hero — статус
+    // ============================================================
+    function renderStatus(isActive) {
+        var pill = document.getElementById('wsStatus');
+        var btnText = document.getElementById('toggleBtnText');
+        if (isActive) {
+            pill.textContent = 'Активна';
+            pill.classList.remove('inactive');
+            if (btnText) btnText.textContent = 'Деактивировать';
+        } else {
+            pill.textContent = 'Неактивна';
+            pill.classList.add('inactive');
+            if (btnText) btnText.textContent = 'Активировать';
+        }
+    }
+
+    // ============================================================
+    // Редактирование
+    // ============================================================
+    var editModal = document.getElementById('editModal');
+
+    window.openEditModal = function () {
+        document.getElementById('editWsName').value = WS.name || '';
+        document.getElementById('editWsSubdomain').value = WS.subdomain || '';
+        document.getElementById('editWsDescription').value = WS.description || '';
+        document.getElementById('editAdminName').value = WS.admin ? WS.admin.name : '';
+        document.getElementById('editAdminEmail').value = WS.admin ? WS.admin.email : '';
+        document.getElementById('editAdminPhone').value = WS.admin ? WS.admin.phone : '';
+        document.getElementById('editAdminRole').value = WS.admin ? WS.admin.role : '';
+        updateSubdomainPreview();
+        editModal.classList.add('open');
+        lockScroll();
+        setTimeout(function () { document.getElementById('editWsName').focus(); }, 100);
+    };
+    window.closeEditModal = function () {
+        editModal.classList.remove('open');
+        unlockScroll();
+    };
+    editModal.addEventListener('click', function (e) {
+        if (e.target === editModal) closeEditModal();
+    });
+
+    var editSubdomainManuallyEdited = false;
+    document.getElementById('editWsName').addEventListener('input', function () {
+        if (!editSubdomainManuallyEdited) {
+            document.getElementById('editWsSubdomain').value = slugify(this.value);
+            updateSubdomainPreview();
+        }
+    });
+    document.getElementById('editWsSubdomain').addEventListener('input', function () {
+        editSubdomainManuallyEdited = true;
+        var cleaned = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        if (cleaned !== this.value) this.value = cleaned;
+        updateSubdomainPreview();
+    });
+    document.getElementById('editAdminPhone').addEventListener('input', function () {
+        this.value = formatPhone(this.value);
+    });
+
+    function slugify(v) {
+        return (v || '').toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-').slice(0, 40);
+    }
+    function formatPhone(v) {
+        var d = v.replace(/\D/g, '');
+        if (!d) return '';
+        if (d.charAt(0) === '8') d = '7' + d.slice(1);
+        if (d.charAt(0) !== '7') d = '7' + d;
+        d = d.slice(0, 11);
+        var p = d.slice(1);
+        var out = '+7';
+        if (p.length) out += ' (' + p.slice(0, 3);
+        if (p.length >= 3) out += ')';
+        if (p.length > 3) out += ' ' + p.slice(3, 6);
+        if (p.length > 6) out += '-' + p.slice(6, 8);
+        if (p.length > 8) out += '-' + p.slice(8, 10);
+        return out;
+    }
+    function setError(id, msg) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        if (msg) { el.textContent = msg; el.classList.add('visible'); }
+        else { el.textContent = ''; el.classList.remove('visible'); }
+    }
+    function updateSubdomainPreview() {
+        var v = document.getElementById('editWsSubdomain').value.trim();
+        var prev = document.getElementById('editSubdomainPreview');
+        prev.innerHTML = v ? 'Адрес: <strong>' + esc(v) + '</strong>.iqnix.tech' : 'Адрес: <strong>—</strong>.iqnix.tech';
+    }
+
+    document.getElementById('editWsForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var fd = new FormData();
+        fd.append('name', document.getElementById('editWsName').value.trim());
+        fd.append('subdomain', document.getElementById('editWsSubdomain').value.trim().toLowerCase());
+        fd.append('description', document.getElementById('editWsDescription').value.trim());
+        fd.append('admin_name', document.getElementById('editAdminName').value.trim());
+        fd.append('admin_email', document.getElementById('editAdminEmail').value.trim());
+        fd.append('admin_phone', document.getElementById('editAdminPhone').value.trim());
+        fd.append('admin_role', document.getElementById('editAdminRole').value.trim());
+        fd.append('csrfmiddlewaretoken', csrf());
+
+        fetch('/api/workspaces/{{ workspace.id }}/update/', {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.success) {
+                var errs = data.errors || {};
+                Object.keys(errs).forEach(function (k) { setError('edit' + capitalize(k) + 'Error', errs[k]); });
+                return;
+            }
+            WS = data.workspace;
+            // Обновляем UI
+            document.getElementById('wsTitle').textContent = WS.name;
+            document.getElementById('wsSubdomain').textContent = WS.subdomain + '.iqnix.tech';
+            document.getElementById('wsDesc').textContent = WS.description || 'Описание не указано';
+            document.getElementById('wsAdminName').textContent = WS.admin.name;
+            document.getElementById('wsAdminEmail').textContent = WS.admin.email;
+            closeEditModal();
+            toast('Сохранено', WS.name, 'success');
+        })
+        .catch(function () { toast('Ошибка сети', '', 'danger'); });
+    });
+
+    function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+    // ============================================================
+    // Активация / деактивация
+    // ============================================================
+    var toggleModal = document.getElementById('toggleModal');
+    var pendingToggle = null;
+
+    window.openToggleModal = function () {
+        var isActive = WS.is_active;
+        document.getElementById('toggleTitle').textContent = isActive ? 'Деактивировать рабочую область?' : 'Активировать рабочую область?';
+        document.getElementById('toggleText').innerHTML = isActive
+            ? 'Область <strong>' + esc(WS.name) + '</strong> станет неактивной. Пользователи не смогут с ней работать.'
+            : 'Область <strong>' + esc(WS.name) + '</strong> снова станет активной.';
+        pendingToggle = !isActive;
+        toggleModal.classList.add('open');
+        lockScroll();
+    };
+    window.closeToggleModal = function () {
+        toggleModal.classList.remove('open');
+        unlockScroll();
+    };
+    toggleModal.addEventListener('click', function (e) {
+        if (e.target === toggleModal) closeToggleModal();
+    });
+
+    window.confirmToggle = function () {
+        var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', csrf());
+        fetch('/api/workspaces/{{ workspace.id }}/toggle/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                WS.is_active = data.is_active;
+                renderStatus(WS.is_active);
+                closeToggleModal();
+                toast(WS.is_active ? 'Активирована' : 'Деактивирована', WS.name, WS.is_active ? 'success' : 'warning');
+            }
+        })
+        .catch(function () { toast('Ошибка сети', '', 'danger'); });
+    };
+
+    // ============================================================
+    // Удаление
+    // ============================================================
+    var deleteModal = document.getElementById('deleteModal');
+    window.openDeleteModal = function () {
+        deleteModal.classList.add('open');
+        lockScroll();
+    };
+    window.closeDeleteModal = function () {
+        deleteModal.classList.remove('open');
+        unlockScroll();
+    };
+    deleteModal.addEventListener('click', function (e) {
+        if (e.target === deleteModal) closeDeleteModal();
+    });
+
+    window.confirmDelete = function () {
+        var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', csrf());
+        fetch('/api/workspaces/{{ workspace.id }}/delete/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                toast('Удалено', WS.name, 'warning');
+                setTimeout(function () { window.location.href = '/workspaces/'; }, 500);
+            }
+        })
+        .catch(function () { toast('Ошибка сети', '', 'danger'); });
+    };
+
+    // ============================================================
+    // Esc
+    // ============================================================
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        if (editModal.classList.contains('open')) closeEditModal();
+        if (toggleModal.classList.contains('open')) closeToggleModal();
+        if (deleteModal.classList.contains('open')) closeDeleteModal();
+    });
+
+    // ============================================================
+    // Init
+    // ============================================================
+    renderResources();
+    renderStatus(WS.is_active);
+})();
+</script>
+{% endblock %}

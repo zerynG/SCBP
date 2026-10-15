@@ -1,0 +1,502 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}IQNIX TECH - Система расчета стоимости проектов{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'img/favicon/apple-touch-icon.png' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/favicon/favicon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'img/favicon/favicon-16x16.png' %}">
+    <link rel="manifest" href="{% static 'img/favicon/site.webmanifest' %}">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    
+    <!-- Swiper CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/swiper@8/swiper-bundle.min.css">
+    
+    <!-- Bootstrap CSS (needed for generate_documents.html and some Bootstrap utilities) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Unified dark theme (tokens + shared components) -->
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v={% now 'H:i' %}">
+
+    {% block extra_css %}{% endblock %}
+    
+    <style>
+        /* Базовые стили */
+        html {
+            background: #1a1a1a;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Manrope', sans-serif;
+            line-height: 1.6;
+            color: white;
+            background: #1a1a1a;
+        }
+        
+        /* Стили для навигации */
+        #navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #333;
+            z-index: 1000;
+            padding: 0;
+        }
+        
+        #navbar .content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 96px;
+        }
+        
+        #navbar .logo {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: white;
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+        
+        #navbar .logo svg {
+            margin-right: 0.5rem;
+            color: #667eea;
+            height: 40px;
+            width: auto;
+        }
+        
+        #navbar .navigation {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+        
+        #navbar .navigation ul {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+            margin: 0;
+            padding: 0;
+        }
+        
+        #navbar .navigation ul li a {
+            text-decoration: none;
+            color: white;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+        
+        #navbar .navigation ul li a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #667eea;
+        }
+        
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+        
+        .user-profile:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        
+        .user-avatar-header {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #8B5CF6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .user-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .user-name-header {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: white;
+        }
+        
+        .user-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .user-actions a {
+            font-size: 0.8rem;
+            color: #ccc;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        .user-actions a:hover {
+            color: #667eea;
+        }
+        
+        .hb {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 6px;
+            transition: background 0.3s ease;
+        }
+        
+        .hb:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        
+        .hb svg {
+            width: 24px;
+            height: 24px;
+            color: #333;
+        }
+        
+        .hb2 {
+            display: none;
+        }
+        
+        .hb.active .hb1 {
+            display: none;
+        }
+        
+        .hb.active .hb2 {
+            display: block;
+        }
+        
+        /* Мобильное меню */
+        .mobile__menu {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 300px;
+            height: 100vh;
+            background: #1a1a1a;
+            z-index: 1001;
+            transition: right 0.3s ease;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .mobile__menu.active {
+            right: 0;
+        }
+        
+        .mobile__menu .menu {
+            padding: 2rem;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .mobile__menu .handle {
+            width: 40px;
+            height: 4px;
+            background: #ddd;
+            border-radius: 2px;
+            margin: 0 auto 2rem;
+        }
+        
+        .mobile__menu .navigation ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .mobile__menu .navigation ul li {
+            margin-bottom: 1rem;
+        }
+        
+        .mobile__menu .navigation ul li a {
+            display: block;
+            padding: 1rem;
+            text-decoration: none;
+            color: white;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+        
+        .mobile__menu .navigation ul li a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #667eea;
+        }
+        
+        .mobile-user-info {
+            margin-top: auto;
+            padding-top: 2rem;
+            border-top: 1px solid #333;
+        }
+        
+        .mobile-user-info a {
+            display: block;
+            padding: 1rem;
+            text-decoration: none;
+            color: white;
+            font-weight: 500;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: background 0.3s ease;
+        }
+        
+        .mobile-user-info a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #667eea;
+        }
+        
+        .mobile-user-info .logout {
+            color: #dc3545;
+        }
+        
+        .mobile-user-info .logout:hover {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+        }
+        
+        /* Адаптивность навбара */
+        @media (max-width: 768px) {
+            #navbar .navigation ul { display: none; }
+            .user-profile { display: none; }
+            .hb { display: block; }
+            #navbar .content { padding: 0 1rem; }
+        }
+        
+        /* Стили для футера */
+        footer {
+            background: #1a1a1a;
+            color: white;
+            padding: 2rem 0;
+            margin-top: auto;
+        }
+        
+        footer .top {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        footer .top .col a {
+            color: #ccc;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s ease;
+        }
+        
+        footer .top .col a:hover {
+            color: #8B5CF6;
+        }
+        
+        footer .bottom {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        footer .bottom svg {
+            width: 150px;
+            height: auto;
+            color: #8B5CF6;
+        }
+        
+        footer .bottom span {
+            color: #999;
+            font-size: 0.85rem;
+        }
+        
+        @media (max-width: 768px) {
+            footer .bottom svg {
+                width: 120px;
+            }
+        }
+    </style>
+    
+    {% block head_scripts %}{% endblock %}
+</head>
+<body>
+    {% csrf_token %}
+    <!-- Navigation -->
+    <nav id="navbar">
+        <div class="content">
+            <div class="overlay"></div>
+            <a class="logo" href="/">
+                <svg width="183" height="58" viewBox="0 0 183 58" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M62.338 45.5419V13.0009H68.056V45.5419H62.338Z" fill="#F1F1F1"></path>
+                    <path d="M109.617 45.5419V13.0009H114.916L132.349 35.5007V13.0009H137.974V45.5419H133.186L115.242 22.3913V45.5419H109.617Z" fill="#F1F1F1"></path>
+                    <path d="M142.681 45.5419V13.0009H148.399V45.5419H142.681Z" fill="#F1F1F1"></path>
+                    <path d="M151.988 45.5419L163.842 28.9925L152.453 13.0009H159.193L167.282 24.6692L175.417 13.0009H181.972L170.629 28.8995L182.437 45.5419H175.696L167.143 33.2228L158.543 45.5419H151.988Z" fill="#F1F1F1"></path>
+                    <path d="M25.0353 5.92957C25.2942 5.78019 25.6131 5.78025 25.8719 5.92973L34.7567 11.0604C35.0153 11.2097 35.3339 11.2099 35.5927 11.0609L38.8461 9.18777C39.4047 8.86618 39.4053 8.0604 38.8472 7.73798L25.8723 0.241874C25.6133 0.0922176 25.294 0.0922274 25.035 0.2419L2.23632 13.4155C1.67899 13.7376 1.67873 14.542 2.23585 14.8644L5.46881 16.7352C5.72776 16.8851 6.04701 16.8853 6.30615 16.7358L25.0353 5.92957Z" fill="#F1F1F1"></path>
+                    <path d="M45.4261 11.5425C45.1673 11.3935 44.8487 11.3937 44.5901 11.543L25.8725 22.3494C25.6136 22.4989 25.2946 22.4989 25.0356 22.3493L16.1515 17.2191C15.8926 17.0696 15.5736 17.0695 15.3147 17.219L12.0721 19.0907C11.5141 19.4127 11.5141 20.218 12.072 20.5401L25.0358 28.0252C25.2946 28.1746 25.6135 28.1747 25.8724 28.0253L48.6794 14.8652C49.2378 14.543 49.2374 13.7369 48.6787 13.4152L45.4261 11.5425Z" fill="#F1F1F1"></path>
+                    <path d="M4.91635 30.7788C4.91635 30.4798 4.75683 30.2035 4.49787 30.0541L1.25504 28.1822C0.697158 27.8602 -0.00012207 28.2629 -0.00012207 28.907V43.8775C-0.00012207 44.1764 0.159263 44.4526 0.418032 44.6021L23.2147 57.7746C23.7726 58.0969 24.4702 57.6943 24.4702 57.05V53.3072C24.4702 53.0083 24.3109 52.7322 24.0522 52.5826L5.33442 41.7642C5.0757 41.6147 4.91635 41.3386 4.91635 41.0397V30.7788Z" fill="#F1F1F1"></path>
+                    <path d="M-0.00012207 21.2986C-0.00012207 21.5976 0.159378 21.8738 0.418295 22.0233L19.1353 32.8294C19.3943 32.9789 19.5538 33.2551 19.5538 33.5541V43.8158C19.5538 44.1142 19.7127 44.3901 19.9709 44.5398L23.2137 46.4198C23.7716 46.7432 24.4702 46.3407 24.4702 45.6958V30.7162C24.4702 30.4173 24.3107 30.141 24.0518 29.9915L1.25509 16.8307C0.697211 16.5086 -0.00012207 16.9112 -0.00012207 17.5554V21.2986Z" fill="#F1F1F1"></path>
+                    <path d="M40.6682 27.6323C40.9273 27.4828 41.087 27.2065 41.087 26.9074V23.1639C41.087 22.5198 40.3899 22.1172 39.832 22.439L26.8558 29.9249C26.5967 30.0743 26.4371 30.3507 26.4371 30.6497V56.9838C26.4371 57.6279 27.1344 58.0306 27.6923 57.7085L30.9351 55.8367C31.1941 55.6872 31.3536 55.411 31.3536 55.112V33.4877C31.3536 33.1886 31.5133 32.9122 31.7724 32.7628L40.6682 27.6323Z" fill="#F1F1F1"></path>
+                    <path d="M46.4095 18.6356C46.1501 18.785 45.9903 19.0615 45.9903 19.3608V40.9729C45.9903 41.2716 45.8311 41.5476 45.5726 41.6972L36.687 46.8397C36.4285 46.9893 36.2693 47.2653 36.2693 47.564V51.3073C36.2693 51.9515 36.9669 52.3542 37.5248 52.0318L50.501 44.535C50.7598 44.3854 50.9192 44.1093 50.9192 43.8104V17.4866C50.9192 16.8428 50.2227 16.4402 49.6648 16.7614L46.4095 18.6356Z" fill="#F1F1F1"></path>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M78.0906 29.2214C78.0906 35.2403 82.9699 40.1195 88.9888 40.1195C95.0076 40.1195 99.8869 35.2403 99.8869 29.2214C99.8869 23.2025 95.0076 18.3233 88.9888 18.3233C82.9699 18.3233 78.0906 23.2025 78.0906 29.2214ZM88.9888 13.0711C80.0692 13.0711 72.8385 20.3019 72.8385 29.2214C72.8385 38.1409 80.0692 45.3717 88.9888 45.3717C97.9083 45.3717 105.139 38.1409 105.139 29.2214C105.139 20.3019 97.9083 13.0711 88.9888 13.0711Z" fill="#F1F1F1"></path>
+                    <path d="M98.5099 35.1973L94.9647 38.7424L101.725 45.5029L105.27 41.9577L98.5099 35.1973Z" fill="#F1F1F1"></path>
+                </svg>
+            </a>    
+            <div class="navigation">
+                <ul>
+                    <li><a class="p m" href="{% url 'index' %}">Главная</a></li>
+                    <li><a class="p m" href="{% url 'project_list' %}">Проекты</a></li>
+                    <li><a class="p m" href="{% url 'create_projects_resources' %}">Каталог</a></li>
+                    {% if request.user.is_staff %}
+                        <li><a class="p m" href="/scbp_admin_panel/">Администрирование</a></li>
+                    {% endif %}
+                </ul>
+
+                <div class="user-profile">
+                    <div class="user-avatar-header">{{ request.user.first_name.0|default:'ПС' }}{{ request.user.last_name.0 }}</div>
+                    <div class="user-info">
+                        <div class="user-name-header">{{ request.user.first_name|default:'Пользователь системы' }} {{ request.user.last_name }}</div>
+                        <div class="user-actions">
+                            <a href="{% url 'profile' %}" class="profile-link">Профиль</a>
+                            <a href="{% url 'logout' %}" class="logout-link">Выход</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="hb" id="navbar__menu__btn">
+                    <svg class="hb1" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M25 23H7V21H25V23ZM25 17H7V15H25V17ZM25 11H7V9H25V11Z" fill="currentColor" />
+                    </svg>
+                    <svg class="hb2" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M23.0713 10.3428L17.4141 16L23.0713 21.6572L21.6572 23.0713L16 17.4141L10.3428 23.0713L8.92871 21.6572L14.5859 16L8.92871 10.3428L10.3428 8.92871L16 14.5859L21.6572 8.92871L23.0713 10.3428Z" fill="currentColor" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Mobile Menu -->
+    <div class="mobile__menu" id="navbar__menu">
+        <div class="menu">
+            <div class="handle"></div>
+            <div class="navigation">
+                <ul>
+                    <li><a class="p m" href="{% url 'index' %}">Главная</a></li>
+                    <li><a class="p m" href="{% url 'project_list' %}">Проекты</a></li>
+                    <li><a class="p m" href="{% url 'create_projects_resources' %}">Каталог</a></li>
+                    {% if request.user.is_staff %}
+                        <li><a class="p m" href="/scbp_admin_panel/">Администрирование</a></li>
+                    {% endif %}
+                </ul>
+                <div class="mobile-user-info">
+                    <a href="{% url 'profile' %}" class="main p m">Профиль</a>
+                    <a href="{% url 'logout' %}" class="logout p m">Выход</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+    <div class="messages-container">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {% if message.tags == 'success' %}
+                <i class="fas fa-check-circle"></i>
+            {% elif message.tags == 'error' %}
+                <i class="fas fa-exclamation-circle"></i>
+            {% elif message.tags == 'warning' %}
+                <i class="fas fa-exclamation-triangle"></i>
+            {% elif message.tags == 'info' %}
+                <i class="fas fa-info-circle"></i>
+            {% endif %}
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close">&times;</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <div class="scrollable">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="top">
+            <div class="col">
+                <a class="p m link" href="/privacy/">Политика конфиденциальности</a>
+            </div>
+        </div>
+        <div class="bottom">
+            <span class="p s">© ООО «Айкьюникс Тек», {% now "Y" %}</span>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/swiper@8/swiper-bundle.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    {% block extra_js %}{% endblock %}
+
+    <script>
+        // Mobile menu toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuBtn = document.getElementById('navbar__menu__btn');
+            const mobileMenu = document.getElementById('navbar__menu');
+            
+            if (menuBtn && mobileMenu) {
+                menuBtn.addEventListener('click', function() {
+                    mobileMenu.classList.toggle('active');
+                    menuBtn.classList.toggle('active');
+                });
+            }
+            
+            // Auto-hide messages
+            setTimeout(function() {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(function(alert) {
+                    alert.style.opacity = '0';
+                    alert.style.transform = 'translateX(100%)';
+                    setTimeout(function() {
+                        alert.remove();
+                    }, 300);
+                });
+            }, 5000);
+        });
+    </script>
+</body>
+</html>

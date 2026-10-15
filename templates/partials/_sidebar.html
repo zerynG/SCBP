@@ -1,0 +1,165 @@
+{% load static %}
+{# ===================== SIDEBAR ===================== #}
+<aside class="cr-sidebar" aria-label="Навигация по системе">
+
+    <div class="cr-sidebar-head">
+        <div class="cr-sidebar-title-wrap">
+            <h2 class="cr-sidebar-title">Система расчета стоимости проектов</h2>
+        </div>
+    </div>
+
+    <a href="{% url 'workspace_list' %}"
+       class="cr-ws-link {% if sidebar_active == 'workspace' %}active{% endif %}"
+       title="Рабочая область">
+        <span class="cr-side-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+            </svg>
+        </span>
+        <span class="cr-side-label">Рабочая область</span>
+    </a>
+
+    <div class="cr-side-divider"></div>
+
+    {# ===================== Создание ресурсов ===================== #}
+    <div class="cr-side-group-title">Создание ресурсов</div>
+    <nav class="cr-side-nav">
+        <a class="cr-side-link {% if sidebar_active == 'resources-employees' %}active{% endif %}"
+           href="{% url 'resources_page' %}#employees"
+           title="Сотрудники">
+            <span class="cr-side-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+            </span>
+            <span class="cr-side-label">Сотрудники</span>
+            <span class="cr-side-count" id="sidebar-count-employees">0</span>
+        </a>
+
+        <a class="cr-side-link {% if sidebar_active == 'resources-executors' %}active{% endif %}"
+           href="{% url 'resources_page' %}#executors"
+           title="Исполнители">
+            <span class="cr-side-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </span>
+            <span class="cr-side-label">Исполнители</span>
+            <span class="cr-side-count" id="sidebar-count-executors">0</span>
+        </a>
+
+        <a class="cr-side-link {% if sidebar_active == 'resources-equipment' %}active{% endif %}"
+           href="{% url 'resources_page' %}#equipment"
+           title="Оборудование">
+            <span class="cr-side-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+            </span>
+            <span class="cr-side-label">Оборудование</span>
+            <span class="cr-side-count" id="sidebar-count-equipment">0</span>
+        </a>
+
+        <a class="cr-side-link {% if sidebar_active == 'resources-customers' %}active{% endif %}"
+           href="{% url 'resources_page' %}#customers"
+           title="Заказчики">
+            <span class="cr-side-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="8.5" cy="7" r="4"></circle>
+                    <line x1="20" y1="8" x2="20" y2="14"></line>
+                    <line x1="23" y1="11" x2="17" y2="11"></line>
+                </svg>
+            </span>
+            <span class="cr-side-label">Заказчики</span>
+            <span class="cr-side-count" id="sidebar-count-customers">0</span>
+        </a>
+
+        <a class="cr-side-link {% if sidebar_active == 'resources-subcontractors' %}active{% endif %}"
+           href="{% url 'resources_page' %}#subcontractors"
+           title="Субподрядчики">
+            <span class="cr-side-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 21h18"></path>
+                    <path d="M5 21V7l7-4 7 4v14"></path>
+                    <path d="M9 21v-5h6v5"></path>
+                </svg>
+            </span>
+            <span class="cr-side-label">Субподрядчики</span>
+            <span class="cr-side-count" id="sidebar-count-subcontractors">0</span>
+        </a>
+    </nav>
+
+    <div class="cr-side-divider"></div>
+
+    {# ===================== Области работы с проектом ===================== #}
+    <div class="cr-side-group-title">Области работы с проектом</div>
+    <nav class="cr-side-nav">
+        <a class="cr-side-link {% if sidebar_active == 'project-manage' %}active{% endif %}"
+           href="{% url 'project_list' %}"
+           title="Управление проектами">
+            <span class="cr-side-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 7h4l2 3h12v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path>
+                    <path d="M3 7V5a2 2 0 0 1 2-2h4l2 3"></path>
+                </svg>
+            </span>
+            <span class="cr-side-label">Управление проектами</span>
+        </a>
+
+        <a class="cr-side-link {% if sidebar_active == 'documents' %}active{% endif %}"
+           href="{% url 'project_list' %}"
+           title="Генерация документов">
+            <span class="cr-side-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="9" y1="13" x2="15" y2="13"></line>
+                    <line x1="9" y1="17" x2="15" y2="17"></line>
+                </svg>
+            </span>
+            <span class="cr-side-label">Генерация документов</span>
+        </a>
+
+        <a class="cr-side-link {% if sidebar_active == 'gantt' %}active{% endif %}"
+           href="{% url 'employee_gantt' %}"
+           title="Диаграмма Ганта">
+            <span class="cr-side-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="15" y2="12"></line>
+                    <line x1="3" y1="18" x2="18" y2="18"></line>
+                    <circle cx="8" cy="6" r="1.4"></circle>
+                    <circle cx="13" cy="12" r="1.4"></circle>
+                    <circle cx="6" cy="18" r="1.4"></circle>
+                </svg>
+            </span>
+            <span class="cr-side-label">Диаграмма Ганта</span>
+        </a>
+
+        <a class="cr-side-link {% if sidebar_active == 'services' %}active{% endif %}"
+           href="{% url 'services_page' %}"
+           title="Реестр услуг">
+            <span class="cr-side-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+            </span>
+            <span class="cr-side-label">Реестр услуг</span>
+        </a>
+    </nav>
+</aside>
