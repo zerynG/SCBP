@@ -1,4 +1,5 @@
 {% extends 'base_app.html' %}
+{% load l10n %}
 {% load static %}
 
 {% block title %}{{ project.name }} — Управление проектом{% endblock %}
@@ -58,11 +59,11 @@
     }
     .g-btn-danger:hover { background: rgba(248,113,113,.2); }
     .g-btn-edit {
-        background: #f0f08d; color: #1a1a1a;
+        background: #FADFAD; color: #1a1a1a;
     }
     .g-btn-edit:hover {
-        background: #e6e67a;
-        box-shadow: 0 4px 12px rgba(240,240,141,.15);
+        background: #f2cf8c;
+        box-shadow: 0 4px 12px rgba(250,223,173,.25);
     }
     .g-btn-sm { padding: .45rem .75rem; font-size: .8rem; }
 
@@ -399,6 +400,11 @@
         background: rgba(248,113,113,.12);
         border-color: rgba(248,113,113,.3);
         color: var(--danger);
+    }
+    .pm-icon-btn.gantt:hover {
+        background: var(--accent-tint);
+        border-color: rgba(139,92,246,.4);
+        color: var(--accent);
     }
 
     /* Плитка */
@@ -816,9 +822,6 @@
         <a href="{% url 'project_list' %}" class="g-btn g-btn-secondary">
             <i class="fas fa-arrow-left"></i> К списку проектов
         </a>
-        <button class="g-btn g-btn-warning" onclick="hideProject()">
-            <i class="fas fa-eye-slash"></i> Скрыть
-        </button>
         <button class="g-btn g-btn-danger" onclick="openDeleteModal()">
             <i class="fas fa-trash"></i> Удалить проект
         </button>
@@ -1433,7 +1436,13 @@
     // Рендер ресурсов
     // ============================================================
     var currentFilter = 'all';
-    var currentView = 'list';
+    var RES_VIEW_KEY = 'pm_res_view_' + PROJECT_ID;
+    var currentView = (function () {
+        try {
+            var v = localStorage.getItem(RES_VIEW_KEY);
+            return (v === 'grid' || v === 'list') ? v : 'list';
+        } catch (e) { return 'list'; }
+    })();
 
     function renderResources() {
         var counts = { all: resources.length, employee: 0, contractor: 0, subcontractor: 0, customer: 0, equipment: 0 };
@@ -1511,8 +1520,9 @@
             +   '<span class="pm-res-total-value">' + fmt2(finalCost) + ' ₽</span>'
             + '</div>'
             + '<div class="pm-res-actions">'
-            +   '<button class="pm-icon-btn" title="Редактировать" onclick="openEditResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-pen"></i></button>'
-            +   '<button class="pm-icon-btn danger" title="Удалить" onclick="openDeleteResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-trash"></i></button>'
+            + '<button class="pm-icon-btn gantt" title="Добавить в Гант" onclick="sendToGantt(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-stream"></i></button>'
+            + '<button class="pm-icon-btn" title="Редактировать" onclick="openEditResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-pen"></i></button>'
+            + '<button class="pm-icon-btn danger" title="Удалить" onclick="openDeleteResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-trash"></i></button>'
             + '</div>'
             + '</div>';
     }
@@ -1530,6 +1540,7 @@
             + '<div class="pm-tile-head">'
             +   '<div class="pm-tile-icon"><i class="fas ' + meta.icon + '"></i></div>'
             +   '<div class="pm-tile-actions">'
+            +     '<button class="pm-icon-btn gantt" title="Добавить в Гант" onclick="sendToGantt(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-stream"></i></button>'
             +     '<button class="pm-icon-btn" title="Редактировать" onclick="openEditResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-pen"></i></button>'
             +     '<button class="pm-icon-btn danger" title="Удалить" onclick="openDeleteResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-trash"></i></button>'
             +   '</div>'
@@ -1553,7 +1564,10 @@
     // ============================================================
     window.setResView = function (view) {
         currentView = view;
-        document.querySelectorAll('.view-toggle-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.view === view); });
+        try { localStorage.setItem(RES_VIEW_KEY, view); } catch (e) {}
+        document.querySelectorAll('.view-toggle-btn').forEach(function (b) {
+            b.classList.toggle('active', b.dataset.view === view);
+        });
         document.getElementById('resViewList').style.display = view === 'list' ? '' : 'none';
         document.getElementById('resViewGrid').style.display = view === 'grid' ? '' : 'none';
     };
@@ -1635,7 +1649,6 @@
         editModal.classList.remove('open');
         unlockScroll();
     };
-    editModal.addEventListener('click', function (e) { if (e.target === editModal) closeProjectEditModal(); });
 
     document.getElementById('projectEditForm').addEventListener('submit', function (e) {
         e.preventDefault();
@@ -1700,7 +1713,6 @@
         addResModal.classList.remove('open');
         unlockScroll();
     };
-    addResModal.addEventListener('click', function (e) { if (e.target === addResModal) closeAddResourceModal(); });
 
     function flattenCatalog() {
         var out = [];
@@ -1820,7 +1832,6 @@
         settingsModal.classList.remove('open');
         unlockScroll();
     };
-    settingsModal.addEventListener('click', function (e) { if (e.target === settingsModal) closeResourceSettingsModal(); });
 
     document.getElementById('resStartDate').addEventListener('change', updatePeriodInfo);
     document.getElementById('resEndDate').addEventListener('change', updatePeriodInfo);
@@ -1843,6 +1854,24 @@
     document.getElementById('resourceSettingsForm').addEventListener('submit', function (e) {
         e.preventDefault();
         if (!selectedResource) return;
+
+        // Проверяем, меняются ли сроки
+        var newStart = document.getElementById('resStartDate').value;
+        var newEnd = document.getElementById('resEndDate').value;
+        var ov = overridesMap[selectedResource.type + ':' + selectedResource.id];
+        var oldStart = ov && ov.work_start_date ? ov.work_start_date : '';
+        var oldEnd = ov && ov.work_end_date ? ov.work_end_date : '';
+
+        var datesChanged = (newStart !== oldStart || newEnd !== oldEnd);
+        if (datesChanged) {
+            var msg = 'Изменение сроков ресурса отразится в Диаграмме Ганта.\n\n';
+            msg += 'Было: ' + (oldStart || '—') + ' — ' + (oldEnd || '—') + '\n';
+            msg += 'Станет: ' + (newStart || '—') + ' — ' + (newEnd || '—') + '\n\n';
+            msg += 'Продолжить?';
+            if (!confirm(msg)) {
+                return;
+            }
+        }
 
         var fd = new FormData();
         fd.append('resource_type', selectedResource.type);
@@ -1945,6 +1974,30 @@
     var deleteResModal = document.getElementById('deleteResourceModal');
     var deletingRes = null;
 
+        /**
+     * Отправка ресурса в диаграмму Ганта.
+     *
+     * Сейчас — заглушка. После внедрения Диаграммы Ганта — вызов
+     * /api/gantt/tasks/create/ с resource_type, resource_id, start_date,
+     * end_date, name. Пока копим намерение.
+     */
+     window.sendToGantt = function (type, id) {
+        var ov = overridesMap[type + ':' + id];
+        if (!ov) {
+            toast('Сначала настройте ресурс', 'Укажите сроки в редакторе', 'warning');
+            return;
+        }
+        if (!ov.work_start_date || !ov.work_end_date) {
+            toast('Не заданы сроки', 'Укажите дату начала и окончания в редакторе ресурса', 'warning');
+            return;
+        }
+        // TODO (Волна 6): POST /api/gantt/tasks/create/
+        toast(
+            'Скоро в Ганте',
+            ov.name + ': ' + ov.work_start_date + ' — ' + ov.work_end_date,
+            'warning'
+        );
+    };
     window.openDeleteResourceModal = function (type, id) {
         var ov = overridesMap[type + ':' + id];
         deletingRes = { type: type, id: id };
@@ -1956,7 +2009,6 @@
         deleteResModal.classList.remove('open');
         unlockScroll();
     };
-    deleteResModal.addEventListener('click', function (e) { if (e.target === deleteResModal) closeDeleteResourceModal(); });
 
     window.confirmDeleteResource = function () {
         if (!deletingRes) return;
@@ -2008,7 +2060,6 @@
         deleteProjModal.classList.remove('open');
         unlockScroll();
     };
-    deleteProjModal.addEventListener('click', function (e) { if (e.target === deleteProjModal) closeDeleteModal(); });
 
     window.confirmDeleteProject = function () {
         var fd = new FormData();
@@ -2039,6 +2090,13 @@
     // ============================================================
     // Init
     // ============================================================
+    renderProjectHead();
+    document.querySelectorAll('.view-toggle-btn').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.view === currentView);
+    });
+    document.getElementById('resViewList').style.display = currentView === 'list' ? '' : 'none';
+    document.getElementById('resViewGrid').style.display = currentView === 'grid' ? '' : 'none';
+
     renderProjectHead();
     loadCalculation();
 })();

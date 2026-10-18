@@ -29,6 +29,16 @@ urlpatterns = [
     path('api/projects/<int:project_id>/delete/', views.project_delete, name='project_delete'),
 
     # ============================================================
+    # Диаграмма Ганта
+    # ============================================================
+    path('project/gantt/', views.last_project_redirect, name='gantt_last'),
+    path('project/<int:project_id>/gantt/', views.project_gantt, name='project_gantt'),
+    path('api/projects/for-gantt/', views.project_selector_api, name='project_selector_api'),
+    path('api/projects/<int:project_id>/gantt/', views.gantt_tasks_api, name='gantt_tasks_api'),
+    path('api/projects/<int:project_id>/gantt/resources/', views.gantt_project_resources_api, name='gantt_resources_api'),
+    path('api/projects/<int:project_id>/gantt/update-dates/', views.gantt_update_dates, name='gantt_update_dates'),
+
+    # ============================================================
     # Ресурсы проекта
     # ============================================================
     path('api/catalog/', views.workspace_catalog_api, name='workspace_catalog_api'),

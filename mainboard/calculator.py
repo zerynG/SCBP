@@ -529,8 +529,8 @@ def calc_project(
             getattr(o, "resource_margin", None) if o else None,
             project_margin,
         )
-        start = (o.work_start_date if o and o.work_start_date else e.start_date)
-        end = (o.work_end_date if o and o.work_end_date else e.end_date)
+        start = o.work_start_date if o and o.work_start_date else None
+        end = o.work_end_date if o and o.work_end_date else None
 
         # Недоступные дни
         unavailable = 0
@@ -574,6 +574,11 @@ def calc_project(
         ))
 
     # ----------------------------- Исполнители (Contractor)
+        # ----------------------------- Исполнители (Contractor)
+    # Новая модель: unit = 'hours' | 'days' | 'fixed'
+    #   hours → hourly_cost × часы
+    #   days  → daily_cost × дни
+    #   fixed → fixed_cost
     for c in contractors:
         o = overrides_map.get(("contractor", c.id))
         margin_percent = resolve_margin(
@@ -581,16 +586,41 @@ def calc_project(
             project_margin,
         )
         wh = o.working_hours if o and o.working_hours is not None else None
-        cb = calc_contractor_base(c.hourly_rate, wh, c.estimated_hours, c.estimated_cost)
-        base_no_tax = cb["base_no_tax"]
-        # взносы на исполнителей не начисляются (ГПХ/НПД/ИП платят сами)
+
+        # Определяем ставку и количество по unit
+        unit = getattr(c, "unit", "hours") or "hours"
+        rate = Decimal("0")
+        base_no_tax = Decimal("0")
+        work_hours_disp = None
+
+        if unit == "hours":
+            rate = _D(c.hourly_cost)
+            hours = int(wh) if wh is not None else 0
+            base_no_tax = rate * Decimal(hours)
+            work_hours_disp = hours
+        elif unit == "days":
+            rate = _D(c.daily_cost)
+            # Дни берём из периода override, иначе 0
+            start_d = o.work_start_date if o and o.work_start_date else None
+            end_d = o.work_end_date if o and o.work_end_date else None
+            if start_d and end_d and end_d >= start_d:
+                work_days_count = count_business_days(start_d, end_d, calendars)
+            else:
+                work_days_count = 0
+            base_no_tax = rate * Decimal(work_days_count)
+            work_hours_disp = None  # для дней часы не считаем
+        else:  # fixed
+            rate = _D(c.fixed_cost)
+            base_no_tax = rate
+            work_hours_disp = None
+
+        # Маржа только для employee/contractor
         cost, final_cost = apply_tax_and_margin(base_no_tax, Decimal("0"), margin_percent)
         totals.total_contractor_cost += cost
 
         start = o.work_start_date if o and o.work_start_date else None
         end = o.work_end_date if o and o.work_end_date else None
         work_days_disp = count_business_days(start, end, calendars) if start and end and end >= start else None
-        work_hours_disp = wh if wh is not None else c.estimated_hours
 
         rows.append(ResourceCost(
             resource_type="contractor",
@@ -604,35 +634,34 @@ def calc_project(
             end_date=end,
             work_days=work_days_disp,
             work_hours=work_hours_disp,
-            monthly_cost=c.hourly_rate,
+            monthly_cost=rate,
             base_no_tax=base_no_tax,
             cost=cost,
             final_cost=final_cost,
             base_estimated_cost=base_no_tax,
-            base_estimated_hours=c.estimated_hours,
-            hourly_rate=c.hourly_rate,
-            pricing_type="hourly",
+            base_estimated_hours=wh,
+            hourly_rate=rate if unit == "hours" else None,
+            pricing_type=unit,
             has_monthly_cost=False,
             delete_name="delete_contractor",
             delete_id=c.id,
         ))
 
-    # ----------------------------- Подрядчики (Subcontractor)
         # ----------------------------- Подрядчики (Subcontractor)
+    # Новая модель — только фиксированная сумма? В новой модели у Subcontractor
+    # НЕТ полей pricing_type, contract_amount, hourly_rate, estimated_hours.
+    # Осталось только: name, entity_type, inn, phone, email, director, bank_name,
+    # bik, account, corr_account, is_active, workspace.
+    #
+    # Значит, себестоимость = 0 (нет ставки). Сумма задаётся через override.
     for s in subcontractors:
         o = overrides_map.get(("subcontractor", s.id))
         # Маржа НЕ применяется к подрядчикам
         margin_percent = Decimal("0")
-        wh = o.working_hours if o and o.working_hours is not None else None
-        sb = calc_subcontractor_base(
-            s.pricing_type,
-            s.contract_amount,
-            s.hourly_rate,
-            wh,
-            s.estimated_hours,
-        )
-        base_no_tax = sb["base_no_tax"]
-        # взносы на подрядчиков не начисляются (юрлицо/договор)
+
+        # Сумма = override.quantity × ??? — в модели нет ставки.
+        # Пока 0. Позже можно добавить поле "сумма договора" в override.
+        base_no_tax = Decimal("0")
         cost = base_no_tax
         final_cost = base_no_tax
         totals.total_subcontractor_cost += cost
@@ -640,10 +669,6 @@ def calc_project(
         start = o.work_start_date if o and o.work_start_date else None
         end = o.work_end_date if o and o.work_end_date else None
         work_days_disp = count_business_days(start, end, calendars) if start and end and end >= start else None
-
-        is_hourly = s.pricing_type == "hourly" and _D(s.hourly_rate) > 0
-        hourly_rate = s.hourly_rate if is_hourly else None
-        monthly_cost = (s.hourly_rate if is_hourly else s.contract_amount)
 
         rows.append(ResourceCost(
             resource_type="subcontractor",
@@ -656,16 +681,12 @@ def calc_project(
             start_date=start,
             end_date=end,
             work_days=work_days_disp,
-            work_hours=sb["work_hours"],
-            monthly_cost=monthly_cost,
+            work_hours=None,
+            monthly_cost=None,
             base_no_tax=base_no_tax,
             cost=cost,
             final_cost=final_cost,
-            base_estimated_cost=base_no_tax,
-            base_estimated_hours=s.estimated_hours if is_hourly else None,
-            base_contract_amount=s.contract_amount,
-            hourly_rate=hourly_rate,
-            pricing_type=s.pricing_type,
+            pricing_type="fixed",
             has_monthly_cost=False,
             delete_name="delete_subcontractor",
             delete_id=s.id,
@@ -673,38 +694,41 @@ def calc_project(
 
     # ----------------------------- Оборудование
         # ----------------------------- Оборудование
+        # ----------------------------- Оборудование
     for eq in equipment:
         o = overrides_map.get(("equipment", eq.id))
         # Маржа НЕ применяется к оборудованию
         margin_percent = Decimal("0")
-        # Период оборудования...
-        # Период оборудования: даты из сводной таблицы (override) → дата покупки
-        # для старта и конец проекта для финиша. Это позволяет помесячной аренде
-        # считаться от приобретения до конца проекта (с округлением вверх),
-        # а не падать на фиксированный total_cost при пустом «Окончании».
+
         proj_start = getattr(project, "start_date", None)
         proj_end = getattr(project, "end_date", None)
-        start = (o.work_start_date if o and o.work_start_date else None) or eq.purchase_date or proj_start
+
+        # Период: override → даты проекта
+        start = (o.work_start_date if o and o.work_start_date else None) or proj_start
         end = (o.work_end_date if o and o.work_end_date else None) or proj_end
 
-        # Ставка: operational_cost, затем monthly_cost, затем cost (legacy)
-        rate = _D(eq.operational_cost)
-        if rate == 0 and getattr(eq, "monthly_cost", None):
-            rate = _D(eq.monthly_cost)
-        if rate == 0 and _D(getattr(eq, "cost", 0)) > 0:
-            rate = _D(eq.cost)
+        # Ставка: operational_cost, если 0 — cost
+        rate = _D(eq.operational_cost) or _D(eq.cost)
 
-        pricing_type = getattr(eq, "pricing_type", "month") or "month"
-        if pricing_type not in ("month", "day", "hour", "minute"):
-            pricing_type = "month"
+        # unit → pricing_type
+        unit = getattr(eq, "unit", "hours") or "hours"
+        pricing_type = "day" if unit == "days" else "hour"
+
+        # Количество — из override (или 1)
+        qty = getattr(o, "quantity", None) or 1
+        if qty < 1:
+            qty = 1
+
+        # Fallback-сумма без дат: cost × qty
+        fallback_total = _D(eq.cost) * Decimal(qty)
 
         eb = calc_equipment_base(
             pricing_type=pricing_type,
             rate=rate,
-            quantity=eq.quantity,
+            quantity=qty,
             start=start,
             end=end,
-            fallback_total_cost=eq.total_cost,
+            fallback_total_cost=fallback_total,
             calendars=calendars,
             hour_basis=eq_hour_basis,
             work_hours_per_day=wh_per_day,
@@ -731,10 +755,10 @@ def calc_project(
             base_no_tax=base_no_tax,
             cost=cost,
             final_cost=final_cost,
-            base_total_cost=eq.total_cost,
+            base_total_cost=fallback_total,
             pricing_type=pricing_type,
             rate=rate,
-            quantity=eq.quantity,
+            quantity=qty,
             months_count=eb["months_count"],
             has_monthly_cost=True,
             delete_name="delete_equipment",

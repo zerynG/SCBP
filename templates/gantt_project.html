@@ -1,0 +1,1743 @@
+{% extends 'base_app.html' %}
+{% load static %}
+
+{% block title %}Диаграмма Ганта — {{ project.name }}{% endblock %}
+
+{% block app_extra_css %}
+<style>
+    /* ============================================================
+       GANTT PROJECT — расписание ресурсов проекта
+       Все токены и сайдбар — из app.css / sidebar.css.
+       ============================================================ */
+
+    .g-head {
+        display: flex; align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem; flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+    .g-head h1 {
+        font-size: 1.55rem; font-weight: 700;
+        color: var(--text-strong); margin: 0 0 .25rem;
+    }
+    .g-head .subtitle {
+        color: var(--text-soft); font-size: .85rem; margin: 0;
+    }
+
+    /* Кнопки */
+    .g-btn {
+        display: inline-flex; align-items: center;
+        gap: .4rem; padding: .55rem 1.1rem;
+        border-radius: 8px; font-size: .82rem;
+        font-weight: 600; font-family: var(--font);
+        border: none; outline: none;
+        cursor: pointer; transition: all .15s;
+        white-space: nowrap; color: #fff;
+        text-decoration: none;
+    }
+    .g-btn:hover { transform: translateY(-1px); }
+    .g-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .g-btn-primary { background: var(--accent); }
+    .g-btn-primary:hover {
+        background: var(--accent-hover);
+        box-shadow: 0 4px 16px rgba(139,92,246,.3);
+    }
+    .g-btn-secondary {
+        background: var(--surface-2); color: var(--text);
+        border: 1px solid var(--border-2);
+    }
+    .g-btn-secondary:hover {
+        background: var(--surface-3); border-color: var(--border-3);
+    }
+    .g-btn-active {
+        background: #FADFAD !important;
+        color: #1a1a1a !important;
+        border: 1px solid #FADFAD !important;
+    }
+    .g-btn-active:hover { background: #f2cf8c !important; }
+
+    /* KPI */
+    .g-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: .85rem;
+        margin-bottom: 1.25rem;
+    }
+    .g-kpi {
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        padding: .9rem 1.1rem;
+    }
+    .g-kpi-label {
+        font-size: .66rem; text-transform: uppercase;
+        letter-spacing: .04em; color: var(--text-soft);
+        font-weight: 600; margin-bottom: .35rem;
+        display: flex; align-items: center; gap: .4rem;
+    }
+    .g-kpi-label i { color: var(--accent-soft); font-size: .75rem; }
+    .g-kpi-value {
+        font-size: 1.3rem; font-weight: 700;
+        color: var(--text-strong);
+    }
+    .g-kpi-value.positive { color: var(--success); }
+    .g-kpi-value.warning  { color: var(--warning); }
+
+    /* Toolbar */
+    .g-toolbar {
+        display: flex; gap: .75rem; flex-wrap: wrap;
+        align-items: center;
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        padding: 1rem 1.2rem;
+        margin-bottom: 1.25rem;
+    }
+    .g-search {
+        flex: 1; min-width: 200px;
+        position: relative;
+    }
+    .g-search i {
+        position: absolute; left: .85rem; top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-faint); font-size: .8rem;
+        pointer-events: none;
+    }
+    .g-search input {
+        width: 100%;
+        padding: .55rem .85rem .55rem 2.2rem;
+        background: var(--surface-2);
+        border: 1px solid var(--border-2);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: .85rem;
+        font-family: var(--font);
+        outline: none;
+        transition: border-color .2s, box-shadow .2s;
+    }
+    .g-search input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-tint);
+    }
+    .g-filter-chips {
+        display: flex; gap: .35rem; flex-wrap: wrap;
+    }
+    .g-chip {
+        padding: .4rem .85rem;
+        background: var(--surface-2);
+        border: 1px solid var(--border-2);
+        border-radius: 20px;
+        font-size: .78rem; font-weight: 600;
+        color: var(--text-muted);
+        cursor: pointer; transition: all .15s;
+        font-family: var(--font);
+        display: inline-flex; align-items: center; gap: .35rem;
+    }
+    .g-chip:hover {
+        background: var(--surface-3);
+        color: var(--text-strong);
+    }
+    .g-chip.active {
+        background: var(--accent-tint);
+        border-color: rgba(139,92,246,.4);
+        color: var(--accent);
+    }
+    .g-chip-count {
+        font-size: .68rem; font-weight: 700;
+        color: var(--text-faint);
+    }
+    .g-chip.active .g-chip-count { color: var(--accent); }
+
+    /* Range bar */
+    .g-range-bar {
+        display: flex; gap: .6rem; flex-wrap: wrap;
+        align-items: center;
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        padding: 1rem 1.2rem;
+        margin-bottom: 1.25rem;
+    }
+    .g-range-bar .field {
+        display: flex; flex-direction: column; gap: .2rem;
+        min-width: 150px;
+    }
+    .g-range-bar label {
+        font-size: .66rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: .04em;
+        color: var(--text-soft);
+    }
+    .g-range-bar input[type="date"] {
+        padding: .5rem .7rem;
+        background: var(--surface-2);
+        border: 1px solid var(--border-2);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: .85rem;
+        font-family: var(--font);
+        outline: none;
+        color-scheme: dark;
+        transition: border-color .2s, box-shadow .2s;
+    }
+    .g-range-bar input[type="date"]:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-tint);
+    }
+
+    /* Gantt card */
+    .g-card {
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+    .g-card-head {
+        display: flex; align-items: center;
+        justify-content: space-between;
+        gap: 1rem; flex-wrap: wrap;
+        padding: 1.1rem 1.4rem;
+        border-bottom: 1px solid var(--border-1);
+    }
+    .g-card-title {
+        font-size: .95rem; font-weight: 700;
+        color: var(--text-strong);
+        margin: 0;
+        display: flex; align-items: center; gap: .55rem;
+    }
+    .g-card-title i { color: var(--accent-soft); font-size: .85rem; }
+    .g-range-info {
+        font-size: .78rem;
+        color: var(--text-soft);
+        display: flex; align-items: center; gap: .5rem;
+        flex-wrap: wrap;
+    }
+    .g-range-info strong { color: var(--text-strong); font-weight: 600; }
+    .g-zoom-badge {
+        font-size: .68rem; font-weight: 700;
+        color: var(--accent);
+        background: var(--accent-tint);
+        border: 1px solid rgba(139,92,246,.3);
+        border-radius: 5px;
+        padding: .12rem .45rem;
+    }
+    .g-hint {
+        font-size: .7rem;
+        color: var(--text-faint);
+        display: inline-flex; align-items: center; gap: .3rem;
+    }
+    .g-hint i { color: var(--accent-soft); font-size: .65rem; }
+
+    .g-drag-indicator {
+        display: none;
+        align-items: center; gap: .45rem;
+        font-size: .72rem; font-weight: 600;
+        color: #FADFAD;
+        background: rgba(250,223,173,.08);
+        border: 1px solid rgba(250,223,173,.25);
+        border-radius: 6px;
+        padding: .28rem .6rem;
+    }
+    .g-drag-indicator.visible { display: inline-flex; }
+    .g-drag-indicator::before {
+        content: '';
+        width: 7px; height: 7px;
+        border-radius: 50%;
+        background: #FADFAD;
+        animation: gDotPulse 1.4s ease-in-out infinite;
+    }
+    @keyframes gDotPulse {
+        0%, 100% { opacity: 1; }
+        50%      { opacity: .35; }
+    }
+
+    /* Body */
+    .g-body {
+        display: flex;
+        max-height: 620px;
+        background: var(--bg);
+        overflow: hidden;
+    }
+    .g-left-panel {
+        flex: 0 0 var(--left-col-w, 280px);
+        width: var(--left-col-w, 280px);
+        background: var(--surface-1);
+        border-right: 1px solid var(--border-2);
+        display: flex; flex-direction: column;
+        overflow: hidden;
+        position: relative;
+        z-index: 2;
+    }
+    .g-left-header {
+        height: 44px; flex-shrink: 0;
+        background: var(--surface-2);
+        border-bottom: 1px solid var(--border-2);
+        display: flex; align-items: center;
+        padding: 0 1rem;
+        font-size: .72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .05em;
+        color: var(--text-soft);
+    }
+    .g-left-rows { flex: 1; overflow: hidden; }
+    .g-left-row {
+        height: var(--g-row-h, 60px);
+        padding: .8rem 1rem;
+        display: flex; align-items: center;
+        gap: .65rem;
+        border-bottom: 1px solid var(--border-1);
+        background: var(--surface-1);
+        cursor: pointer;
+        transition: background .15s ease, box-shadow .15s ease;
+        user-select: none;
+    }
+    .g-left-row:hover {
+        background: var(--surface-2);
+        box-shadow: inset 3px 0 0 var(--accent);
+    }
+    .g-row-icon {
+        width: 28px; height: 28px;
+        border-radius: 8px;
+        background: var(--accent-tint);
+        color: var(--accent-soft);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .75rem; flex-shrink: 0;
+        border: 1px solid rgba(139,92,246,.22);
+    }
+    .g-row-info { min-width: 0; flex: 1; }
+    .g-row-title {
+        font-size: .82rem; font-weight: 600;
+        color: var(--text-strong);
+        line-height: 1.25;
+        overflow: hidden; text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .g-row-sub {
+        font-size: .68rem;
+        color: var(--text-faint);
+        display: flex; align-items: center; gap: .4rem;
+        margin-top: .15rem;
+    }
+    .g-row-sub .g-row-type {
+        font-size: .58rem; font-weight: 700;
+        text-transform: uppercase;
+        color: var(--accent-soft);
+        letter-spacing: .05em;
+    }
+    .g-row-menu-hint {
+        opacity: 0; color: var(--text-faint);
+        font-size: .7rem;
+        transition: opacity .15s ease;
+        flex-shrink: 0;
+    }
+    .g-left-row:hover .g-row-menu-hint { opacity: 1; }
+
+    .g-right-panel {
+        flex: 1; overflow: auto;
+        position: relative;
+        cursor: grab;
+        user-select: none;
+    }
+    .g-right-panel.dragging { cursor: grabbing; }
+    .g-right-panel.dragging * { cursor: grabbing !important; }
+    .g-right-grid {
+        display: grid;
+        grid-template-columns: repeat(var(--g-days, 14), var(--g-day-w, 40px));
+        min-width: 100%;
+        width: max-content;
+    }
+    .g-cell-day {
+        height: 44px;
+        background: var(--surface-2);
+        border-right: 1px solid var(--border-1);
+        border-bottom: 1px solid var(--border-2);
+        padding: .5rem .2rem;
+        text-align: center;
+        font-size: .68rem; font-weight: 600;
+        color: var(--text-soft);
+        line-height: 1.2;
+        position: sticky; top: 0; z-index: 4;
+        transition: background .25s ease, color .25s ease;
+    }
+    .g-cell-day.weekend {
+        background: rgba(255,255,255,.02);
+        color: var(--text-faint);
+    }
+    .g-cell-day.today {
+        background: var(--accent-tint);
+        color: var(--accent);
+    }
+    .g-cell-day .dow {
+        font-size: .58rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: var(--text-faint);
+        display: block;
+    }
+    .g-cell-day.today .dow { color: var(--accent-soft); }
+
+    .g-cell {
+        height: var(--g-row-h, 60px);
+        border-right: 1px solid var(--border-1);
+        border-bottom: 1px solid var(--border-1);
+        position: relative;
+    }
+    .g-cell.weekend { background: rgba(255,255,255,.015); }
+    .g-cell.today   { background: rgba(139,92,246,.06); }
+
+    .g-bar {
+        position: absolute; top: 50%; transform: translateY(-50%);
+        height: 26px; border-radius: 6px;
+        display: flex; align-items: center;
+        padding: 0 .55rem;
+        font-size: .68rem; font-weight: 600;
+        color: #fff;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        cursor: default;
+        transition: filter .15s, box-shadow .15s;
+        z-index: 1;
+        box-shadow: 0 2px 6px rgba(0,0,0,.35);
+    }
+    .g-bar.employee      { background: linear-gradient(135deg, #8B5CF6, #7c3aed); }
+    .g-bar.contractor    { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+    .g-bar.subcontractor { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .g-bar.customer      { background: linear-gradient(135deg, #ec4899, #db2777); }
+    .g-bar.equipment     { background: linear-gradient(135deg, #10b981, #059669); }
+    .g-bar-label { pointer-events: none; }
+    .g-bar.resizable { padding: 0 1.4rem; cursor: grab; }
+    .g-bar.resizable.dragging {
+        cursor: grabbing;
+        filter: brightness(1.2);
+        box-shadow: 0 6px 20px rgba(0,0,0,.6), 0 0 0 2px rgba(250,223,173,.6);
+    }
+    .g-bar-handle {
+        position: absolute; top: 0; bottom: 0; width: 12px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: ew-resize;
+        color: rgba(255,255,255,.75);
+        font-size: .55rem;
+        z-index: 2;
+    }
+    .g-bar-handle.left  { left: 0; }
+    .g-bar-handle.right { right: 0; }
+    .g-bar-handle:hover {
+        background: rgba(0,0,0,.18); color: #fff;
+    }
+
+    .g-empty {
+        grid-column: 1 / -1;
+        padding: 3rem 1.5rem;
+        text-align: center;
+        color: var(--text-faint);
+    }
+    .g-empty i { font-size: 2.5rem; display: block; margin-bottom: .75rem; }
+
+    .g-legend {
+        display: flex; gap: 1.25rem; flex-wrap: wrap;
+        padding: 1rem 1.4rem;
+        border-top: 1px solid var(--border-1);
+        background: var(--surface-2);
+    }
+    .g-legend-item {
+        display: flex; align-items: center; gap: .5rem;
+        font-size: .78rem; color: var(--text-muted);
+    }
+    .g-legend-dot {
+        width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
+    }
+    .g-legend-dot.employee      { background: linear-gradient(135deg, #8B5CF6, #7c3aed); }
+    .g-legend-dot.contractor    { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+    .g-legend-dot.subcontractor { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .g-legend-dot.customer      { background: linear-gradient(135deg, #ec4899, #db2777); }
+    .g-legend-dot.equipment     { background: linear-gradient(135deg, #10b981, #059669); }
+
+    /* Модалки */
+    .cr-modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,.72);
+        backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 2000; padding: 1rem;
+        opacity: 0; visibility: hidden;
+        transition: opacity .22s, visibility .22s;
+        overflow-y: auto;
+    }
+    .cr-modal-overlay.open { opacity: 1; visibility: visible; }
+    .cr-modal {
+        position: relative;
+        background: linear-gradient(180deg, var(--surface-1), #171717);
+        border: 1px solid var(--border-3);
+        border-radius: 16px;
+        box-shadow: 0 24px 72px rgba(0,0,0,.65);
+        padding: 1.75rem 1.85rem 1.5rem;
+        max-width: 640px; width: 100%;
+        margin: auto; max-height: 92vh;
+        overflow-y: auto;
+        transform: translateY(14px) scale(.96);
+        transition: transform .22s cubic-bezier(.2,.9,.3,1.1);
+    }
+    .cr-modal-overlay.open .cr-modal {
+        transform: translateY(0) scale(1);
+    }
+    .cr-modal::before {
+        content: ''; position: absolute;
+        left: 0; top: 0; bottom: 0; width: 4px;
+        background: linear-gradient(180deg, var(--accent), var(--accent-hover));
+        border-radius: 16px 0 0 16px;
+    }
+    .cr-modal.danger::before {
+        background: linear-gradient(180deg, var(--danger), #dc2626);
+    }
+    .cr-modal-sm { max-width: 460px; }
+    .cr-modal-head {
+        display: flex; align-items: flex-start;
+        gap: .85rem; margin-bottom: 1rem;
+    }
+    .cr-modal-icon {
+        width: 44px; height: 44px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        background: var(--accent-tint); color: var(--accent);
+        border: 1px solid rgba(139,92,246,.25);
+        font-size: 1.1rem;
+    }
+    .cr-modal-title {
+        font-size: 1.1rem; font-weight: 700;
+        color: var(--text-strong); margin: 0 0 .2rem;
+    }
+    .cr-modal-sub {
+        font-size: .8rem; color: var(--text-soft); margin: 0;
+    }
+    .cr-section {
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: 1rem 1.2rem; margin-bottom: .9rem;
+    }
+    .cr-section h4 {
+        font-size: .72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .05em;
+        color: var(--accent-soft); margin: 0 0 .75rem;
+    }
+    .cr-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: .75rem;
+    }
+    .cr-row + .cr-row { margin-top: .75rem; }
+    .cr-field { display: flex; flex-direction: column; gap: .25rem; }
+    .cr-field label {
+        font-size: .7rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: .04em;
+        color: var(--text-soft);
+    }
+    .cr-field input,
+    .cr-field select,
+    .cr-field textarea {
+        width: 100% !important;
+        padding: .6rem .8rem !important;
+        background: var(--surface-2) !important;
+        border: 1px solid var(--border-2) !important;
+        border-radius: 8px !important;
+        color: var(--text) !important;
+        font-size: .85rem !important;
+        font-family: var(--font) !important;
+        outline: none !important;
+        color-scheme: dark;
+    }
+    .cr-field input:focus,
+    .cr-field select:focus,
+    .cr-field textarea:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px var(--accent-tint) !important;
+    }
+    .cr-modal-actions {
+        display: flex; justify-content: flex-end;
+        gap: .55rem; flex-wrap: wrap;
+        margin-top: 1.25rem; padding-top: 1rem;
+        border-top: 1px solid var(--border-1);
+    }
+
+    /* Выбор ресурса */
+    .res-pick-list {
+        display: grid; gap: .5rem;
+        max-height: 400px; overflow-y: auto;
+        padding-right: .25rem;
+    }
+    .res-pick-item {
+        display: flex; align-items: center; gap: .85rem;
+        background: var(--bg);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius);
+        padding: .85rem 1rem;
+        cursor: pointer;
+        transition: all .15s;
+    }
+    .res-pick-item:hover {
+        border-color: rgba(139,92,246,.4);
+        background: var(--surface-2);
+    }
+    .res-pick-item.selected {
+        border-color: var(--accent);
+        background: var(--accent-tint);
+    }
+    .res-pick-icon {
+        width: 36px; height: 36px; border-radius: 8px;
+        background: var(--accent-tint);
+        color: var(--accent-soft);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .85rem; flex-shrink: 0;
+        border: 1px solid rgba(139,92,246,.22);
+    }
+    .res-pick-info { flex: 1; min-width: 0; }
+    .res-pick-name {
+        font-size: .9rem; font-weight: 600;
+        color: var(--text-strong); line-height: 1.3;
+    }
+    .res-pick-details {
+        font-size: .78rem; color: var(--text-soft); margin-top: .15rem;
+    }
+    .res-pick-check {
+        width: 22px; height: 22px; border-radius: 6px;
+        border: 2px solid var(--border-3);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; color: transparent; font-size: .65rem;
+        transition: all .15s;
+    }
+    .res-pick-item.selected .res-pick-check {
+        background: var(--accent); border-color: var(--accent); color: #fff;
+    }
+
+    /* Тост */
+    .cr-toast-wrap {
+        position: fixed;
+        top: calc(var(--header-height) + 1rem);
+        right: 1rem; z-index: 3000;
+        display: flex; flex-direction: column;
+        gap: .5rem; pointer-events: none;
+    }
+    .cr-toast {
+        pointer-events: auto;
+        background: var(--surface-1);
+        border: 1px solid var(--border-3);
+        border-left: 3px solid var(--accent);
+        border-radius: var(--radius);
+        padding: .75rem 1rem;
+        font-size: .85rem; color: var(--text);
+        box-shadow: 0 10px 28px rgba(0,0,0,.4);
+        min-width: 260px; max-width: 360px;
+        transform: translateX(120%);
+        transition: transform .25s;
+    }
+    .cr-toast.visible { transform: translateX(0); }
+    .cr-toast.success { border-left-color: var(--success); }
+    .cr-toast.danger  { border-left-color: var(--danger); }
+    .cr-toast.warning { border-left-color: var(--warning); }
+    .cr-toast-title {
+        font-weight: 700; color: var(--text-strong);
+        margin-bottom: .15rem; font-size: .82rem;
+    }
+
+    /* Адаптив */
+    @media (max-width: 1024px) {
+        :root { --left-col-w: 220px; }
+    }
+    @media (max-width: 800px) {
+        :root { --left-col-w: 180px; }
+    }
+</style>
+{% endblock %}
+
+{% block app_content %}
+{# ==================== HEAD ==================== #}
+<div class="g-head">
+    <div>
+        <h1>Диаграмма Ганта</h1>
+        <p class="subtitle">
+            {{ project.name }}
+            {% if project.customer %} · {{ project.customer.name }}{% endif %}
+        </p>
+    </div>
+    <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+        <a href="{% url 'project_manage' project.id %}" class="g-btn g-btn-secondary">
+            <i class="fas fa-arrow-left"></i> К проекту
+        </a>
+        <button class="g-btn g-btn-primary" onclick="openAddResourceModal()">
+            <i class="fas fa-plus"></i> Добавить ресурс
+        </button>
+    </div>
+</div>
+
+{# ==================== KPI ==================== #}
+<div class="g-kpi-grid">
+    <div class="g-kpi">
+        <div class="g-kpi-label"><i class="fas fa-tasks"></i> Всего задач</div>
+        <div class="g-kpi-value" id="kpiTotal">0</div>
+    </div>
+    <div class="g-kpi">
+        <div class="g-kpi-label"><i class="fas fa-spinner"></i> В работе</div>
+        <div class="g-kpi-value warning" id="kpiInProgress">0</div>
+    </div>
+    <div class="g-kpi">
+        <div class="g-kpi-label"><i class="fas fa-check-circle"></i> Завершено</div>
+        <div class="g-kpi-value positive" id="kpiDone">0</div>
+    </div>
+</div>
+
+{# ==================== RANGE ==================== #}
+<div class="g-range-bar">
+    <div class="field">
+        <label>С</label>
+        <input type="date" id="rangeStart">
+    </div>
+    <div class="field">
+        <label>По</label>
+        <input type="date" id="rangeEnd">
+    </div>
+    <button class="g-btn g-btn-primary" onclick="applyRange()">
+        <i class="fas fa-check"></i> Применить
+    </button>
+    <button class="g-btn g-btn-secondary" onclick="extendRangeLeft()">
+        <i class="fas fa-chevron-left"></i> − неделя
+    </button>
+    <button class="g-btn g-btn-secondary" onclick="extendRangeRight()">
+        + неделя <i class="fas fa-chevron-right"></i>
+    </button>
+    <button class="g-btn g-btn-secondary" onclick="goToToday()">
+        <i class="fas fa-calendar-day"></i> Сегодня
+    </button>
+</div>
+
+{# ==================== TOOLBAR ==================== #}
+<div class="g-toolbar">
+    <div class="g-search">
+        <i class="fas fa-search"></i>
+        <input type="search" id="gSearch" placeholder="Поиск задачи или ресурса...">
+    </div>
+    <div class="g-filter-chips" id="gFilterChips">
+        <button class="g-chip active" data-filter="all">
+            <i class="fas fa-th"></i> Все <span class="g-chip-count" id="cntAll">0</span>
+        </button>
+        <button class="g-chip" data-filter="employee">
+            <i class="fas fa-user-tie"></i> Сотрудники <span class="g-chip-count" id="cntEmployee">0</span>
+        </button>
+        <button class="g-chip" data-filter="contractor">
+            <i class="fas fa-user"></i> Исполнители <span class="g-chip-count" id="cntContractor">0</span>
+        </button>
+        <button class="g-chip" data-filter="subcontractor">
+            <i class="fas fa-building"></i> Субподрядчики <span class="g-chip-count" id="cntSubcontractor">0</span>
+        </button>
+        <button class="g-chip" data-filter="customer">
+            <i class="fas fa-handshake"></i> Заказчики <span class="g-chip-count" id="cntCustomer">0</span>
+        </button>
+        <button class="g-chip" data-filter="equipment">
+            <i class="fas fa-tools"></i> Оборудование <span class="g-chip-count" id="cntEquipment">0</span>
+        </button>
+    </div>
+    <button class="g-btn g-btn-secondary" id="dragModeBtn" onclick="toggleDragMode()">
+        <i class="fas fa-arrows-alt-h"></i> Перетаскивать сроки
+    </button>
+</div>
+
+{# ==================== GANTT ==================== #}
+<div class="g-card">
+    <div class="g-card-head">
+        <h2 class="g-card-title">
+            <i class="fas fa-stream"></i>
+            Расписание ресурсов
+        </h2>
+        <div class="g-range-info">
+            <span>Период: <strong id="gRangeLabel">—</strong></span>
+            <span class="g-zoom-badge" id="zoomBadge">100%</span>
+            <span class="g-drag-indicator" id="dragIndicator">Режим перетаскивания</span>
+            <span class="g-hint"><i class="fas fa-info-circle"></i> Ctrl+колесо — масштаб · ЛКМ — сдвиг</span>
+        </div>
+    </div>
+
+    <div class="g-body" id="gBody">
+        <div class="g-left-panel" id="gLeftPanel">
+            <div class="g-left-header">Ресурс / Задача</div>
+            <div class="g-left-rows" id="gLeftRows"></div>
+        </div>
+        <div class="g-right-panel" id="gRightPanel">
+            <div class="g-right-grid" id="gRightGrid"></div>
+        </div>
+    </div>
+
+    <div class="g-legend" id="gLegend"></div>
+</div>
+
+{# ==================== МОДАЛКА: ДОБАВИТЬ/ИЗМЕНИТЬ РЕСУРС ==================== #}
+<div class="cr-modal-overlay" id="addResModal" aria-hidden="true">
+    <div class="cr-modal" role="dialog" aria-modal="true">
+        <div class="cr-modal-head">
+            <div class="cr-modal-icon"><i class="fas fa-calendar-plus"></i></div>
+            <div style="min-width:0; flex:1;">
+                <h3 class="cr-modal-title">Добавить ресурс в Гант</h3>
+                <p class="cr-modal-sub">Выберите ресурс из проекта и задайте сроки</p>
+            </div>
+        </div>
+
+        <div class="cr-section">
+            <h4>Ресурс</h4>
+            <div style="margin-bottom:.75rem;">
+                <input type="search" id="resPickSearch" placeholder="Поиск..." style="width:100%; padding:.55rem .8rem; background:var(--surface-2); border:1px solid var(--border-2); border-radius:8px; color:var(--text); font-size:.85rem; font-family:var(--font); outline:none;">
+            </div>
+            <div class="res-pick-list" id="resPickList"></div>
+        </div>
+
+        <div class="cr-modal-actions">
+            <button type="button" class="g-btn g-btn-secondary" onclick="closeAddResourceModal()">Отмена</button>
+            <button type="button" class="g-btn g-btn-primary" id="pickNextBtn" disabled onclick="goToSettings()">
+                Далее <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+{# ==================== МОДАЛКА: СРОКИ ==================== #}
+<div class="cr-modal-overlay" id="settingsModal" aria-hidden="true">
+    <div class="cr-modal" role="dialog" aria-modal="true">
+        <div class="cr-modal-head">
+            <div class="cr-modal-icon"><i class="fas fa-calendar"></i></div>
+            <div style="min-width:0; flex:1;">
+                <h3 class="cr-modal-title" id="settingsTitle">Сроки ресурса</h3>
+                <p class="cr-modal-sub" id="settingsSub">—</p>
+            </div>
+        </div>
+        <form id="settingsForm" novalidate>
+            {% csrf_token %}
+            <input type="hidden" id="settingsOverrideId" value="">
+            <div class="cr-section">
+                <h4>Период</h4>
+                <div class="cr-row">
+                    <div class="cr-field">
+                        <label>Дата начала *</label>
+                        <input type="date" id="settingsStart" required>
+                    </div>
+                    <div class="cr-field">
+                        <label>Дата окончания *</label>
+                        <input type="date" id="settingsEnd" required>
+                    </div>
+                </div>
+            </div>
+            <div class="cr-modal-actions">
+                <button type="button" class="g-btn g-btn-secondary" onclick="backToPick()">
+                    <i class="fas fa-arrow-left"></i> Назад
+                </button>
+                <button type="button" class="g-btn g-btn-secondary" onclick="closeSettingsModal()">Отмена</button>
+                <button type="submit" class="g-btn g-btn-primary">
+                    <i class="fas fa-save"></i> Сохранить
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ==================== МОДАЛКА: ПОДТВЕРЖДЕНИЕ ИЗМЕНЕНИЯ СРОКОВ ==================== #}
+<div class="cr-modal-overlay" id="confirmDatesModal" aria-hidden="true">
+    <div class="cr-modal cr-modal-sm" role="dialog" aria-modal="true">
+        <div class="cr-modal-head">
+            <div class="cr-modal-icon" style="background:rgba(250,223,173,.12); color:#FADFAD; border-color:rgba(250,223,173,.3);">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div style="min-width:0; flex:1;">
+                <h3 class="cr-modal-title">Изменить сроки?</h3>
+                <p class="cr-modal-sub">Это отразится в «Управлении проектом»</p>
+            </div>
+        </div>
+        <p style="color:var(--text-muted); font-size:.9rem; line-height:1.6; margin:0 0 1rem;" id="confirmDatesText"></p>
+        <div class="cr-modal-actions">
+            <button type="button" class="g-btn g-btn-secondary" onclick="cancelDatesChange()">Отмена</button>
+            <button type="button" class="g-btn g-btn-primary" onclick="applyDatesChange()">
+                <i class="fas fa-check"></i> Применить
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="cr-toast-wrap" id="toastWrap"></div>
+{% endblock %}
+
+{% block app_extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    // ============================================================
+    // КОНФИГ
+    // ============================================================
+    var PROJECT_ID = {{ project.id }};
+    var CSRF = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+    var PROJECT_START = '{{ project.start_date|date:"Y-m-d"|default:"" }}';
+    var PROJECT_END = '{{ project.end_date|date:"Y-m-d"|default:"" }}';
+
+    // ============================================================
+    // Утилиты
+    // ============================================================
+    function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s == null ? '' : String(s);
+        return d.innerHTML;
+    }
+    function getCookie(name) {
+        var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? m.pop() : '';
+    }
+    function csrf() { return CSRF || getCookie('csrftoken'); }
+
+    function startOfDay(d) {
+        var x = new Date(d);
+        x.setHours(0, 0, 0, 0);
+        return x;
+    }
+    function fmtDateInput(d) {
+        var x = startOfDay(d);
+        var y = x.getFullYear();
+        var m = String(x.getMonth() + 1).padStart(2, '0');
+        var dd = String(x.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + dd;
+    }
+    function parseDateInput(s) {
+        if (!s) return null;
+        var parts = s.split('-').map(Number);
+        if (parts.length !== 3) return null;
+        var d = new Date(parts[0], parts[1] - 1, parts[2]);
+        return isNaN(d.getTime()) ? null : startOfDay(d);
+    }
+    function addDays(d, n) {
+        var x = new Date(d);
+        x.setDate(x.getDate() + n);
+        return x;
+    }
+    function daysBetween(a, b) {
+        return Math.round((startOfDay(b) - startOfDay(a)) / 86400000);
+    }
+
+    function toast(title, text, kind) {
+        var wrap = document.getElementById('toastWrap');
+        var el = document.createElement('div');
+        el.className = 'cr-toast ' + (kind || '');
+        el.innerHTML = '<div class="cr-toast-title">' + esc(title) + '</div><div>' + esc(text || '') + '</div>';
+        wrap.appendChild(el);
+        requestAnimationFrame(function () { el.classList.add('visible'); });
+        setTimeout(function () {
+            el.classList.remove('visible');
+            setTimeout(function () { el.remove(); }, 300);
+        }, 3400);
+    }
+
+    function lockScroll() { document.body.style.overflow = 'hidden'; }
+    function unlockScroll() {
+        if (!document.querySelector('.cr-modal-overlay.open')) {
+            document.body.style.overflow = '';
+        }
+    }
+
+    // ============================================================
+    // МЕТА-ДАННЫЕ ТИПОВ
+    // ============================================================
+    var TYPE_META = {
+        employee:      { label: 'Сотрудник',    icon: 'fa-user-tie' },
+        contractor:    { label: 'Исполнитель',  icon: 'fa-user' },
+        subcontractor: { label: 'Субподрядчик', icon: 'fa-building' },
+        customer:      { label: 'Заказчик',     icon: 'fa-handshake' },
+        equipment:     { label: 'Оборудование', icon: 'fa-tools' }
+    };
+
+    // ============================================================
+    // СОСТОЯНИЕ
+    // ============================================================
+    var allTasks = [];        // из API
+    var availableResources = [];  // для модалки «Добавить»
+    var currentFilter = 'all';
+    var currentSearch = '';
+    var dragModeActive = false;
+    var ganttStart = null;
+    var ganttEnd = null;
+    var ganttDays = 0;
+    var dayW = 40;
+    var zoomUser = 1;
+    var isDragScrolling = false;
+    var dragScrollStart = null;
+    var activeResize = null;
+    var pendingDatesChange = null; // для модалки подтверждения
+
+    // ============================================================
+    // API
+    // ============================================================
+    function loadTasks() {
+        return fetch('/api/projects/' + PROJECT_ID + '/gantt/', { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                allTasks = (data.tasks || []).map(function (t) {
+                    return {
+                        id: t.id,
+                        type: t.resource_type,
+                        resourceId: t.resource_id,
+                        resourceName: t.name,
+                        taskName: t.task_name,
+                        start: startOfDay(new Date(t.start)),
+                        end: startOfDay(new Date(t.end)),
+                        duration: t.duration,
+                        status: t.status,
+                        serviceId: t.service_id,
+                        serviceName: t.service_name
+                    };
+                });
+                updateKpi();
+                render();
+            })
+            .catch(function () {
+                toast('Ошибка загрузки', 'Не удалось получить задачи', 'danger');
+            });
+    }
+
+    function loadAvailableResources() {
+        return fetch('/api/projects/' + PROJECT_ID + '/gantt/resources/', { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                availableResources = data.items || [];
+            })
+            .catch(function () { availableResources = []; });
+    }
+
+    function saveDates(overrideId, startStr, endStr) {
+        var fd = new FormData();
+        fd.append('override_id', overrideId);
+        fd.append('start_date', startStr);
+        fd.append('end_date', endStr);
+        fd.append('csrfmiddlewaretoken', csrf());
+
+        return fetch('/api/projects/' + PROJECT_ID + '/gantt/update-dates/', {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.success) {
+                toast('Ошибка сохранения', data.error || '', 'danger');
+                return false;
+            }
+            return true;
+        })
+        .catch(function () {
+            toast('Ошибка сети', '', 'danger');
+            return false;
+        });
+    }
+
+    // ============================================================
+    // ГЕОМЕТРИЯ
+    // ============================================================
+    function calcDays() {
+        return Math.max(1, daysBetween(ganttStart, ganttEnd) + 1);
+    }
+    function calcDayW() {
+        var panel = document.getElementById('gRightPanel');
+        if (!panel) return 40;
+        var w = panel.clientWidth || 800;
+        var minW = 24, maxW = 80;
+        var dw = Math.floor((w - 20) / Math.max(1, ganttDays));
+        dw = Math.max(minW, Math.min(maxW, dw));
+        return Math.round(dw * zoomUser);
+    }
+    function getMetrics() {
+        var rowH = Math.round(60 * Math.max(0.7, Math.min(zoomUser, 1.4)));
+        return {
+            dayW: dayW,
+            rowH: rowH,
+            barH: Math.round(26 * Math.max(0.75, Math.min(zoomUser, 1.3)))
+        };
+    }
+    function applyScaleVars() {
+        var m = getMetrics();
+        var grid = document.getElementById('gRightGrid');
+        var body = document.getElementById('gBody');
+        var leftPanel = document.getElementById('gLeftPanel');
+        var scrollH = m.rowH * 8 + 44;
+        body.style.setProperty('--g-scroll-h', scrollH + 'px');
+        leftPanel.style.setProperty('--g-row-h', m.rowH + 'px');
+        grid.style.setProperty('--g-days', ganttDays);
+        grid.style.setProperty('--g-day-w', m.dayW + 'px');
+        grid.style.setProperty('--g-row-h', m.rowH + 'px');
+        grid.style.setProperty('--g-bar-h', m.barH + 'px');
+        document.documentElement.style.setProperty('--g-row-h', m.rowH + 'px');
+        document.getElementById('zoomBadge').textContent = Math.round(zoomUser * 100) + '%';
+    }
+
+    // ============================================================
+    // ФИЛЬТРЫ
+    // ============================================================
+    function applyFilters(tasks) {
+        var out = tasks.slice();
+        if (currentFilter !== 'all') {
+            out = out.filter(function (t) { return t.type === currentFilter; });
+        }
+        if (currentSearch) {
+            var q = currentSearch.toLowerCase();
+            out = out.filter(function (t) {
+                return (t.resourceName || '').toLowerCase().indexOf(q) !== -1
+                    || (t.taskName || '').toLowerCase().indexOf(q) !== -1;
+            });
+        }
+        return out;
+    }
+
+    function updateKpi() {
+        var visible = applyFilters(allTasks);
+        document.getElementById('kpiTotal').textContent = visible.length;
+        document.getElementById('kpiInProgress').textContent = visible.filter(function (t) { return t.status === 'in_progress'; }).length;
+        document.getElementById('kpiDone').textContent = visible.filter(function (t) { return t.status === 'done'; }).length;
+
+        var all = allTasks;
+        document.getElementById('cntAll').textContent = all.length;
+        document.getElementById('cntEmployee').textContent = all.filter(function (t) { return t.type === 'employee'; }).length;
+        document.getElementById('cntContractor').textContent = all.filter(function (t) { return t.type === 'contractor'; }).length;
+        document.getElementById('cntSubcontractor').textContent = all.filter(function (t) { return t.type === 'subcontractor'; }).length;
+        document.getElementById('cntCustomer').textContent = all.filter(function (t) { return t.type === 'customer'; }).length;
+        document.getElementById('cntEquipment').textContent = all.filter(function (t) { return t.type === 'equipment'; }).length;
+    }
+
+    // ============================================================
+    // РЕНДЕР
+    // ============================================================
+    var DOW_SHORT = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+
+    function render() {
+        applyScaleVars();
+        var leftRows = document.getElementById('gLeftRows');
+        var rightGrid = document.getElementById('gRightGrid');
+        var visible = applyFilters(allTasks);
+
+        if (!visible.length) {
+            leftRows.innerHTML = '<div style="padding:2rem 1rem; color:var(--text-faint); text-align:center; font-size:.85rem;">'
+                + '<i class="fas fa-inbox" style="font-size:1.5rem; display:block; margin-bottom:.5rem;"></i>'
+                + 'Нет ресурсов с заданными сроками'
+                + '</div>';
+        } else {
+            leftRows.innerHTML = visible.map(function (task) {
+                var meta = TYPE_META[task.type] || { label: 'Ресурс', icon: 'fa-cube' };
+                return '<div class="g-left-row" data-task-id="' + task.id + '" title="Кликните для управления">'
+                    + '<div class="g-row-icon"><i class="fas ' + meta.icon + '"></i></div>'
+                    + '<div class="g-row-info">'
+                    +   '<div class="g-row-title" title="' + esc(task.resourceName) + '">' + esc(task.resourceName) + '</div>'
+                    +   '<div class="g-row-sub">'
+                    +     '<span class="g-row-type">' + esc(meta.label) + '</span>'
+                    +     '<span>·</span>'
+                    +     '<span>' + esc(task.taskName) + '</span>'
+                    +   '</div>'
+                    + '</div>'
+                    + '<span class="g-row-menu-hint"><i class="fas fa-ellipsis-v"></i></span>'
+                    + '</div>';
+            }).join('');
+        }
+
+        var dates = [];
+        for (var i = 0; i < ganttDays; i++) dates.push(addDays(ganttStart, i));
+        var today = startOfDay(new Date());
+
+        if (dates.length) {
+            var first = dates[0];
+            var last = dates[dates.length - 1];
+            document.getElementById('gRangeLabel').textContent =
+                first.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' }) + ' — ' +
+                last.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        var rightHtml = '';
+
+        dates.forEach(function (d) {
+            var isWeekend = d.getDay() === 0 || d.getDay() === 6;
+            var isToday = d.getTime() === today.getTime();
+            var cls = ['g-cell-day'];
+            if (isWeekend) cls.push('weekend');
+            if (isToday) cls.push('today');
+            rightHtml += '<div class="' + cls.join(' ') + '" data-date="' + fmtDateInput(d) + '">'
+                + '<span class="dow">' + DOW_SHORT[d.getDay()] + '</span>'
+                + d.getDate()
+                + '</div>';
+        });
+
+        if (!visible.length) {
+            rightHtml += '<div class="g-empty">'
+                + '<i class="fas fa-inbox"></i>'
+                + '<div>Ресурсов пока нет</div>'
+                + '</div>';
+        } else {
+            visible.forEach(function (task) {
+                for (var i = 0; i < ganttDays; i++) {
+                    var d = dates[i];
+                    var isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                    var isToday = d.getTime() === today.getTime();
+                    var cls = ['g-cell'];
+                    if (isWeekend) cls.push('weekend');
+                    if (isToday) cls.push('today');
+
+                    var taskStart = startOfDay(task.start);
+                    var taskEnd = startOfDay(task.end);
+
+                    if (d.getTime() >= taskStart.getTime() && d.getTime() <= taskEnd.getTime()) {
+                        if (d.getTime() === taskStart.getTime()) {
+                            var totalDays = daysBetween(taskStart, taskEnd) + 1;
+                            var visibleDays = Math.min(totalDays, ganttDays - i);
+                            var widthPx = visibleDays * dayW - 6;
+                            var resizableClass = dragModeActive ? 'resizable' : '';
+                            var handles = dragModeActive
+                                ? '<div class="g-bar-handle left" data-side="left" data-task="' + task.id + '"><i class="fas fa-grip-vertical"></i></div>'
+                                + '<div class="g-bar-handle right" data-side="right" data-task="' + task.id + '"><i class="fas fa-grip-vertical"></i></div>'
+                                : '';
+                            rightHtml += '<div class="' + cls.join(' ') + '">'
+                                + '<div class="g-bar ' + task.type + ' ' + resizableClass + '"'
+                                + ' data-task-id="' + task.id + '"'
+                                + ' style="left:3px; width:' + widthPx + 'px;">'
+                                + '<span class="g-bar-label">' + visibleDays + ' дн.</span>'
+                                + handles
+                                + '</div>'
+                                + '</div>';
+                        } else {
+                            rightHtml += '<div class="' + cls.join(' ') + '"></div>';
+                        }
+                    } else {
+                        rightHtml += '<div class="' + cls.join(' ') + '"></div>';
+                    }
+                }
+            });
+        }
+
+        rightGrid.innerHTML = rightHtml;
+        renderLegend();
+        attachBarHandlers();
+        attachRowHandlers();
+        attachScrollSync();
+    }
+
+    function renderLegend() {
+        var legend = document.getElementById('gLegend');
+        legend.innerHTML = Object.keys(TYPE_META).map(function (type) {
+            return '<div class="g-legend-item">'
+                + '<span class="g-legend-dot ' + type + '"></span>'
+                + esc(TYPE_META[type].label)
+                + '</div>';
+        }).join('');
+    }
+
+    function attachScrollSync() {
+        var right = document.getElementById('gRightPanel');
+        var left = document.getElementById('gLeftRows');
+
+        function syncLeftScroll() {
+            left.style.transform = 'translateY(' + (-right.scrollTop) + 'px)';
+        }
+        right.removeEventListener('scroll', syncLeftScroll);
+        right.addEventListener('scroll', syncLeftScroll);
+        syncLeftScroll();
+    }
+
+    function attachRowHandlers() {
+        document.querySelectorAll('.g-left-row[data-task-id]').forEach(function (el) {
+            el.addEventListener('click', function () {
+                var taskId = el.dataset.taskId;
+                openSettingsForTask(taskId);
+            });
+        });
+    }
+
+    // ============================================================
+    // DRAG-SCROLL
+    // ============================================================
+    function initDragScroll() {
+        var panel = document.getElementById('gRightPanel');
+        panel.addEventListener('mousedown', function (e) {
+            if (e.target.closest('.g-bar-handle')) return;
+            if (dragModeActive && e.target.closest('.g-bar')) return;
+            if (e.button !== 0) return;
+            isDragScrolling = true;
+            dragScrollStart = {
+                x: e.clientX, y: e.clientY,
+                left: panel.scrollLeft, top: panel.scrollTop
+            };
+            panel.classList.add('dragging');
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', function (e) {
+            if (!isDragScrolling) return;
+            var dx = e.clientX - dragScrollStart.x;
+            var dy = e.clientY - dragScrollStart.y;
+            panel.scrollLeft = dragScrollStart.left - dx;
+            panel.scrollTop = dragScrollStart.top - dy;
+        });
+        document.addEventListener('mouseup', function () {
+            if (!isDragScrolling) return;
+            isDragScrolling = false;
+            panel.classList.remove('dragging');
+        });
+    }
+
+    function initZoom() {
+        var panel = document.getElementById('gRightPanel');
+        panel.addEventListener('wheel', function (e) {
+            if (!e.ctrlKey) return;
+            e.preventDefault();
+            var delta = e.deltaY > 0 ? -0.1 : 0.1;
+            var newZoom = Math.max(0.4, Math.min(2.0, zoomUser + delta));
+            if (newZoom === zoomUser) return;
+            var rect = panel.getBoundingClientRect();
+            var cursorX = e.clientX - rect.left;
+            var oldScrollLeft = panel.scrollLeft;
+            var oldDayW = dayW;
+            var relX = (oldScrollLeft + cursorX) / (oldDayW * ganttDays);
+            zoomUser = newZoom;
+            dayW = calcDayW();
+            render();
+            requestAnimationFrame(function () {
+                panel.scrollLeft = Math.max(0, relX * (dayW * ganttDays) - cursorX);
+            });
+        }, { passive: false });
+    }
+
+    // ============================================================
+    // РЕЖИМ DRAG
+    // ============================================================
+    window.toggleDragMode = function () {
+        dragModeActive = !dragModeActive;
+        var btn = document.getElementById('dragModeBtn');
+        var indicator = document.getElementById('dragIndicator');
+        if (dragModeActive) {
+            btn.classList.add('g-btn-active');
+            btn.innerHTML = '<i class="fas fa-check"></i> Режим перетаскивания';
+            indicator.classList.add('visible');
+        } else {
+            btn.classList.remove('g-btn-active');
+            btn.innerHTML = '<i class="fas fa-arrows-alt-h"></i> Перетаскивать сроки';
+            indicator.classList.remove('visible');
+        }
+        render();
+    };
+
+    // ============================================================
+    // RESIZE
+    // ============================================================
+    function attachBarHandlers() {
+        document.querySelectorAll('.g-bar-handle').forEach(function (handle) {
+            handle.addEventListener('mousedown', function (e) {
+                if (!dragModeActive) return;
+                e.stopPropagation();
+                e.preventDefault();
+                var taskId = handle.dataset.task;
+                var side = handle.dataset.side;
+                var task = allTasks.find(function (t) { return String(t.id) === String(taskId); });
+                if (!task) return;
+                activeResize = {
+                    taskId: taskId,
+                    side: side,
+                    startX: e.clientX,
+                    startDate: new Date(task.start),
+                    endDate: new Date(task.end),
+                    dayW: dayW,
+                    barEl: handle.closest('.g-bar'),
+                    task: task
+                };
+                activeResize.barEl.classList.add('dragging');
+            });
+        });
+    }
+
+    document.addEventListener('mousemove', function (e) {
+        if (!activeResize) return;
+        var dx = e.clientX - activeResize.startX;
+        var dayDelta = Math.round(dx / activeResize.dayW);
+        var task = activeResize.task;
+        if (!task) return;
+        if (activeResize.side === 'left') {
+            var newStart = new Date(activeResize.startDate);
+            newStart.setDate(newStart.getDate() + dayDelta);
+            if (newStart <= activeResize.endDate) task.start = startOfDay(newStart);
+        } else {
+            var newEnd = new Date(activeResize.endDate);
+            newEnd.setDate(newEnd.getDate() + dayDelta);
+            if (newEnd >= activeResize.startDate) task.end = startOfDay(newEnd);
+        }
+        task.duration = daysBetween(task.start, task.end) + 1;
+        var today = startOfDay(new Date());
+        if (task.end < today) task.status = 'done';
+        else if (task.start <= today && task.end >= today) task.status = 'in_progress';
+        else task.status = 'planned';
+    });
+
+    document.addEventListener('mouseup', function (e) {
+        if (!activeResize) return;
+        var task = activeResize.task;
+        var barEl = activeResize.barEl;
+        var oldStart = activeResize.startDate;
+        var oldEnd = activeResize.endDate;
+        activeResize = null;
+        if (barEl) barEl.classList.remove('dragging');
+        if (!task) return;
+
+        var newStartStr = fmtDateInput(task.start);
+        var newEndStr = fmtDateInput(task.end);
+        var oldStartStr = fmtDateInput(oldStart);
+        var oldEndStr = fmtDateInput(oldEnd);
+
+        if (newStartStr === oldStartStr && newEndStr === oldEndStr) {
+            render();
+            return;
+        }
+
+        // Подтверждение
+        pendingDatesChange = {
+            overrideId: task.id,
+            start: newStartStr,
+            end: newEndStr,
+            oldStart: oldStartStr,
+            oldEnd: oldEndStr,
+            taskRef: task,
+            oldTaskStart: new Date(oldStart),
+            oldTaskEnd: new Date(oldEnd)
+        };
+        openConfirmDatesModal(pendingDatesChange);
+    });
+
+    // ============================================================
+    // ПОДТВЕРЖДЕНИЕ ИЗМЕНЕНИЯ СРОКОВ
+    // ============================================================
+    var confirmDatesModal = document.getElementById('confirmDatesModal');
+
+    function openConfirmDatesModal(info) {
+        document.getElementById('confirmDatesText').innerHTML =
+            'Ресурс <strong>' + esc(info.taskRef.resourceName) + '</strong><br><br>'
+            + 'Было: ' + info.oldStart + ' — ' + info.oldEnd + '<br>'
+            + 'Станет: ' + info.start + ' — ' + info.end + '<br><br>'
+            + 'Это изменение отразится и в «Управлении проектом».';
+        confirmDatesModal.classList.add('open');
+        lockScroll();
+    }
+
+    window.cancelDatesChange = function () {
+        // откатываем изменения
+        if (pendingDatesChange && pendingDatesChange.taskRef) {
+            pendingDatesChange.taskRef.start = pendingDatesChange.oldTaskStart;
+            pendingDatesChange.taskRef.end = pendingDatesChange.oldTaskEnd;
+            pendingDatesChange.taskRef.duration = daysBetween(pendingDatesChange.oldTaskStart, pendingDatesChange.oldTaskEnd) + 1;
+        }
+        pendingDatesChange = null;
+        confirmDatesModal.classList.remove('open');
+        unlockScroll();
+        render();
+    };
+
+    window.applyDatesChange = function () {
+        if (!pendingDatesChange) return;
+        var info = pendingDatesChange;
+        confirmDatesModal.classList.remove('open');
+        unlockScroll();
+
+        saveDates(info.overrideId, info.start, info.end).then(function (ok) {
+            if (ok) {
+                toast('Сроки сохранены', info.taskRef.resourceName, 'success');
+                // перезагрузка задач (получим актуальные данные + пересчёт)
+                loadTasks();
+            } else {
+                // откат
+                info.taskRef.start = info.oldTaskStart;
+                info.taskRef.end = info.oldTaskEnd;
+                info.taskRef.duration = daysBetween(info.oldTaskStart, info.oldTaskEnd) + 1;
+                render();
+            }
+            pendingDatesChange = null;
+        });
+    };
+
+    // ============================================================
+    // МОДАЛКА «ДОБАВИТЬ РЕСУРС»
+    // ============================================================
+    var addResModal = document.getElementById('addResModal');
+    var settingsModal = document.getElementById('settingsModal');
+    var selectedResource = null;
+    var resPickSearch = '';
+
+    window.openAddResourceModal = function () {
+        selectedResource = null;
+        resPickSearch = '';
+        document.getElementById('resPickSearch').value = '';
+        document.getElementById('pickNextBtn').disabled = true;
+
+        loadAvailableResources().then(function () {
+            renderPickList();
+            addResModal.classList.add('open');
+            lockScroll();
+        });
+    };
+
+    window.closeAddResourceModal = function () {
+        addResModal.classList.remove('open');
+        unlockScroll();
+    };
+
+    function renderPickList() {
+        var listEl = document.getElementById('resPickList');
+        var filtered = availableResources;
+        if (resPickSearch) {
+            var q = resPickSearch.toLowerCase();
+            filtered = filtered.filter(function (r) {
+                return (r.name || '').toLowerCase().indexOf(q) !== -1;
+            });
+        }
+        if (!filtered.length) {
+            listEl.innerHTML = '<div style="text-align:center; padding:2rem 1rem; color:var(--text-faint); font-size:.85rem;">'
+                + '<i class="fas fa-inbox" style="font-size:1.5rem; display:block; margin-bottom:.5rem;"></i>'
+                + 'Ресурсов в проекте нет. Добавьте их через «Управление проектом».'
+                + '</div>';
+            return;
+        }
+        listEl.innerHTML = filtered.map(function (r) {
+            var meta = TYPE_META[r.resource_type] || { label: 'Ресурс', icon: 'fa-cube' };
+            var isSelected = selectedResource && selectedResource.override_id === r.override_id;
+            var dates = '';
+            if (r.start && r.end) {
+                dates = ' · ' + r.start + ' — ' + r.end;
+            } else {
+                dates = ' · <span style="color:var(--warning);">без дат</span>';
+            }
+            return '<div class="res-pick-item ' + (isSelected ? 'selected' : '') + '" data-id="' + r.override_id + '">'
+                + '<div class="res-pick-icon"><i class="fas ' + meta.icon + '"></i></div>'
+                + '<div class="res-pick-info">'
+                +   '<div class="res-pick-name">' + esc(r.name) + '</div>'
+                +   '<div class="res-pick-details">' + esc(meta.label) + dates + '</div>'
+                + '</div>'
+                + '<div class="res-pick-check"><i class="fas fa-check"></i></div>'
+                + '</div>';
+        }).join('');
+
+        listEl.querySelectorAll('.res-pick-item').forEach(function (item) {
+            item.addEventListener('click', function () {
+                var id = parseInt(item.dataset.id, 10);
+                selectedResource = availableResources.find(function (r) { return r.override_id === id; });
+                if (selectedResource) {
+                    document.getElementById('pickNextBtn').disabled = false;
+                    renderPickList();
+                }
+            });
+        });
+    }
+
+    document.getElementById('resPickSearch').addEventListener('input', function (e) {
+        resPickSearch = e.target.value.trim().toLowerCase();
+        renderPickList();
+    });
+
+    window.goToSettings = function () {
+        if (!selectedResource) return;
+        addResModal.classList.remove('open');
+        openSettingsForResource(selectedResource);
+    };
+
+    function openSettingsForResource(res) {
+        document.getElementById('settingsOverrideId').value = res.override_id;
+        document.getElementById('settingsTitle').textContent = 'Сроки ресурса';
+        document.getElementById('settingsSub').textContent = res.name;
+
+        var s = res.start || PROJECT_START || fmtDateInput(new Date());
+        var e = res.end || PROJECT_END || fmtDateInput(addDays(new Date(s), 6));
+
+        document.getElementById('settingsStart').value = s;
+        document.getElementById('settingsEnd').value = e;
+
+        settingsModal.classList.add('open');
+        lockScroll();
+    }
+
+    function openSettingsForTask(taskId) {
+        // клик по строке в левой панели — открываем тот же редактор
+        var task = allTasks.find(function (t) { return String(t.id) === String(taskId); });
+        if (!task) return;
+        openSettingsForResource({
+            override_id: task.id,
+            name: task.resourceName,
+            start: fmtDateInput(task.start),
+            end: fmtDateInput(task.end),
+        });
+    }
+
+    window.backToPick = function () {
+        settingsModal.classList.remove('open');
+        addResModal.classList.add('open');
+    };
+
+    window.closeSettingsModal = function () {
+        settingsModal.classList.remove('open');
+        unlockScroll();
+    };
+
+    document.getElementById('settingsForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var overrideId = document.getElementById('settingsOverrideId').value;
+        var start = document.getElementById('settingsStart').value;
+        var end = document.getElementById('settingsEnd').value;
+
+        if (!overrideId || !start || !end) {
+            toast('Заполните все поля', '', 'warning');
+            return;
+        }
+        if (end < start) {
+            toast('Дата окончания раньше начала', '', 'danger');
+            return;
+        }
+
+        saveDates(overrideId, start, end).then(function (ok) {
+            if (ok) {
+                settingsModal.classList.remove('open');
+                unlockScroll();
+                toast('Сроки сохранены', '', 'success');
+                loadTasks();
+            }
+        });
+    });
+
+    // ============================================================
+    // RANGE / ZOOM
+    // ============================================================
+    window.applyRange = function () {
+        var s = parseDateInput(document.getElementById('rangeStart').value);
+        var e = parseDateInput(document.getElementById('rangeEnd').value);
+        if (!s || !e) return;
+        if (e < s) { ganttStart = e; ganttEnd = s; }
+        else { ganttStart = s; ganttEnd = e; }
+        document.getElementById('rangeStart').value = fmtDateInput(ganttStart);
+        document.getElementById('rangeEnd').value = fmtDateInput(ganttEnd);
+        ganttDays = calcDays();
+        dayW = calcDayW();
+        render();
+        updateKpi();
+    };
+
+    window.extendRangeLeft = function () {
+        ganttStart = addDays(ganttStart, -7);
+        ganttDays = calcDays();
+        document.getElementById('rangeStart').value = fmtDateInput(ganttStart);
+        dayW = calcDayW();
+        var panel = document.getElementById('gRightPanel');
+        var oldScrollLeft = panel.scrollLeft;
+        var addedPx = 7 * dayW;
+        render();
+        requestAnimationFrame(function () {
+            panel.scrollLeft = oldScrollLeft + addedPx;
+        });
+    };
+
+    window.extendRangeRight = function () {
+        ganttEnd = addDays(ganttEnd, 7);
+        ganttDays = calcDays();
+        document.getElementById('rangeEnd').value = fmtDateInput(ganttEnd);
+        dayW = calcDayW();
+        render();
+    };
+
+    window.goToToday = function () {
+        var today = startOfDay(new Date());
+        if (today < ganttStart) {
+            ganttStart = addDays(today, -3);
+            document.getElementById('rangeStart').value = fmtDateInput(ganttStart);
+        }
+        if (today > ganttEnd) {
+            ganttEnd = addDays(today, 3);
+            document.getElementById('rangeEnd').value = fmtDateInput(ganttEnd);
+        }
+        ganttDays = calcDays();
+        dayW = calcDayW();
+        render();
+        requestAnimationFrame(function () {
+            var panel = document.getElementById('gRightPanel');
+            var key = fmtDateInput(today);
+            var cell = panel.querySelector('.g-cell-day[data-date="' + key + '"]');
+            if (cell) {
+                var targetLeft = cell.offsetLeft - panel.clientWidth / 2 + cell.clientWidth / 2;
+                panel.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
+            }
+        });
+    };
+
+    // ============================================================
+    // ФИЛЬТРЫ / ПОИСК
+    // ============================================================
+    document.querySelectorAll('#gFilterChips .g-chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            document.querySelectorAll('#gFilterChips .g-chip').forEach(function (c) { c.classList.remove('active'); });
+            chip.classList.add('active');
+            currentFilter = chip.dataset.filter;
+            updateKpi();
+            render();
+        });
+    });
+    document.getElementById('gSearch').addEventListener('input', function (e) {
+        currentSearch = e.target.value.trim().toLowerCase();
+        updateKpi();
+        render();
+    });
+
+    // ============================================================
+    // ESC
+    // ============================================================
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        if (addResModal.classList.contains('open')) closeAddResourceModal();
+        if (settingsModal.classList.contains('open')) closeSettingsModal();
+        if (confirmDatesModal.classList.contains('open')) cancelDatesChange();
+    });
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    window.addEventListener('DOMContentLoaded', function () {
+        var today = startOfDay(new Date());
+
+        // Начальный диапазон: по датам проекта, если заданы, иначе ±7 дней
+        if (PROJECT_START && PROJECT_END) {
+            var ps = parseDateInput(PROJECT_START);
+            var pe = parseDateInput(PROJECT_END);
+            if (ps && pe) {
+                ganttStart = addDays(ps, -3);
+                ganttEnd = addDays(pe, 3);
+            } else {
+                ganttStart = addDays(today, -3);
+                ganttEnd = addDays(today, 10);
+            }
+        } else {
+            ganttStart = addDays(today, -3);
+            ganttEnd = addDays(today, 10);
+        }
+        ganttDays = calcDays();
+
+        document.getElementById('rangeStart').value = fmtDateInput(ganttStart);
+        document.getElementById('rangeEnd').value = fmtDateInput(ganttEnd);
+
+        dayW = calcDayW();
+
+        loadTasks();
+        initDragScroll();
+        initZoom();
+
+        // Если есть задачи — центрируем на «сегодня»
+        setTimeout(function () {
+            var panel = document.getElementById('gRightPanel');
+            var key = fmtDateInput(today);
+            var cell = panel.querySelector('.g-cell-day[data-date="' + key + '"]');
+            if (cell) {
+                var targetLeft = cell.offsetLeft - panel.clientWidth / 2 + cell.clientWidth / 2;
+                panel.scrollLeft = Math.max(0, targetLeft);
+            }
+        }, 200);
+    });
+
+    var resizeTimer = null;
+    window.addEventListener('resize', function () {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+            dayW = calcDayW();
+            render();
+        }, 150);
+    });
+})();
+</script>
+{% endblock %}

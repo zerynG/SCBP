@@ -434,14 +434,6 @@ def _calculate_project(project):
                 except Customer.DoesNotExist:
                     pass
 
-    # Основной заказчик проекта — если задан, но не в overrides, добавляем
-    if project.customer_id and project.customer:
-        already = any(
-            rtype == 'customer' and rid == project.customer_id
-            for (rtype, rid) in overrides_map.keys()
-        )
-        if not already:
-            customers_qs.append(project.customer)
 
     # Расписание сотрудников
     schedule_by_employee = _load_employee_schedule(project)
@@ -496,6 +488,7 @@ def _persist_project_cost(project, totals):
 def project_manage(request, project_id):
     """Страница управления проектом"""
     project = get_object_or_404(Project, id=project_id, is_active=True)
+    request.session['last_project_id'] = project.id
 
     if request.method == 'POST' and request.POST.get('form_type') == 'update_project':
         project.name = request.POST.get('name', project.name)
@@ -2676,3 +2669,217 @@ def project_recalculate(request, project_id):
         'totals': calc.serialize_totals(totals),
         'rows': [calc.serialize_row(_row_obj_for_serialization(r)) for r in result['rows']],
     })
+
+# ============================================================================
+# ДИАГРАММА ГАНТА (в рамках проекта)
+# ============================================================================
+
+@login_required
+def project_gantt(request, project_id):
+    """Страница диаграммы Ганта для одного проекта."""
+    ws = _get_active_workspace(request)
+    project = get_object_or_404(Project, id=project_id, workspace=ws, is_active=True)
+
+    # Запоминаем — чтобы при клике из сайдбара открывался этот проект
+    request.session['last_project_id'] = project.id
+
+    return render(request, 'gantt_project.html', {
+        'project': project,
+        'workspace': ws,
+        'sidebar_active': 'gantt',
+    })
+
+
+@login_required
+@require_http_methods(["GET"])
+def gantt_tasks_api(request, project_id):
+    """GET /api/projects/<id>/gantt/ — все задачи Ганта для проекта.
+
+    Возвращает список overrides с расширенной информацией (имя, тип, сроки).
+    Только те, у которых заданы сроки (есть work_start_date и work_end_date).
+    """
+    ws = _get_active_workspace(request)
+    project = get_object_or_404(Project, id=project_id, workspace=ws)
+
+    overrides = list(ProjectResourceOverride.objects.filter(project=project).select_related('service'))
+
+    tasks = []
+    for o in overrides:
+        # Имя ресурса
+        name = ''
+        model_map = {
+            'employee': Employee, 'contractor': Contractor,
+            'subcontractor': Subcontractor, 'customer': Customer, 'equipment': Equipment,
+        }
+        Model = model_map.get(o.resource_type)
+        if Model and ws:
+            try:
+                name = Model.objects.get(id=o.resource_id, workspace=ws).name
+            except Model.DoesNotExist:
+                name = '—'
+        if not name:
+            name = '—'
+
+        # Сроки: если не заданы — используем даты проекта
+        start = o.work_start_date or project.start_date
+        end = o.work_end_date or project.end_date
+
+        if not start or not end:
+            # Без сроков — не показываем в Ганте
+            continue
+
+        # Статус по датам
+        today = date.today()
+        if end < today:
+            status = 'done'
+        elif start <= today <= end:
+            status = 'in_progress'
+        else:
+            status = 'planned'
+
+        # «Задача» — название услуги, если есть, иначе тип ресурса
+        task_name = o.service.name if o.service else {
+            'employee': 'Работа', 'contractor': 'Работа',
+            'subcontractor': 'Работа', 'customer': 'Согласование',
+            'equipment': 'Использование',
+        }.get(o.resource_type, 'Задача')
+
+        tasks.append({
+            'id': o.id,
+            'resource_type': o.resource_type,
+            'resource_id': o.resource_id,
+            'name': name,
+            'task_name': task_name,
+            'start': start.isoformat(),
+            'end': end.isoformat(),
+            'duration': (end - start).days + 1,
+            'status': status,
+            'service_id': o.service_id,
+            'service_name': o.service.name if o.service else '',
+        })
+
+    return JsonResponse({
+        'project': {
+            'id': project.id,
+            'name': project.name,
+            'start_date': project.start_date.isoformat() if project.start_date else None,
+            'end_date': project.end_date.isoformat() if project.end_date else None,
+        },
+        'tasks': tasks,
+    })
+
+
+@login_required
+@require_http_methods(["GET"])
+def gantt_project_resources_api(request, project_id):
+    """GET /api/projects/<id>/gantt/resources/ — ресурсы проекта для модалки «Добавить».
+
+    Возвращает все overrides (даже без дат), чтобы можно было выбрать любой
+    ресурс проекта и задать/изменить сроки.
+    """
+    ws = _get_active_workspace(request)
+    project = get_object_or_404(Project, id=project_id, workspace=ws)
+
+    overrides = list(ProjectResourceOverride.objects.filter(project=project).select_related('service'))
+
+    items = []
+    for o in overrides:
+        name = ''
+        model_map = {
+            'employee': Employee, 'contractor': Contractor,
+            'subcontractor': Subcontractor, 'customer': Customer, 'equipment': Equipment,
+        }
+        Model = model_map.get(o.resource_type)
+        if Model and ws:
+            try:
+                name = Model.objects.get(id=o.resource_id, workspace=ws).name
+            except Model.DoesNotExist:
+                name = '—'
+        if not name:
+            name = '—'
+        items.append({
+            'override_id': o.id,
+            'resource_type': o.resource_type,
+            'resource_id': o.resource_id,
+            'name': name,
+            'start': o.work_start_date.isoformat() if o.work_start_date else '',
+            'end': o.work_end_date.isoformat() if o.work_end_date else '',
+            'service_id': o.service_id,
+            'service_name': o.service.name if o.service else '',
+        })
+
+    return JsonResponse({'items': items})
+
+
+@login_required
+@require_http_methods(["POST"])
+def gantt_update_dates(request, project_id):
+    """POST /api/projects/<id>/gantt/update-dates/ — обновить сроки одного ресурса.
+
+    Принимает: override_id, start_date, end_date.
+    Обновляет ProjectResourceOverride.work_start_date/work_end_date.
+    Возвращает пересчёт проекта (rows + totals).
+    """
+    ws = _get_active_workspace(request)
+    project = get_object_or_404(Project, id=project_id, workspace=ws)
+
+    override_id = request.POST.get('override_id')
+    start_str = request.POST.get('start_date')
+    end_str = request.POST.get('end_date')
+
+    if not override_id:
+        return JsonResponse({'success': False, 'error': 'Не указан override'}, status=400)
+
+    try:
+        override = ProjectResourceOverride.objects.get(id=int(override_id), project=project)
+    except (ProjectResourceOverride.DoesNotExist, ValueError, TypeError):
+        return JsonResponse({'success': False, 'error': 'Ресурс не найден'}, status=404)
+
+    override.work_start_date = _parse_date(start_str)
+    override.work_end_date = _parse_date(end_str)
+    override.save(update_fields=['work_start_date', 'work_end_date'])
+
+    # Пересчёт проекта
+    result = _calculate_project(project)
+    totals = result['totals']
+    _persist_project_cost(project, totals)
+
+    return JsonResponse({
+        'success': True,
+        'totals': calc.serialize_totals(totals),
+        'rows': [calc.serialize_row(_row_obj_for_serialization(r)) for r in result['rows']],
+    })
+
+
+@login_required
+@require_http_methods(["GET"])
+def project_selector_api(request):
+    """GET /api/projects/for-gantt/ — список проектов для модалки выбора."""
+    ws = _get_active_workspace(request)
+    if not ws:
+        return JsonResponse({'projects': []})
+    qs = Project.objects.filter(workspace=ws, is_active=True).select_related('customer')
+    return JsonResponse({
+        'projects': [{
+            'id': p.id,
+            'name': p.name,
+            'customer': p.customer.name if p.customer else '',
+            'start_date': p.start_date.isoformat() if p.start_date else '',
+            'end_date': p.end_date.isoformat() if p.end_date else '',
+        } for p in qs]
+    })
+
+
+@login_required
+@require_http_methods(["GET"])
+def last_project_redirect(request):
+    """GET /project/gantt/ — редирект на Гант последнего проекта или выбор."""
+    project_id = request.session.get('last_project_id')
+    if project_id:
+        try:
+            Project.objects.get(id=project_id, is_active=True)
+            return redirect('project_gantt', project_id=project_id)
+        except Project.DoesNotExist:
+            pass
+    # Нет последнего — показываем модалку выбора
+    return render(request, 'gantt_selector.html', {'sidebar_active': 'gantt'})
