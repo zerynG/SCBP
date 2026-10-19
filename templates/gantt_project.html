@@ -365,6 +365,16 @@
         background: var(--accent-tint);
         color: var(--accent);
     }
+    .g-cell-day .g-month {
+        display: block;
+        font-size: .55rem;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: var(--accent-soft);
+        margin: 1px 0;
+    }
+    .g-cell-day.today .g-month { color: var(--accent); }
     .g-cell-day .dow {
         font-size: .58rem;
         text-transform: uppercase;
@@ -1147,17 +1157,32 @@
 
         var rightHtml = '';
 
-        dates.forEach(function (d) {
-            var isWeekend = d.getDay() === 0 || d.getDay() === 6;
-            var isToday = d.getTime() === today.getTime();
-            var cls = ['g-cell-day'];
-            if (isWeekend) cls.push('weekend');
-            if (isToday) cls.push('today');
-            rightHtml += '<div class="' + cls.join(' ') + '" data-date="' + fmtDateInput(d) + '">'
-                + '<span class="dow">' + DOW_SHORT[d.getDay()] + '</span>'
-                + d.getDate()
-                + '</div>';
-        });
+    var MONTH_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+    var prevMonth = -1;
+
+    dates.forEach(function (d) {
+        var isWeekend = d.getDay() === 0 || d.getDay() === 6;
+        var isToday = d.getTime() === today.getTime();
+        var cls = ['g-cell-day'];
+        if (isWeekend) cls.push('weekend');
+        if (isToday) cls.push('today');
+
+        // Показываем название месяца, если:
+        // - первый день месяца, или
+        // - это самый первый день в диапазоне (чтобы пользователь видел контекст)
+        var showMonth = (prevMonth === -1) || (d.getMonth() !== prevMonth);
+        prevMonth = d.getMonth();
+
+        var dowLabel = DOW_SHORT[d.getDay()];
+        var dayLabel = d.getDate();
+        var monthLabel = showMonth ? '<span class="g-month">' + MONTH_SHORT[d.getMonth()] + '</span>' : '';
+
+        rightHtml += '<div class="' + cls.join(' ') + '" data-date="' + fmtDateInput(d) + '">'
+            + '<span class="dow">' + dowLabel + '</span>'
+            + monthLabel
+            + dayLabel
+            + '</div>';
+    });
 
         if (!visible.length) {
             rightHtml += '<div class="g-empty">'
@@ -1328,6 +1353,8 @@
                 var side = handle.dataset.side;
                 var task = allTasks.find(function (t) { return String(t.id) === String(taskId); });
                 if (!task) return;
+
+                var bar = handle.closest('.g-bar');
                 activeResize = {
                     taskId: taskId,
                     side: side,
@@ -1335,10 +1362,12 @@
                     startDate: new Date(task.start),
                     endDate: new Date(task.end),
                     dayW: dayW,
-                    barEl: handle.closest('.g-bar'),
-                    task: task
+                    barEl: bar,
+                    task: task,
+                    origLeft: bar ? bar.offsetLeft : 0,
+                    origWidth: bar ? bar.offsetWidth : 0
                 };
-                activeResize.barEl.classList.add('dragging');
+                if (bar) bar.classList.add('dragging');
             });
         });
     }
@@ -1349,20 +1378,138 @@
         var dayDelta = Math.round(dx / activeResize.dayW);
         var task = activeResize.task;
         if (!task) return;
+
+        // ⚡ Мгновенный визуальный сдвиг — без перерисовки всей сетки
+        var barEl = activeResize.barEl;
+        if (barEl) {
+            if (activeResize.side === 'left') {
+                var deltaPx = dayDelta * activeResize.dayW;
+                barEl.style.left = (3 + deltaPx) + 'px';
+                barEl.style.width = (activeResize.origWidth - deltaPx) + 'px';
+            } else {
+                var deltaPxR = dayDelta * activeResize.dayW;
+                barEl.style.width = Math.max(activeResize.dayW - 6, activeResize.origWidth + deltaPxR) + 'px';
+            }
+        }
+
+        // Обновляем модель (только для расчёта duration/status)
         if (activeResize.side === 'left') {
             var newStart = new Date(activeResize.startDate);
             newStart.setDate(newStart.getDate() + dayDelta);
             if (newStart <= activeResize.endDate) task.start = startOfDay(newStart);
+            else task.start = startOfDay(activeResize.endDate);
         } else {
             var newEnd = new Date(activeResize.endDate);
             newEnd.setDate(newEnd.getDate() + dayDelta);
             if (newEnd >= activeResize.startDate) task.end = startOfDay(newEnd);
+            else task.end = startOfDay(activeResize.startDate);
         }
         task.duration = daysBetween(task.start, task.end) + 1;
         var today = startOfDay(new Date());
         if (task.end < today) task.status = 'done';
         else if (task.start <= today && task.end >= today) task.status = 'in_progress';
         else task.status = 'planned';
+    });
+
+    document.addEventListener('mouseup', function (e) {
+        if (!activeResize) return;
+        var task = activeResize.task;
+        var barEl = activeResize.barEl;
+        var oldStart = activeResize.startDate;
+        var oldEnd = activeResize.endDate;
+
+        if (barEl) barEl.classList.remove('dragging');
+        activeResize = null;
+
+        if (!task) return;
+
+        var newStartStr = fmtDateInput(task.start);
+        var newEndStr = fmtDateInput(task.end);
+        var oldStartStr = fmtDateInput(oldStart);
+        var oldEndStr = fmtDateInput(oldEnd);
+
+        // Если не изменились — просто перерисовать (вернём бар на место)
+        if (newStartStr === oldStartStr && newEndStr === oldEndStr) {
+            render();
+            return;
+        }
+
+        // Открываем confirm ТОЛЬКО после отпускания мыши
+        pendingDatesChange = {
+            overrideId: task.id,
+            start: newStartStr,
+            end: newEndStr,
+            oldStart: oldStartStr,
+            oldEnd: oldEndStr,
+            taskRef: task,
+            oldTaskStart: new Date(oldStart),
+            oldTaskEnd: new Date(oldEnd)
+        };
+        openConfirmDatesModal(pendingDatesChange);
+    });
+
+    document.addEventListener('mousemove', function (e) {
+        if (!activeResize) return;
+        var dx = e.clientX - activeResize.startX;
+        var dayDelta = Math.round(dx / activeResize.dayW);
+        var task = activeResize.task;
+        if (!task) return;
+
+        // Сохраняем оригинальные значения, чтобы не «уплывать» при многократном движении
+        if (activeResize.side === 'left') {
+            var newStart = new Date(activeResize.startDate);
+            newStart.setDate(newStart.getDate() + dayDelta);
+            if (newStart <= activeResize.endDate) task.start = startOfDay(newStart);
+            else task.start = startOfDay(activeResize.endDate);
+        } else {
+            var newEnd = new Date(activeResize.endDate);
+            newEnd.setDate(newEnd.getDate() + dayDelta);
+            if (newEnd >= activeResize.startDate) task.end = startOfDay(newEnd);
+            else task.end = startOfDay(activeResize.startDate);
+        }
+        task.duration = daysBetween(task.start, task.end) + 1;
+        var today = startOfDay(new Date());
+        if (task.end < today) task.status = 'done';
+        else if (task.start <= today && task.end >= today) task.status = 'in_progress';
+        else task.status = 'planned';
+
+        // ⚡ LIVE-анимация: перерисовываем только нужный бар
+        var barEl = activeResize.barEl;
+        if (barEl && barEl.parentElement) {
+            var cell = barEl.parentElement;
+            var newStartIdx = daysBetween(ganttStart, task.start);
+            var newDuration = task.duration;
+
+            // Пересчитываем позицию через CSS
+            var grid = document.getElementById('gRightGrid');
+            var cellIndex = newStartIdx;
+            // Проще: перерисовать весь бар — но это сбрасывает .dragging
+            // Поэтому двигаем только barEl через transform относительно текущей позиции
+            // Или: перерисовать всё, но сохранить dragging-состояние
+
+            // Вариант 1: перерисовать целиком и заново привязать activeResize
+            // → визуально дёргается, но работает
+
+            // Вариант 2 (лучше): сдвинуть бар через transform
+            // (положение barEl относительно его родительской клетки)
+
+            // Так как бар в клетке стартового дня, при сдвиге влево-вправо нужно
+            // менять не только width, но и позицию (left).
+            // Проще — перерисовать весь Gantt, а потом восстановить dragging-класс.
+            // Но это дорого.
+
+            // Оптимально — менять прямо barEl:
+            // Если side === 'left', то barEl "растёт" влево → нужно сдвинуть left + уменьшить width.
+            // Но barEl сейчас в клетке стартового дня — мы двигаем старт, значит клетка меняется.
+            // Это уже не просто — нужно переносить barEl в другую клетку.
+        }
+
+        // Простой надёжный вариант: перерисовать Gantt, но подсветить «тащимый» бар
+        render();
+        // После render() barEl пересоздан. Найдём новый бар и подсветим.
+        var newBar = document.querySelector('.g-bar[data-task-id="' + task.id + '"]');
+        if (newBar) newBar.classList.add('dragging');
+        activeResize.barEl = newBar;
     });
 
     document.addEventListener('mouseup', function (e) {

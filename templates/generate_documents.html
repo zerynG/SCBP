@@ -1,9 +1,9 @@
-{% extends 'base.html' %}
+{% extends 'base_app.html' %}
 {% load static %}
 
 {% block title %}Документы — {{ project.name }}{% endblock %}
 
-{% block extra_css %}
+{% block app_extra_css %}
 <style>
     .gd { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
 
@@ -103,7 +103,7 @@
 </style>
 {% endblock %}
 
-{% block content %}
+{% block app_content %}
 <div class="gd">
 
     <div class="gd-header">
@@ -112,7 +112,9 @@
             {% if project.description %}<div class="gd-sub">{{ project.description }}</div>{% endif %}
         </div>
         <div>
-            <a href="{% url 'project_manage' project.id %}" class="app-btn"><i class="fas fa-arrow-left"></i> К проекту</a>
+            <a href="{% url 'project_manage' project.id %}" class="app-btn">
+                <i class="fas fa-arrow-left"></i> К проекту
+            </a>
         </div>
     </div>
 
@@ -145,22 +147,26 @@
         <div class="app-card">
             <div class="app-card-title">Расчёт стоимости проекта</div>
             <table class="gd-total-table">
-                <tr><td>Сотрудники</td><td class="value">{{ cost_calculation.total_employee_cost|floatformat:2 }} ₽</td></tr>
-                <tr><td>Исполнители</td><td class="value">{{ cost_calculation.total_contractor_cost|floatformat:2 }} ₽</td></tr>
-                <tr><td>Подрядчики</td><td class="value">{{ cost_calculation.total_subcontractor_cost|floatformat:2 }} ₽</td></tr>
-                <tr><td>Оборудование</td><td class="value">{{ cost_calculation.total_equipment_cost|floatformat:2 }} ₽</td></tr>
+                <tr><td>Сотрудники</td><td class="value">{{ totals.total_employee_cost|floatformat:2 }} ₽</td></tr>
+                <tr><td>Исполнители</td><td class="value">{{ totals.total_contractor_cost|floatformat:2 }} ₽</td></tr>
+                <tr><td>Подрядчики</td><td class="value">{{ totals.total_subcontractor_cost|floatformat:2 }} ₽</td></tr>
+                <tr><td>Оборудование</td><td class="value">{{ totals.total_equipment_cost|floatformat:2 }} ₽</td></tr>
                 <tr class="total"><td>Себестоимость</td><td class="value">{{ base_cost|floatformat:2 }} ₽</td></tr>
                 <tr class="total"><td>Итоговая цена</td><td class="value">{{ final_price|floatformat:2 }} ₽</td></tr>
                 <tr class="total"><td>Чистая прибыль</td><td class="value">{{ net_profit|floatformat:2 }} ₽</td></tr>
+                {% if vat_rate > 0 %}
+                <tr class="total"><td>НДС ({{ vat_rate }}%)</td><td class="value">{{ vat_amount|floatformat:2 }} ₽</td></tr>
+                <tr class="total"><td>Цена с НДС</td><td class="value">{{ price_with_vat|floatformat:2 }} ₽</td></tr>
+                {% endif %}
             </table>
         </div>
         <div class="app-card">
             <div class="app-card-title">Распределение себестоимости</div>
             <canvas id="costChart" width="400" height="220"
-                    data-emp="{{ cost_calculation.total_employee_cost|floatformat:2 }}"
-                    data-contr="{{ cost_calculation.total_contractor_cost|floatformat:2 }}"
-                    data-sub="{{ cost_calculation.total_subcontractor_cost|floatformat:2 }}"
-                    data-eq="{{ cost_calculation.total_equipment_cost|floatformat:2 }}"></canvas>
+                    data-emp="{{ totals.total_employee_cost|floatformat:2 }}"
+                    data-contr="{{ totals.total_contractor_cost|floatformat:2 }}"
+                    data-sub="{{ totals.total_subcontractor_cost|floatformat:2 }}"
+                    data-eq="{{ totals.total_equipment_cost|floatformat:2 }}"></canvas>
         </div>
     </div>
 
@@ -201,14 +207,14 @@
         <div class="gd-tab-pane active" data-pane="emp">
             {% if employees %}
             <table class="gd-detail-table">
-                <thead><tr><th>ФИО</th><th>Должность</th><th>Зарплата</th><th>Период</th></tr></thead>
+                <thead><tr><th>ФИО</th><th>Должность</th><th>Зарплата</th><th>Налоговая ставка</th></tr></thead>
                 <tbody>
                 {% for e in employees %}
                     <tr>
                         <td>{{ e.name }}</td>
                         <td>{{ e.position }}</td>
                         <td>{{ e.monthly_salary|floatformat:2 }} ₽/мес</td>
-                        <td>{{ e.start_date|default:"—" }} → {{ e.end_date|default:"н/в" }}</td>
+                        <td>{{ e.tax_rate }}%</td>
                     </tr>
                 {% endfor %}
                 </tbody>
@@ -219,14 +225,19 @@
         <div class="gd-tab-pane" data-pane="contr">
             {% if contractors %}
             <table class="gd-detail-table">
-                <thead><tr><th>ФИО</th><th>Договор</th><th>Ставка/час</th><th>План/факт часы</th></tr></thead>
+                <thead><tr><th>ФИО</th><th>Договор</th><th>Ед. изм.</th><th>Ставка</th></tr></thead>
                 <tbody>
                 {% for c in contractors %}
                     <tr>
                         <td>{{ c.name }}</td>
                         <td>{{ c.get_contract_type_display }}</td>
-                        <td>{{ c.hourly_rate|floatformat:2 }} ₽</td>
-                        <td>{{ c.estimated_hours }} / {{ c.actual_hours }}</td>
+                        <td>{{ c.get_unit_display }}</td>
+                        <td>
+                            {% if c.unit == 'hours' %}{{ c.hourly_cost|floatformat:2 }} ₽/час
+                            {% elif c.unit == 'days' %}{{ c.daily_cost|floatformat:2 }} ₽/день
+                            {% else %}{{ c.fixed_cost|floatformat:2 }} ₽
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
                 </tbody>
@@ -237,20 +248,14 @@
         <div class="gd-tab-pane" data-pane="sub">
             {% if subcontractors %}
             <table class="gd-detail-table">
-                <thead><tr><th>Название</th><th>Тип</th><th>ИНН</th><th>Сумма / Ставка</th></tr></thead>
+                <thead><tr><th>Название</th><th>Тип</th><th>ИНН</th><th>Телефон</th></tr></thead>
                 <tbody>
                 {% for s in subcontractors %}
                     <tr>
                         <td>{{ s.name }}</td>
                         <td>{{ s.get_entity_type_display }}</td>
                         <td>{{ s.inn|default:"—" }}</td>
-                        <td>
-                            {% if s.pricing_type == 'hourly' and s.hourly_rate %}
-                                {{ s.hourly_rate|floatformat:2 }} ₽/час
-                            {% else %}
-                                {{ s.contract_amount|floatformat:2 }} ₽
-                            {% endif %}
-                        </td>
+                        <td>{{ s.phone|default:"—" }}</td>
                     </tr>
                 {% endfor %}
                 </tbody>
@@ -261,20 +266,14 @@
         <div class="gd-tab-pane" data-pane="eq">
             {% if equipment %}
             <table class="gd-detail-table">
-                <thead><tr><th>Название</th><th>Тип оплаты</th><th>Кол-во</th><th>Ставка / Стоимость</th></tr></thead>
+                <thead><tr><th>Название</th><th>Тип</th><th>Ед. изм.</th><th>Стоимость</th></tr></thead>
                 <tbody>
                 {% for eq in equipment %}
                     <tr>
                         <td>{{ eq.name }}</td>
-                        <td>{{ eq.get_pricing_type_display }}</td>
-                        <td>{{ eq.quantity }}</td>
-                        <td>
-                            {% if eq.operational_cost %}
-                                {{ eq.operational_cost|floatformat:2 }} ₽/{{ eq.pricing_type }} · σ {{ eq.total_cost|floatformat:2 }} ₽
-                            {% else %}
-                                {{ eq.cost|floatformat:2 }} ₽/шт · σ {{ eq.total_cost|floatformat:2 }} ₽
-                            {% endif %}
-                        </td>
+                        <td>{{ eq.get_acquisition_type_display }}</td>
+                        <td>{{ eq.get_unit_display }}</td>
+                        <td>{{ eq.cost|floatformat:2 }} ₽</td>
                     </tr>
                 {% endfor %}
                 </tbody>
@@ -285,7 +284,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block app_extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {

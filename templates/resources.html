@@ -754,6 +754,26 @@
     }
     function fmt(n) { return Math.round(parseFloat(n) || 0).toLocaleString('ru-RU'); }
 
+    function formatPhone(value) {
+        var d = value.replace(/\D/g, '');
+        if (!d) return '';
+        if (d.charAt(0) === '8') d = '7' + d.slice(1);
+        if (d.charAt(0) !== '7') d = '7' + d;
+        d = d.slice(0, 11);
+        var p = d.slice(1);
+        var out = '+7';
+        if (p.length) out += ' (' + p.slice(0, 3);
+        if (p.length >= 3) out += ')';
+        if (p.length > 3) out += ' ' + p.slice(3, 6);
+        if (p.length > 6) out += '-' + p.slice(6, 8);
+        if (p.length > 8) out += '-' + p.slice(8, 10);
+        return out;
+    }
+    function isValidPhone(value) {
+        var d = value.replace(/\D/g, '');
+        return d.length === 0 || d.length === 10 || (d.length === 11 && d.charAt(0) === '7');
+    }
+
     // ============================================================
     // Состояние
     // ============================================================
@@ -1360,6 +1380,11 @@
         e.preventDefault();
         var name = document.getElementById('subcontractorName').value.trim();
         if (!name) { alert('Укажите наименование'); return; }
+        var phone = document.getElementById('subcontractorPhone').value;
+        if (phone && !isValidPhone(phone)) {
+            alert('Телефон должен содержать 10 цифр (например +7 (999) 123-45-67)');
+            return;
+        }
         submitForm('subcontractors', 'subcontractor', this, function () {
             var fd = new FormData();
             fd.append('name', name);
@@ -1388,6 +1413,11 @@
         e.preventDefault();
         var name = document.getElementById('customerName').value.trim();
         if (!name) { alert('Укажите ФИО'); return; }
+        var phone = document.getElementById('customerPhone').value;
+        if (phone && !isValidPhone(phone)) {
+            alert('Телефон должен содержать 10 цифр (например +7 (999) 123-45-67)');
+            return;
+        }
         submitForm('customers', 'customer', this, function () {
             var fd = new FormData();
             fd.append('name', name);
@@ -1437,17 +1467,24 @@
         var valid = ['employees', 'executors', 'equipment', 'customers', 'subcontractors'];
         if (valid.indexOf(hash) !== -1) {
             window.showTab(null, hash);
-        } else if (!hash) {
-            // если hash нет — по умолчанию «Сотрудники»
-            window.showTab(null, 'employees');
         }
     }
 
-    // При загрузке
-    applyHash();
-
-    // При смене hash в адресной строке (стрелки назад/вперёд, клики по ссылкам с #)
+    // Запускаем после загрузки — и сразу сбрасываем скролл вверх БЕЗ анимации
+    window.addEventListener('DOMContentLoaded', function () {
+        applyHash();
+        // Отменяем браузерное позиционирование по якорю
+        window.scrollTo(0, 0);
+        // Ещё раз, после того как браузер доделает свой скролл
+        setTimeout(function () { window.scrollTo(0, 0); }, 0);
+    });
     window.addEventListener('hashchange', applyHash);
+    document.getElementById('subcontractorPhone').addEventListener('input', function () {
+        this.value = formatPhone(this.value);
+    });
+    document.getElementById('customerPhone').addEventListener('input', function () {
+        this.value = formatPhone(this.value);
+    });
 })();
 </script>
 {% endblock %}

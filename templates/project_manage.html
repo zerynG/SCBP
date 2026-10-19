@@ -1520,7 +1520,6 @@
             +   '<span class="pm-res-total-value">' + fmt2(finalCost) + ' ₽</span>'
             + '</div>'
             + '<div class="pm-res-actions">'
-            + '<button class="pm-icon-btn gantt" title="Добавить в Гант" onclick="sendToGantt(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-stream"></i></button>'
             + '<button class="pm-icon-btn" title="Редактировать" onclick="openEditResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-pen"></i></button>'
             + '<button class="pm-icon-btn danger" title="Удалить" onclick="openDeleteResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-trash"></i></button>'
             + '</div>'
@@ -1540,7 +1539,6 @@
             + '<div class="pm-tile-head">'
             +   '<div class="pm-tile-icon"><i class="fas ' + meta.icon + '"></i></div>'
             +   '<div class="pm-tile-actions">'
-            +     '<button class="pm-icon-btn gantt" title="Добавить в Гант" onclick="sendToGantt(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-stream"></i></button>'
             +     '<button class="pm-icon-btn" title="Редактировать" onclick="openEditResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-pen"></i></button>'
             +     '<button class="pm-icon-btn danger" title="Удалить" onclick="openDeleteResourceModal(\'' + r.resource_type + '\', ' + r.resource_id + ')"><i class="fas fa-trash"></i></button>'
             +   '</div>'
@@ -1698,9 +1696,11 @@
     var pickFilter = 'all';
     var pickSearch = '';
     var selectedResource = null;
+    var editingOverride = false;   // true → редактируем существующий, false → добавляем новый
 
     window.openAddResourceModal = function () {
         selectedResource = null;
+        editingOverride = false; 
         pickFilter = 'all';
         pickSearch = '';
         document.getElementById('resPickSearch').value = '';
@@ -1831,6 +1831,7 @@
     window.closeResourceSettingsModal = function () {
         settingsModal.classList.remove('open');
         unlockScroll();
+        editingOverride = false;
     };
 
     document.getElementById('resStartDate').addEventListener('change', updatePeriodInfo);
@@ -1878,17 +1879,24 @@
         fd.append('resource_id', selectedResource.id);
         fd.append('csrfmiddlewaretoken', csrf());
 
-        fetch('/api/projects/' + PROJECT_ID + '/add-resource/', {
-            method: 'POST', body: fd, credentials: 'same-origin',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
+                // Если редактируем существующий — не зовём add-resource, сразу update-override
+        // Если создаём новый — сначала add-resource, потом update-override
+
+        var chain;
+        if (editingOverride) {
+            chain = Promise.resolve({ success: true });
+        } else {
+            chain = fetch('/api/projects/' + PROJECT_ID + '/add-resource/', {
+                method: 'POST', body: fd, credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            }).then(function (r) { return r.json(); });
+        }
+
+        chain.then(function (data) {
             if (!data.success) {
                 toast('Ошибка', data.error || '', 'danger');
                 return;
             }
-            // Ресурс добавлен — теперь сохраним его параметры
             var fd2 = new FormData();
             fd2.append('resource_type', selectedResource.type);
             fd2.append('resource_id', selectedResource.id);
@@ -1902,21 +1910,22 @@
             fd2.append('use_project_dates', document.getElementById('resUseProjectDates').checked ? '1' : '0');
             fd2.append('csrfmiddlewaretoken', csrf());
 
-            fetch('/api/projects/' + PROJECT_ID + '/update-override/', {
+            return fetch('/api/projects/' + PROJECT_ID + '/update-override/', {
                 method: 'POST', body: fd2, credentials: 'same-origin',
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            })
-            .then(function (r) { return r.json(); })
-            .then(function (data2) {
-                if (data2.success) {
-                    overridesMap[selectedResource.type + ':' + selectedResource.id] = data2.override;
-                    closeResourceSettingsModal();
-                    loadCalculation();
-                    toast('Ресурс добавлен', selectedResource.item.name, 'success');
-                } else {
-                    toast('Ошибка настройки', data2.error || '', 'danger');
-                }
-            });
+            }).then(function (r) { return r.json(); });
+        })
+        .then(function (data2) {
+            if (!data2) return;
+            if (data2.success) {
+                overridesMap[selectedResource.type + ':' + selectedResource.id] = data2.override;
+                closeResourceSettingsModal();
+                loadCalculation();
+                toast(editingOverride ? 'Изменения сохранены' : 'Ресурс добавлен',
+                      selectedResource.item ? selectedResource.item.name : '', 'success');
+            } else {
+                toast('Ошибка настройки', data2.error || '', 'danger');
+            }
         });
     });
 
@@ -1927,6 +1936,7 @@
         var ov = overridesMap[type + ':' + id];
         if (!ov) return;
         selectedResource = { type: type, id: id, item: null };
+        editingOverride = true;
 
         // Находим в каталоге, чтобы знать метаинфо
         var all = flattenCatalog();

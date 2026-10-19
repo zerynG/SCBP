@@ -13,6 +13,8 @@ urlpatterns = [
     path('profile/', views.profile, name='profile'),
     path('logout/', views.logout_view, name='logout'),
     
+    path('workspaces/last/', views.workspace_last_redirect, name='workspace_last'),
+    path('project/documents/', views.documents_last_redirect, name='documents_last'),
     # Создание Рабочей Области
     path('workspaces/', views.workspace_list, name='workspace_list'),
     path('api/workspaces/', views.workspaces_api, name='workspaces_api'),

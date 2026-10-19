@@ -1,0 +1,146 @@
+{% extends 'base_app.html' %}
+{% load static %}
+
+{% block title %}Диаграмма Ганта — IQNIX TECH{% endblock %}
+
+{% block app_extra_css %}
+<style>
+    .gs-wrap {
+        max-width: 720px;
+        margin: 3rem auto;
+        padding: 0 1rem;
+    }
+    .gs-title {
+        font-size: 1.55rem; font-weight: 700;
+        color: var(--text-strong);
+        margin: 0 0 .35rem;
+    }
+    .gs-sub {
+        color: var(--text-soft); font-size: .9rem;
+        margin: 0 0 2rem;
+    }
+    .gs-list {
+        display: grid; gap: .75rem;
+    }
+    .gs-item {
+        display: flex; align-items: center;
+        gap: 1rem;
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem 1.5rem;
+        cursor: pointer;
+        text-decoration: none;
+        color: var(--text);
+        transition: all .2s;
+    }
+    .gs-item:hover {
+        border-color: var(--accent);
+        background: var(--surface-2);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,.3);
+        color: var(--text);
+    }
+    .gs-icon {
+        width: 48px; height: 48px; border-radius: 12px;
+        background: var(--accent-tint); color: var(--accent-soft);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.15rem;
+        border: 1px solid rgba(139,92,246,.22);
+        flex-shrink: 0;
+    }
+    .gs-info { flex: 1; min-width: 0; }
+    .gs-name {
+        font-size: 1rem; font-weight: 700;
+        color: var(--text-strong);
+        line-height: 1.3;
+    }
+    .gs-meta {
+        font-size: .82rem; color: var(--text-soft);
+        margin-top: .25rem;
+    }
+    .gs-arrow {
+        color: var(--text-faint);
+        font-size: .9rem;
+        transition: all .2s;
+    }
+    .gs-item:hover .gs-arrow {
+        color: var(--accent);
+        transform: translateX(3px);
+    }
+    .gs-empty {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-faint);
+        border: 1px dashed var(--border-2);
+        border-radius: var(--radius-lg);
+        background: var(--surface-1);
+    }
+    .gs-empty i {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: .75rem;
+    }
+</style>
+{% endblock %}
+
+{% block app_content %}
+<div class="gs-wrap">
+    <h1 class="gs-title">Генерация документов</h1>
+    <p class="gs-sub">Выберите проект, чтобы сформировать документы.</p>
+
+    <div class="gs-list" id="gsList">
+        <div class="gs-empty">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Загрузка проектов…</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block app_extra_js %}
+<script>
+(function () {
+    'use strict';
+    function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s == null ? '' : String(s);
+        return d.innerHTML;
+    }
+    function fmtDate(s) {
+        if (!s) return '';
+        var d = new Date(s);
+        if (isNaN(d)) return '';
+        return d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' });
+    }
+
+    fetch('/api/projects/for-gantt/', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            var list = document.getElementById('gsList');
+            var projects = data.projects || [];
+            if (!projects.length) {
+                list.innerHTML = '<div class="gs-empty"><i class="fas fa-folder-open"></i><p>Нет проектов. Создайте проект в разделе «Управление проектом».</p></div>';
+                return;
+            }
+            list.innerHTML = projects.map(function (p) {
+                var dates = '';
+                if (p.start_date || p.end_date) {
+                    dates = ' · ' + fmtDate(p.start_date) + ' — ' + fmtDate(p.end_date);
+                }
+                return '<a href="/project/' + p.id + '/generate_documents/" class="gs-item">'
+                    + '<div class="gs-icon"><i class="fas fa-stream"></i></div>'
+                    + '<div class="gs-info">'
+                    +   '<div class="gs-name">' + esc(p.name) + '</div>'
+                    +   '<div class="gs-meta">' + (p.customer ? esc(p.customer) : 'Без заказчика') + dates + '</div>'
+                    + '</div>'
+                    + '<i class="fas fa-arrow-right gs-arrow"></i>'
+                    + '</a>';
+            }).join('');
+        })
+        .catch(function () {
+            document.getElementById('gsList').innerHTML = '<div class="gs-empty"><i class="fas fa-exclamation-triangle"></i><p>Ошибка загрузки</p></div>';
+        });
+})();
+</script>
+{% endblock %}

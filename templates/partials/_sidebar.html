@@ -8,7 +8,7 @@
         </div>
     </div>
 
-    <a href="{% url 'workspace_list' %}"
+    <a href="{% url 'workspace_last' %}"
        class="cr-ws-link {% if sidebar_active == 'workspace' %}active{% endif %}"
        title="Рабочая область">
         <span class="cr-side-icon">
@@ -21,7 +21,6 @@
         </span>
         <span class="cr-side-label">Рабочая область</span>
     </a>
-
     <div class="cr-side-divider"></div>
 
     {# ===================== Создание ресурсов ===================== #}
@@ -117,7 +116,7 @@
         </a>
 
         <a class="cr-side-link {% if sidebar_active == 'documents' %}active{% endif %}"
-           href="{% url 'project_list' %}"
+           href="{% url 'documents_last' %}"
            title="Генерация документов">
             <span class="cr-side-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true">

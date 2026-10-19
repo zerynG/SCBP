@@ -1007,14 +1007,29 @@ def generate_documents(request, project_id):
 
     context = {
         'project': project,
+        'workspace': project.workspace,
+        'sidebar_active': 'documents',
+
+        # Каталог (для детализации по типам)
         'employees': result['employees_qs'],
         'contractors': result['contractors_qs'],
         'subcontractors': result['subcontractors_qs'],
         'equipment': result['equipment_qs'],
-        'cost_calculation': cost_calculation,
+
+        # Финансы (из totals, не из cost_calculation)
+        'base_cost': totals.base_cost,
         'final_price': totals.final_price,
         'net_profit': totals.net_profit,
-        'base_cost': totals.base_cost,
+        'vat_rate': totals.vat_rate,
+        'vat_amount': totals.vat_amount,
+        'price_with_vat': totals.price_with_vat,
+        'totals': totals,
+
+        # Разбивка по типам для таблицы
+        'total_employee_cost': totals.total_employee_cost,
+        'total_contractor_cost': totals.total_contractor_cost,
+        'total_subcontractor_cost': totals.total_subcontractor_cost,
+        'total_equipment_cost': totals.total_equipment_cost,
     }
     return render(request, 'generate_documents.html', context)
 
@@ -2871,15 +2886,23 @@ def project_selector_api(request):
 
 
 @login_required
-@require_http_methods(["GET"])
 def last_project_redirect(request):
-    """GET /project/gantt/ — редирект на Гант последнего проекта или выбор."""
-    project_id = request.session.get('last_project_id')
-    if project_id:
-        try:
-            Project.objects.get(id=project_id, is_active=True)
-            return redirect('project_gantt', project_id=project_id)
-        except Project.DoesNotExist:
-            pass
-    # Нет последнего — показываем модалку выбора
+    """GET /project/gantt/ — всегда выбор проекта (без автовыбора)."""
     return render(request, 'gantt_selector.html', {'sidebar_active': 'gantt'})
+
+@login_required
+def workspace_last_redirect(request):
+    """GET /workspaces/last/ — редирект на последнюю активную РО, иначе на список."""
+    ws_id = request.session.get('active_workspace_id')
+    if ws_id:
+        try:
+            ws = Workspace.objects.get(id=ws_id, is_active=True)
+            return redirect('workspace_detail', workspace_id=ws.id)
+        except Workspace.DoesNotExist:
+            pass
+    return redirect('workspace_list')
+
+@login_required
+def documents_last_redirect(request):
+    """GET /project/documents/ — всегда показываем выбор проекта для документов."""
+    return render(request, 'documents_selector.html', {'sidebar_active': 'documents'})
