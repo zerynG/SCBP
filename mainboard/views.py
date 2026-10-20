@@ -1205,9 +1205,9 @@ def _valid_applies_to(value):
 
 @login_required
 def services_page(request):
-    """Отдельная страница управления реестром услуг (по образцу страницы Ганта)."""
+    """Отдельная страница управления реестром услуг."""
     services = list(_services_with_usage())
-    services_json = json.dumps([
+    services_list = [
         {
             'id': s.id,
             'name': s.name,
@@ -1219,10 +1219,10 @@ def services_page(request):
             'usage_projects': s.usage_projects,
         }
         for s in services
-    ], ensure_ascii=False)
+    ]
     return render(request, 'services.html', {
         'services': services,
-        'services_json': services_json,
+        'services_json': services_list,   # ← СПИСОК, не строка
         'applies_to_choices': Service.APPLIES_TO_CHOICES,
     })
 
@@ -2906,3 +2906,101 @@ def workspace_last_redirect(request):
 def documents_last_redirect(request):
     """GET /project/documents/ — всегда показываем выбор проекта для документов."""
     return render(request, 'documents_selector.html', {'sidebar_active': 'documents'})
+
+@login_required
+@require_http_methods(["GET"])
+def service_resources_api(request, service_id):
+    """GET /api/services/<id>/resources/ — все ресурсы, привязанные к услуге."""
+    service = get_object_or_404(Service, id=service_id)
+
+    overrides = ProjectResourceOverride.objects.filter(service=service).select_related('project')
+
+    items = []
+    for o in overrides:
+        ws = o.project.workspace if o.project else None
+        name = '—'
+        model_map = {
+            'employee': Employee, 'contractor': Contractor,
+            'subcontractor': Subcontractor, 'customer': Customer, 'equipment': Equipment,
+        }
+        Model = model_map.get(o.resource_type)
+        if Model and ws:
+            try:
+                name = Model.objects.get(id=o.resource_id, workspace=ws).name
+            except Model.DoesNotExist:
+                pass
+
+        items.append({
+            'override_id': o.id,
+            'resource_type': o.resource_type,
+            'resource_id': o.resource_id,
+            'name': name,
+            'project_id': o.project.id,
+            'project_name': o.project.name,
+            'work_start_date': o.work_start_date.isoformat() if o.work_start_date else '',
+            'work_end_date': o.work_end_date.isoformat() if o.work_end_date else '',
+            'resource_margin': str(o.resource_margin) if o.resource_margin is not None else None,
+            'working_hours': o.working_hours,
+        })
+
+    return JsonResponse({
+        'service': {
+            'id': service.id,
+            'name': service.name,
+            'description': service.description,
+            'applies_to': service.applies_to,
+        },
+        'items': items,
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def service_override_update(request, override_id):
+    """POST /api/service-overrides/<id>/update/ — обновить параметры override.
+
+    Принимает: resource_margin, work_start_date, work_end_date, working_hours.
+    Используется из раскрытой карточки услуги.
+    """
+    override = get_object_or_404(ProjectResourceOverride, id=override_id)
+
+    raw = request.POST.get('resource_margin')
+    if raw is None or str(raw).strip() == '':
+        override.resource_margin = None
+    else:
+        try:
+            override.resource_margin = Decimal(str(raw).replace(',', '.'))
+        except Exception:
+            pass
+
+    start_str = request.POST.get('work_start_date')
+    end_str = request.POST.get('work_end_date')
+    try:
+        override.work_start_date = date.fromisoformat(start_str) if start_str else None
+    except (ValueError, TypeError):
+        pass
+    try:
+        override.work_end_date = date.fromisoformat(end_str) if end_str else None
+    except (ValueError, TypeError):
+        pass
+
+    wh = request.POST.get('working_hours')
+    if wh is None or str(wh).strip() == '':
+        override.working_hours = None
+    else:
+        try:
+            override.working_hours = max(0, int(wh))
+        except (ValueError, TypeError):
+            pass
+
+    override.save()
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_http_methods(["POST"])
+def service_override_delete(request, override_id):
+    """POST /api/service-overrides/<id>/delete/ — удалить ресурс из проекта."""
+    override = get_object_or_404(ProjectResourceOverride, id=override_id)
+    override.delete()
+    return JsonResponse({'success': True})

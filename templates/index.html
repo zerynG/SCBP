@@ -1,299 +1,300 @@
-{% extends 'base.html' %}
+{% extends 'base_home.html' %}
 {% load static %}
 
 {% block title %}IQNIX TECH — Система расчёта стоимости проектов{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* ============================================================
-       HOME PAGE — стили только для главной.
-       Токены (:root), .app-card, .app-btn, .kpi — уже в app.css.
-       ============================================================ */
+        /* ⚡ КРИТИЧНО: app.css задаёт .scrollable background: var(--bg),
+       что перекрывает bg-stage. Убираем фон на главной. */
+    .scrollable {
+        background: transparent !important;
+    }
+    /* =====================================================================
+       ФОНОВЫЙ ЛОГОТИП И СВЕЧЕНИЯ
+       ===================================================================== */
+    .bg-stage {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        overflow: hidden;
+        background: radial-gradient(circle at 50% 50%, #1c1c1f 0%, #141416 70%);
+    }
 
-    /* --- Обёртка страницы --- */
+    .bg-logo {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 900px; height: 900px;
+        transform: translate(-50%, -50%);
+        opacity: 0.02;
+        animation: bgLogoBreathe 24s ease-in-out infinite alternate;
+        pointer-events: none;
+        will-change: transform, opacity;
+    }
+    .bg-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        filter: brightness(0.8) blur(1px);
+    }
+
+    @keyframes bgLogoBreathe {
+        0%   { transform: translate(-50%, -50%) scale(0.92) rotate(-4deg);  opacity: 0.015; }
+        100% { transform: translate(-50%, -50%) scale(1.08) rotate(4deg);   opacity: 0.035; }
+    }
+
+    .glow {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(100px);
+        z-index: 0;
+        will-change: transform, opacity;
+    }
+    .glow.g1 {
+        width: 600px; height: 600px;
+        top: -100px; left: 10%;
+        background: rgba(139, 92, 246, 0.15);
+        animation: glowFloat 15s ease-in-out infinite alternate;
+    }
+    .glow.g2 {
+        width: 500px; height: 500px;
+        bottom: -100px; right: 10%;
+        background: rgba(167, 139, 250, 0.1);
+        animation: glowFloat 18s ease-in-out infinite alternate-reverse;
+    }
+    @keyframes glowFloat {
+        0%   { transform: translate(0, 0) scale(1); opacity: 0.8; }
+        100% { transform: translate(50px, 50px) scale(1.2); opacity: 1; }
+    }
+
+    /* =====================================================================
+       ОСНОВНОЙ КОНТЕНТ
+       ===================================================================== */
     .home-wrap {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 2.5rem 2rem 4rem;
-        position: relative;
-    }
-
-    /* --- Анимации --- */
-    @keyframes fadeUp {
-        from { opacity: 0; transform: translateY(18px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes shimmer {
-        0%   { background-position: -400px 0; }
-        100% { background-position: 400px 0; }
-    }
-    @keyframes pulseDot {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55); }
-        70%      { box-shadow: 0 0 0 8px rgba(52, 211, 153, 0); }
-    }
-    @keyframes gradientMove {
-        0%   { background-position: 0% 50%; }
-        50%  { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    @keyframes floatIcon {
-        0%, 100% { transform: translateY(0); }
-        50%      { transform: translateY(-4px); }
+        max-width: 1300px; margin: 0 auto;
+        padding: 3rem 2rem 4rem;
+        position: relative; z-index: 2;
     }
 
     .reveal {
         opacity: 0;
-        transform: translateY(18px);
-        transition: opacity 0.55s ease, transform 0.55s ease;
-        will-change: opacity, transform;
+        transform: translateY(30px);
+        transition: opacity 0.8s ease, transform 0.8s ease;
     }
     .reveal.is-visible { opacity: 1; transform: translateY(0); }
-    .reveal.delay-1 { transition-delay: 0.08s; }
-    .reveal.delay-2 { transition-delay: 0.16s; }
 
-    /* --- Hero --- */
+    /* HERO */
     .hero {
-        background: var(--surface-1);
-        border: 1px solid var(--border-1);
-        border-radius: var(--radius-lg);
-        padding: 2.5rem 2rem;
-        margin-bottom: 2.5rem;
+        text-align: center;
+        padding: 3rem 1rem 2rem;
+        position: relative;
+    }
+    .hero h1 {
+        font-size: 2.6rem; font-weight: 700; color: #ffffff;
+        margin: 0 auto 1.5rem; line-height: 1.2; max-width: 900px;
+        letter-spacing: -0.02em;
+    }
+    .hero p {
+        color: #999; font-size: 1.1rem;
+        margin: 0 auto; max-width: 700px;
+    }
+    .hero p strong { color: var(--home-accent-soft); }
+    #today-date { color: #ffffff; }
+
+    /* =====================================================================
+       КАРТОЧКИ ДЕЙСТВИЙ (ТАБЛЕТКИ)
+       ===================================================================== */
+    .actions-grid {
+        display: flex; flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 3.5rem;
+    }
+    .actions-row {
+        display: flex;
+        justify-content: center;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .action-card {
+        display: inline-flex;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 1.2rem 2.5rem;
+        border-radius: 100px;
+        background: rgba(255, 255, 255, 0.015);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        text-decoration: none;
+        color: #e0e0e0;
+        position: relative;
+        transition: all .3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .action-card:hover {
+        transform: translateY(-4px);
+        background: rgba(139, 92, 246, 0.06);
+        border-color: rgba(139, 92, 246, 0.2);
+        color: #ffffff;
+    }
+    .action-card .icon {
+        width: 56px; height: 56px;
+        border-radius: 50%;
+        background: rgba(139, 92, 246, 0.1);
+        color: var(--home-accent-soft);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.7rem;
+        transition: all .3s ease;
+    }
+    .action-card:hover .icon {
+        background: var(--home-accent);
+        color: white;
+        box-shadow: 0 0 20px var(--home-accent-glow);
+    }
+    .action-card .title {
+        font-size: 1.8rem;
+        font-weight: 600;
+        color: #ffffff;
+        margin: 0;
+    }
+
+    /* =====================================================================
+       KPI
+       ===================================================================== */
+    .stats-block { margin-bottom: 4rem; }
+    .stats-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 1.5rem;
+    }
+    .stats-head h2 { font-size: 1.5rem; font-weight: 600; margin: 0; color: #ffffff; }
+    .stats-head span { font-size: 0.85rem; color: var(--home-accent-soft); }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+    }
+    .kpi {
+        background: var(--home-surface-1);
+        border: 1px solid var(--home-border-1);
+        border-radius: 18px;
+        padding: 1.5rem;
         position: relative;
         overflow: hidden;
-        animation: fadeUp 0.5s ease both;
+        transition: all .3s ease;
     }
-    .hero::before {
+    .kpi:hover {
+        border-color: rgba(139, 92, 246, 0.3);
+        transform: translateY(-4px);
+        background: var(--home-surface-2);
+    }
+    .kpi::before {
         content: '';
         position: absolute;
         top: 0; left: 0; right: 0;
-        height: 3px;
-        background: linear-gradient(
-            90deg,
-            var(--accent),
-            var(--accent-soft),
-            var(--accent),
-            transparent 90%
-        );
-        background-size: 200% 100%;
-        animation: gradientMove 6s ease infinite;
-    }
-    .hero h1 {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: var(--text-strong);
-        margin: 0 0 0.75rem;
-        line-height: 1.3;
-    }
-    .hero p {
-        color: var(--text-muted);
-        font-size: 0.95rem;
-        margin: 0;
-        max-width: 720px;
-    }
-    .hero p strong { color: var(--accent-soft); font-weight: 600; }
-
-    /* --- Крупные action-карточки --- */
-    .actions-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2.75rem;
-    }
-    .action-card {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        justify-content: flex-start;
-        gap: 1.35rem;
-        padding: 2.5rem 2rem;
-        background: var(--surface-1);
-        border: 1px solid var(--border-1);
-        border-radius: var(--radius-lg);
-        text-decoration: none;
-        color: var(--text);
-        transition: background 0.2s ease, border-color 0.2s ease,
-                    transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-                    box-shadow 0.25s ease;
-        min-height: 300px;
-        position: relative;
-        overflow: hidden;
-        animation: fadeUp 0.5s ease both;
-    }
-    .action-card:nth-child(1) { animation-delay: 0.05s; }
-    .action-card:nth-child(2) { animation-delay: 0.12s; }
-    .action-card:nth-child(3) { animation-delay: 0.19s; }
-
-    .action-card::after {
-        content: '';
-        position: absolute;
-        inset: -1px;
-        border-radius: inherit;
-        background: linear-gradient(135deg, transparent 40%, var(--accent-tint), transparent 70%);
+        height: 2px;
+        background: linear-gradient(90deg, var(--home-accent), transparent);
         opacity: 0;
-        transition: opacity 0.3s ease;
-        pointer-events: none;
-        z-index: 0;
+        transition: opacity .3s ease;
     }
-    .action-card:hover::after { opacity: 1; }
-    .action-card:hover {
-        background: var(--surface-2);
-        border-color: var(--border-3);
-        transform: translateY(-4px);
-        color: var(--text-strong);
-        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
-    }
-    .action-card > * { position: relative; z-index: 1; }
+    .kpi:hover::before { opacity: 1; }
 
-    .action-card .icon {
-        width: 72px; height: 72px;
-        border-radius: var(--radius);
-        background: var(--accent-tint);
-        color: var(--accent-soft);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 1.75rem;
-        flex-shrink: 0;
-        border: 1px solid rgba(139, 92, 246, 0.22);
-        transition: background 0.25s ease, color 0.25s ease,
-                    transform 0.25s ease, border-color 0.25s ease;
-    }
-    .action-card:hover .icon {
-        background: rgba(139, 92, 246, 0.22);
-        color: var(--accent);
-        border-color: var(--accent);
-        transform: translateY(-3px) scale(1.06);
-        animation: floatIcon 2.4s ease-in-out infinite;
-    }
-    .action-card .title {
-        font-size: 1.35rem;
-        font-weight: 700;
-        color: var(--text-strong);
-        margin: 0;
-        line-height: 1.25;
-        letter-spacing: -0.01em;
-    }
-    .action-card .desc {
-        font-size: 0.95rem;
-        color: var(--text-soft);
-        margin: 0;
-        line-height: 1.55;
-        max-width: 46ch;
-    }
-    .action-card .arrow {
-        position: absolute;
-        top: 2rem; right: 2rem;
-        color: var(--text-faint);
-        font-size: 1rem;
-        transition: transform 0.25s ease, color 0.25s ease;
-        z-index: 1;
-    }
-    .action-card:hover .arrow { color: var(--accent); transform: translateX(5px); }
-
-    .action-card.disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-        pointer-events: none;
-    }
-    .action-card.disabled::after { display: none; }
-    .action-card.disabled .icon {
-        background: rgba(255, 255, 255, 0.04);
-        color: var(--text-faint);
-        border-color: var(--border-1);
-    }
-    .action-card.disabled .title { color: var(--text-soft); }
-
-    .action-card .badge-soon {
-        display: inline-block;
-        font-size: 0.65rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
+    .kpi-label {
+        font-size: 0.8rem;
         text-transform: uppercase;
-        color: var(--warning);
-        border: 1px solid currentColor;
-        border-radius: 6px;
-        padding: 0.15rem 0.5rem;
-        margin-left: 0.6rem;
-        vertical-align: middle;
-        position: relative;
-        top: -2px;
+        letter-spacing: 0.05em;
+        color: #999;
+        margin-bottom: 0.5rem;
     }
-
-    /* --- KPI-сводка --- */
-    .stats-block { margin-bottom: 2.5rem; }
-    .stats-head {
+    .kpi-value {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #ffffff;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+        transition: color 0.3s ease;
+    }
+    .kpi-value.bump { animation: numberBump 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    @keyframes numberBump {
+        0% { transform: scale(1); color: #ffffff; }
+        50% { transform: scale(1.05); color: var(--home-accent-soft); }
+        100% { transform: scale(1); color: #ffffff; }
+    }
+    .kpi-value.positive {
+        font-size: 1.8rem;
+        color: #34d399;
         display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        margin-bottom: 1rem;
+        align-items: center;
+        gap: 0.5rem;
     }
-    .stats-head h2 {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: var(--text-strong);
-        margin: 0;
-    }
-    .stats-head span { font-size: 0.8rem; color: var(--text-soft); }
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 1rem;
-    }
-    .stats-grid .kpi {
-        text-align: left;
-        padding: 1rem 1.15rem;
-        border-radius: var(--radius-lg);
-        transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-        animation: fadeUp 0.5s ease both;
-    }
-    .stats-grid .kpi:nth-child(1) { animation-delay: 0.05s; }
-    .stats-grid .kpi:nth-child(2) { animation-delay: 0.12s; }
-    .stats-grid .kpi:nth-child(3) { animation-delay: 0.19s; }
-    .stats-grid .kpi:nth-child(4) { animation-delay: 0.26s; }
-    .stats-grid .kpi:hover {
-        transform: translateY(-2px);
-        border-color: var(--border-3);
-        background: var(--surface-2);
-    }
-    .stats-grid .kpi-label { margin-bottom: 0.35rem; }
-    .stats-grid .kpi-value { font-size: 1.35rem; }
-
-    .kpi-value.skeleton {
-        color: transparent;
-        background: linear-gradient(
-            90deg,
-            rgba(255, 255, 255, 0.04) 0%,
-            rgba(255, 255, 255, 0.10) 50%,
-            rgba(255, 255, 255, 0.04) 100%
-        );
-        background-size: 400px 100%;
-        background-repeat: no-repeat;
-        border-radius: 6px;
-        min-width: 60px;
-        min-height: 1.4em;
-        animation: shimmer 1.4s linear infinite;
-    }
-
     .status-dot {
-        display: inline-block;
-        width: 8px; height: 8px;
+        width: 10px; height: 10px;
         border-radius: 50%;
-        background: var(--success);
-        margin-right: 0.5rem;
-        vertical-align: middle;
-        animation: pulseDot 1.8s ease-out infinite;
+        background: #34d399;
+        animation: pulseGreen 2s infinite;
+    }
+    @keyframes pulseGreen {
+        0%   { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
+        70%  { box-shadow: 0 0 0 10px rgba(52, 211, 153, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
     }
 
-    /* --- About --- */
+    /* =====================================================================
+       О СИСТЕМЕ
+       ===================================================================== */
     .about-grid {
         display: grid;
         grid-template-columns: 1.1fr 1fr;
-        gap: 1.25rem;
+        gap: 1.5rem;
+    }
+    .app-card {
+        background: var(--home-surface-1);
+        border: 1px solid var(--home-border-1);
+        border-radius: 18px;
+        padding: 1.5rem;
+        transition: border-color 0.3s ease;
+    }
+    .app-card:hover { border-color: rgba(255, 255, 255, 0.1); }
+
+    .app-card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+    .app-card-icon {
+        width: 40px; height: 40px;
+        border-radius: 10px;
+        background: rgba(139, 92, 246, 0.15);
+        border: 1px solid rgba(139, 92, 246, 0.25);
+        display: flex; align-items: center; justify-content: center;
+        color: var(--home-accent-soft);
+        flex-shrink: 0;
+        box-shadow: 0 0 15px rgba(139, 92, 246, 0.1);
+        transition: all 0.3s ease;
+    }
+    .app-card:hover .app-card-icon {
+        background: rgba(139, 92, 246, 0.25);
+        box-shadow: 0 0 20px rgba(139, 92, 246, 0.25);
+    }
+    .app-card-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #999;
+        margin: 0;
     }
     .about-text {
-        color: var(--text-muted);
-        font-size: 0.9rem;
+        color: #999;
+        font-size: 0.95rem;
         line-height: 1.7;
     }
-    .about-text p { margin: 0 0 0.85rem; }
+    .about-text p { margin: 0 0 1rem; }
     .about-text p:last-child { margin-bottom: 0; }
 
     .feature-list { list-style: none; padding: 0; margin: 0; }
@@ -302,80 +303,24 @@
         align-items: flex-start;
         gap: 0.75rem;
         padding: 0.75rem 0;
-        border-bottom: 1px solid var(--border-1);
-        font-size: 0.87rem;
-        color: var(--text);
-        opacity: 0;
-        transform: translateX(-6px);
-        transition: opacity 0.4s ease, transform 0.4s ease;
+        border-bottom: 1px solid var(--home-border-1);
+        font-size: 0.9rem;
+        color: #e0e0e0;
     }
-    .feature-list li.is-visible { opacity: 1; transform: translateX(0); }
     .feature-list li:last-child { border-bottom: none; }
-    .feature-list i {
-        color: var(--accent-soft);
+    .feature-list li i {
+        color: var(--home-accent-soft);
         font-size: 0.8rem;
         margin-top: 0.35rem;
-        flex-shrink: 0;
     }
 
-    /* --- Кнопка «наверх» --- */
-    .to-top {
-        position: fixed;
-        right: 24px; bottom: 24px;
-        width: 44px; height: 44px;
-        border-radius: 50%;
-        background: var(--surface-2);
-        border: 1px solid var(--border-2);
-        color: var(--text);
-        display: flex; align-items: center; justify-content: center;
-        cursor: pointer;
-        opacity: 0; transform: translateY(10px);
-        pointer-events: none;
-        transition: opacity 0.25s ease, transform 0.25s ease,
-                    background 0.2s ease, border-color 0.2s ease;
-        z-index: 900;
-    }
-    .to-top.visible {
-        opacity: 1; transform: translateY(0);
-        pointer-events: auto;
-    }
-    .to-top:hover {
-        background: var(--accent);
-        border-color: var(--accent);
-        color: white;
-    }
-
-    /* --- Адаптив --- */
     @media (max-width: 900px) {
         .about-grid { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 720px) {
-        .action-card {
-            min-height: 240px;
-            padding: 2rem 1.5rem;
-            gap: 1.1rem;
-        }
-        .action-card .icon { width: 60px; height: 60px; font-size: 1.5rem; }
-        .action-card .title { font-size: 1.2rem; }
-        .action-card .desc { font-size: 0.9rem; }
-        .action-card .arrow { top: 1.5rem; right: 1.5rem; }
-    }
-    @media (max-width: 640px) {
-        .home-wrap { padding: 1.5rem 1rem 3rem; }
-        .hero { padding: 1.75rem 1.25rem; }
-        .hero h1 { font-size: 1.35rem; }
-        .actions-grid { grid-template-columns: 1fr; gap: 1.1rem; }
-        .stats-grid { grid-template-columns: repeat(2, 1fr); }
-        .to-top { right: 16px; bottom: 16px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after {
-            animation-duration: 0.001ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 0.001ms !important;
-        }
-        .reveal, .feature-list li { opacity: 1 !important; transform: none !important; }
+        .hero h1 { font-size: 2rem; }
+        .kpi-value { font-size: 2.5rem; }
+        .home-wrap { padding: 2rem 1rem; }
+        .actions-row { flex-direction: column; align-items: stretch; }
+        .action-card { justify-content: center; }
     }
 </style>
 {% endblock %}
@@ -383,8 +328,7 @@
 {% block content %}
 <div class="home-wrap">
 
-    <!-- ===================== HERO ===================== -->
-    <section class="hero">
+    <section class="hero reveal">
         <h1>Добро пожаловать в систему расчёта стоимости IT-проектов</h1>
         <p>
             Здравствуйте, <strong>{{ request.user.first_name|default:'Администратор' }}</strong>!
@@ -392,79 +336,88 @@
         </p>
     </section>
 
-    <!-- ===================== ACTIONS ===================== -->
-    <section class="actions-grid">
-        {# Рабочая область — временно ведём на список проектов, пока нет workspace_list #}
-        <a href="{% url 'workspace_list' %}" class="action-card">
-            <div class="icon"><i class="fas fa-briefcase"></i></div>
-            <i class="fas fa-arrow-right arrow"></i>
-            <h3 class="title">Рабочая область</h3>
-            <p class="desc">Список проектов, смет и текущих задач команды.</p>
-        </a>
+    <section class="actions-grid reveal">
+        <div class="actions-row">
+            <a href="{% url 'workspace_list' %}" class="action-card">
+                <div class="icon"><i class="fas fa-briefcase"></i></div>
+                <h3 class="title">Рабочая область</h3>
+            </a>
+        </div>
 
-        <a href="{% url 'project_list' %}" class="action-card">
-            <div class="icon"><i class="fas fa-project-diagram"></i></div>
-            <i class="fas fa-arrow-right arrow"></i>
-            <h3 class="title">Управление проектом</h3>
-            <p class="desc">Планирование этапов, распределение ролей и контроль сроков.</p>
-        </a>
+        <div class="actions-row">
+            <a href="{% url 'project_list' %}" class="action-card">
+                <div class="icon"><i class="fas fa-project-diagram"></i></div>
+                <h3 class="title">Управление проектом</h3>
+            </a>
 
-        <a href="{% url 'create_projects_resources' %}" class="action-card">
-            <div class="icon"><i class="fas fa-calculator"></i></div>
-            <i class="fas fa-arrow-right arrow"></i>
-            <h3 class="title">Каталог ресурсов</h3>
-            <p class="desc">Сотрудники, исполнители, подрядчики и оборудование для расчётов.</p>
-        </a>
+            <a href="{% url 'resources_page' %}" class="action-card">
+                <div class="icon"><i class="fas fa-calculator"></i></div>
+                <h3 class="title">Каталог ресурсов</h3>
+            </a>
+        </div>
     </section>
 
-    <!-- ===================== KPI ===================== -->
     <section class="stats-block reveal">
         <div class="stats-head">
             <h2>Краткая сводка</h2>
-            <span id="stats-updated">Обновлено только что</span>
+            <span id="stats-updated">Данные в реальном времени</span>
         </div>
         <div class="stats-grid">
             <div class="kpi">
                 <div class="kpi-label">Активные проекты</div>
-                <div class="kpi-value skeleton" data-count="{{ stats.projects_active|default:0 }}">0</div>
+                <div class="kpi-value" data-target="{{ stats.projects_active|default:0 }}" data-increment="1">0</div>
             </div>
             <div class="kpi">
                 <div class="kpi-label">Ресурсы в каталоге</div>
-                <div class="kpi-value skeleton" data-count="{{ stats.resources_total|default:0 }}">0</div>
+                <div class="kpi-value" data-target="{{ stats.resources_total|default:0 }}" data-increment="1">0</div>
             </div>
             <div class="kpi">
                 <div class="kpi-label">Смет за месяц</div>
-                <div class="kpi-value skeleton" data-count="{{ stats.sheets_month|default:0 }}">0</div>
+                <div class="kpi-value" data-target="{{ stats.sheets_month|default:0 }}" data-increment="1">0</div>
             </div>
             <div class="kpi">
                 <div class="kpi-label">Статус системы</div>
                 <div class="kpi-value positive">
-                    <span class="status-dot"></span><span id="system-status">Онлайн</span>
+                    <span class="status-dot"></span> Онлайн
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- ===================== ABOUT ===================== -->
-    <section class="about-grid">
-        <div class="app-card reveal delay-1">
-            <div class="app-card-title">О системе</div>
+    <section class="about-grid reveal">
+        <div class="app-card">
+            <div class="app-card-header">
+                <div class="app-card-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="5" ry="5"></rect>
+                        <line x1="3" y1="9" x2="21" y2="9"></line>
+                        <line x1="8" y1="2" x2="8" y2="5"></line>
+                        <line x1="16" y1="2" x2="16" y2="5"></line>
+                        <circle cx="9" cy="14" r="1.5" fill="currentColor" stroke="none"></circle>
+                        <circle cx="13" cy="14" r="1.5" fill="currentColor" stroke="none"></circle>
+                        <circle cx="9" cy="18" r="1.5" fill="currentColor" stroke="none"></circle>
+                    </svg>
+                </div>
+                <div class="app-card-title">О системе</div>
+            </div>
             <div class="about-text">
-                <p>
-                    SCBP — внутренняя платформа <strong style="color: var(--text-strong)">IQNIX TECH</strong>
-                    для расчёта стоимости IT-проектов. Система объединяет каталог ресурсов,
-                    ставки исполнителей и конструктор смет в едином рабочем пространстве.
-                </p>
-                <p>
-                    Здесь вы управляете проектами, добавляете ресурсы, формируете сметы
-                    и выгружаете готовые документы для клиентов.
-                </p>
+                <p>SCBP — внутренняя платформа <strong style="color:#fff;">IQNIX TECH</strong> для расчёта стоимости IT-проектов. Система объединяет каталог ресурсов, ставки исполнителей и конструктор смет в едином рабочем пространстве.</p>
+                <p>Здесь вы управляете проектами, добавляете ресурсы, формируете сметы и выгружаете готовые документы для клиентов.</p>
             </div>
         </div>
 
-        <div class="app-card reveal delay-2">
-            <div class="app-card-title">Возможности</div>
-            <ul class="feature-list" id="features">
+        <div class="app-card">
+            <div class="app-card-header">
+                <div class="app-card-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="8 7 3 12 8 17"></polyline>
+                        <polyline points="16 7 21 12 16 17"></polyline>
+                        <line x1="14" y1="5" x2="10" y2="19"></line>
+                    </svg>
+                </div>
+                <div class="app-card-title">Возможности</div>
+            </div>
+            <ul class="feature-list">
                 <li><i class="fas fa-check"></i><span>Единый каталог сотрудников, подрядчиков и оборудования</span></li>
                 <li><i class="fas fa-check"></i><span>Гибкие ставки и коэффициенты для расчёта</span></li>
                 <li><i class="fas fa-check"></i><span>Конструктор смет с автоматическим пересчётом</span></li>
@@ -473,122 +426,77 @@
             </ul>
         </div>
     </section>
-
 </div>
-
-<!-- Кнопка «наверх» -->
-<button class="to-top" id="to-top" aria-label="Наверх">
-    <i class="fas fa-arrow-up"></i>
-</button>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    // Сегодняшняя дата в hero
-    const dateEl = document.getElementById('today-date');
+    // Сброс скролла
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    window.scrollTo(0, 0);
+
+    // Дата
+    var dateEl = document.getElementById('today-date');
     if (dateEl) {
         dateEl.textContent = new Date().toLocaleDateString('ru-RU', {
-            weekday: 'long', year: 'numeric',
-            month: 'long', day: 'numeric'
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
     }
 
-    // Анимация счётчиков KPI
-    function animateCounter(el) {
-        const target = parseFloat(el.dataset.count || '0');
-        if (isNaN(target) || target <= 0) {
-            el.textContent = el.dataset.count || '0';
-            el.classList.remove('skeleton');
-            return;
-        }
-        const duration = 900;
-        const start = performance.now();
-        function step(now) {
-            const progress = Math.min((now - start) / duration, 1);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            el.textContent = Math.round(target * eased).toLocaleString('ru-RU');
+    // Reveal
+    var reveals = document.querySelectorAll('.reveal');
+    if ('IntersectionObserver' in window) {
+        var obs = new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) {
+                if (e.isIntersecting) { e.target.classList.add('is-visible'); obs.unobserve(e.target); }
+            });
+        }, { threshold: 0.1 });
+        reveals.forEach(function (el) { obs.observe(el); });
+    } else {
+        reveals.forEach(function (el) { el.classList.add('is-visible'); });
+    }
+
+    // KPI счётчики (без live-инкремента — оставим только первый рендер)
+    var kpiEls = document.querySelectorAll('.kpi-value[data-target]');
+    function animateValue(el, start, end, duration) {
+        var startTs = null;
+        function step(ts) {
+            if (!startTs) startTs = ts;
+            var progress = Math.min((ts - startTs) / duration, 1);
+            var eased = 1 - Math.pow(1 - progress, 4);
+            el.textContent = Math.floor(eased * (end - start) + start).toLocaleString('ru-RU');
             if (progress < 1) requestAnimationFrame(step);
-            else {
-                el.textContent = target.toLocaleString('ru-RU');
-                el.classList.remove('skeleton');
-            }
+            else el.textContent = end.toLocaleString('ru-RU');
         }
         requestAnimationFrame(step);
     }
-    const kpiValues = document.querySelectorAll('.kpi-value[data-count]');
-    if ('IntersectionObserver' in window && kpiValues.length) {
-        const counterObserver = new IntersectionObserver((entries, obs) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    animateCounter(entry.target);
-                    obs.unobserve(entry.target);
+    if ('IntersectionObserver' in window) {
+        var kpiObs = new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) {
+                if (e.isIntersecting) {
+                    var target = parseInt(e.target.dataset.target, 10) || 0;
+                    animateValue(e.target, 0, target, 2000);
+                    kpiObs.unobserve(e.target);
                 }
             });
-        }, { threshold: 0.3 });
-        kpiValues.forEach(el => counterObserver.observe(el));
+        }, { threshold: 0.5 });
+        kpiEls.forEach(function (el) { kpiObs.observe(el); });
     } else {
-        kpiValues.forEach(animateCounter);
-    }
-
-    // Reveal-анимации
-    const reveals = document.querySelectorAll('.reveal');
-    if ('IntersectionObserver' in window && reveals.length) {
-        const revealObserver = new IntersectionObserver((entries, obs) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('is-visible');
-                    obs.unobserve(entry.target);
-                }
-            });
-        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
-        reveals.forEach(el => revealObserver.observe(el));
-    } else {
-        reveals.forEach(el => el.classList.add('is-visible'));
-    }
-
-    // Появление пунктов feature-list
-    const features = document.getElementById('features');
-    if (features) {
-        if ('IntersectionObserver' in window) {
-            const listObserver = new IntersectionObserver((entries, obs) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.querySelectorAll('li').forEach((li, i) => {
-                            setTimeout(() => li.classList.add('is-visible'), i * 90);
-                        });
-                        obs.unobserve(entry.target);
-                    }
-                });
-            }, { threshold: 0.2 });
-            listObserver.observe(features);
-        } else {
-            features.querySelectorAll('li').forEach(li => li.classList.add('is-visible'));
-        }
-    }
-
-    // Кнопка «наверх»
-    const toTop = document.getElementById('to-top');
-    if (toTop) {
-        window.addEventListener('scroll', function () {
-            toTop.classList.toggle('visible', window.scrollY > 320);
-        }, { passive: true });
-        toTop.addEventListener('click', function () {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        kpiEls.forEach(function (el) {
+            el.textContent = (parseInt(el.dataset.target, 10) || 0).toLocaleString('ru-RU');
         });
     }
 
-    // Периодическое обновление статуса
-    const statusEl = document.getElementById('system-status');
-    const updatedEl = document.getElementById('stats-updated');
-    if (statusEl && updatedEl) {
+    // Время обновления
+    var timeEl = document.getElementById('stats-updated');
+    if (timeEl) {
         setInterval(function () {
-            statusEl.textContent = 'Онлайн';
-            updatedEl.textContent = 'Обновлено ' + new Date().toLocaleTimeString('ru-RU', {
-                hour: '2-digit', minute: '2-digit'
+            timeEl.textContent = 'Обновлено в ' + new Date().toLocaleTimeString('ru-RU', {
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
             });
-        }, 30000);
+        }, 1000);
     }
 });
 </script>

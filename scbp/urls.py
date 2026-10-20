@@ -40,6 +40,9 @@ urlpatterns = [
     path('api/projects/<int:project_id>/gantt/resources/', views.gantt_project_resources_api, name='gantt_resources_api'),
     path('api/projects/<int:project_id>/gantt/update-dates/', views.gantt_update_dates, name='gantt_update_dates'),
 
+    path('api/services/<int:service_id>/resources/', views.service_resources_api, name='service_resources_api'),
+    path('api/service-overrides/<int:override_id>/update/', views.service_override_update, name='service_override_update'),
+    path('api/service-overrides/<int:override_id>/delete/', views.service_override_delete, name='service_override_delete'),
     # ============================================================
     # Ресурсы проекта
     # ============================================================

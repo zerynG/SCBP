@@ -1,0 +1,416 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}IQNIX TECH — Система расчёта стоимости проектов{% endblock %}</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/favicon/favicon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'img/favicon/favicon-16x16.png' %}">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
+    <!-- Общие токены и утилиты -->
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v={% now 'H:i' %}">
+
+    <style>
+        /* ==== НОВЫЕ ТОКЕНЫ ДЛЯ ГЛАВНОЙ (тёмный «премиум» фон) ==== */
+        :root {
+            --home-bg: #141416;
+            --home-surface-1: #1c1c1f;
+            --home-surface-2: #222226;
+            --home-border-1: rgba(255, 255, 255, 0.05);
+            --home-border-2: rgba(255, 255, 255, 0.1);
+            --home-accent: #8B5CF6;
+            --home-accent-soft: #a78bfa;
+            --home-accent-tint: rgba(139, 92, 246, 0.15);
+            --home-accent-glow: rgba(139, 92, 246, 0.4);
+        }
+
+        html {
+            background: var(--home-bg);
+        }
+        body {
+            background: var(--home-bg);
+            color: #e0e0e0;
+            font-family: 'Manrope', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            padding-top: var(--header-height, 96px);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        * { box-sizing: border-box; }
+        a { color: #e0e0e0; text-decoration: none; transition: color .25s ease; }
+        a:hover { color: var(--home-accent-soft); }
+
+        .scrollable {
+            min-height: calc(100vh - var(--header-height, 96px));
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ==== NAVBAR ==== */
+        #navbar {
+            position: fixed; top: 0; left: 0; right: 0;
+            background: rgba(20, 20, 22, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--home-border-1);
+            z-index: 1000;
+        }
+        #navbar .content {
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 96px;
+        }
+
+        /* Логотип в навбаре — из media */
+        #navbar .logo svg,
+        #navbar .logo img {
+            height: 48px;
+            width: auto;
+            transition: opacity .3s ease;
+        }
+        #navbar .logo:hover svg,
+        #navbar .logo:hover img {
+            opacity: .8;
+        }
+
+        #navbar .navigation { display: flex; align-items: center; gap: 2rem; }
+        #navbar .navigation ul {
+            display: flex;
+            list-style: none;
+            gap: 1.8rem;
+            margin: 0;
+            padding: 0;
+        }
+        #navbar .navigation ul li a {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #999;
+            position: relative;
+        }
+        #navbar .navigation ul li a:hover {
+            color: #ffffff;
+        }
+        #navbar .navigation ul li a::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 1px;
+            background: var(--home-accent);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform .3s ease;
+        }
+        #navbar .navigation ul li a:hover::after {
+            transform: scaleX(1);
+        }
+
+        /* Профиль — форма таблетки */
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            padding: .4rem 1.2rem .4rem .4rem;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.02);
+            transition: all .3s ease;
+        }
+        .user-profile:hover {
+            border-color: rgba(139, 92, 246, 0.3);
+            background: rgba(139, 92, 246, 0.06);
+        }
+        .user-avatar-header {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--home-accent), var(--home-accent-soft));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: .85rem;
+            box-shadow: 0 0 15px var(--home-accent-glow);
+        }
+        .user-info { display: flex; flex-direction: column; }
+        .user-name-header {
+            font-weight: 600;
+            font-size: .9rem;
+            color: #ffffff;
+        }
+        .user-actions { display: flex; gap: .5rem; }
+        .user-actions a {
+            font-size: .75rem;
+            color: #999;
+        }
+        .user-actions a:hover { color: var(--home-accent-soft); }
+
+        .hb {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: white;
+            padding: .5rem;
+        }
+        .hb svg { width: 32px; height: 32px; }
+        .hb2 { display: none; }
+        .hb.active .hb1 { display: none; }
+        .hb.active .hb2 { display: block; }
+
+        @media (max-width: 900px) {
+            #navbar .navigation ul,
+            .user-profile { display: none; }
+            .hb { display: block; }
+        }
+
+        /* Мобильное меню (как в base.html) */
+        .mobile__menu {
+            position: fixed;
+            top: 0; right: -100%;
+            width: 300px;
+            height: 100vh;
+            background: #1a1a1a;
+            z-index: 1001;
+            transition: right .3s ease;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, .3);
+        }
+        .mobile__menu.active { right: 0; }
+        .mobile__menu .menu {
+            padding: 2rem;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .mobile__menu .handle {
+            width: 40px;
+            height: 4px;
+            background: #ddd;
+            border-radius: 2px;
+            margin: 0 auto 2rem;
+        }
+        .mobile__menu .navigation ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .mobile__menu .navigation ul li {
+            margin-bottom: 1rem;
+        }
+        .mobile__menu .navigation ul li a {
+            display: block;
+            padding: 1rem;
+            color: white;
+            font-weight: 500;
+            border-radius: 8px;
+        }
+        .mobile__menu .navigation ul li a:hover {
+            background: rgba(255, 255, 255, .1);
+            color: var(--home-accent-soft);
+        }
+        .mobile-user-info {
+            margin-top: auto;
+            padding-top: 2rem;
+            border-top: 1px solid #333;
+        }
+        .mobile-user-info a {
+            display: block;
+            padding: 1rem;
+            color: white;
+            font-weight: 500;
+            border-radius: 8px;
+            margin-bottom: .5rem;
+        }
+        .mobile-user-info a:hover {
+            background: rgba(255, 255, 255, .1);
+            color: var(--home-accent-soft);
+        }
+        .mobile-user-info .logout { color: #dc3545; }
+
+        /* Сообщения Django */
+        .messages-container {
+            position: fixed;
+            top: calc(var(--header-height, 96px) - 6px);
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+        }
+        .alert {
+            margin-bottom: 10px;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, .35);
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            animation: slideInRight .3s ease;
+        }
+        .alert-success { background: linear-gradient(135deg, #059669, #047857); color: white; }
+        .alert-error   { background: linear-gradient(135deg, #dc2626, #991b1b); color: white; }
+        .alert-warning { background: linear-gradient(135deg, #d97706, #b45309); color: white; }
+        .alert-info    { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; }
+        .btn-close {
+            background: none;
+            border: none;
+            color: inherit;
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin-left: auto;
+            opacity: .7;
+        }
+        .btn-close:hover { opacity: 1; }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @media (max-width: 768px) {
+            .messages-container { right: 10px; left: 10px; max-width: none; }
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    {% csrf_token %}
+
+    <!-- ФОН: свечения + «дышащий» логотип из /media/ -->
+    <div class="bg-stage" aria-hidden="true">
+        <div class="glow g1"></div>
+        <div class="glow g2"></div>
+        <div class="bg-logo">
+            <img src="{% get_media_prefix %}img/logo_0.png" alt="" style="width:100%; height:100%; object-fit:contain;">
+        </div>
+    </div>
+
+    <!-- NAVBAR -->
+    <nav id="navbar">
+        <div class="content">
+            <a class="logo" href="{% url 'index' %}">
+                <img src="{% get_media_prefix %}img/logo_nik-a_tech_Y6TYp5A.svg" alt="IQNIX TECH">
+            </a>
+
+            <div class="navigation">
+                <ul>
+                    <li><a href="{% url 'index' %}">Главная</a></li>
+                    <li><a href="{% url 'project_list' %}">Проекты</a></li>
+                    <li><a href="{% url 'resources_page' %}">Каталог</a></li>
+                    {% if request.user.is_staff %}
+                        <li><a href="/scbp_admin_panel/">Администрирование</a></li>
+                    {% endif %}
+                </ul>
+
+                <div class="user-profile">
+                    <div class="user-avatar-header">
+                        {{ request.user.first_name|first|default:'П' }}{{ request.user.last_name|first }}
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name-header">
+                            {{ request.user.first_name|default:'Пользователь системы' }} {{ request.user.last_name }}
+                        </div>
+                        <div class="user-actions">
+                            <a href="{% url 'profile' %}">Профиль</a>
+                            <a href="{% url 'logout' %}">Выход</a>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="hb" id="navbar__menu__btn">
+                    <svg class="hb1" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M25 23H7V21H25V23ZM25 17H7V15H25V17ZM25 11H7V9H25V11Z" fill="currentColor"/>
+                    </svg>
+                    <svg class="hb2" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M23.0713 10.3428L17.4141 16L23.0713 21.6572L21.6572 23.0713L16 17.4141L10.3428 23.0713L8.92871 21.6572L14.5859 16L8.92871 10.3428L10.3428 8.92871L16 14.5859L21.6572 8.92871L23.0713 10.3428Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- МОБИЛЬНОЕ МЕНЮ -->
+    <div class="mobile__menu" id="navbar__menu">
+        <div class="menu">
+            <div class="handle"></div>
+            <div class="navigation">
+                <ul>
+                    <li><a href="{% url 'index' %}">Главная</a></li>
+                    <li><a href="{% url 'project_list' %}">Проекты</a></li>
+                    <li><a href="{% url 'resources_page' %}">Каталог</a></li>
+                    {% if request.user.is_staff %}
+                        <li><a href="/scbp_admin_panel/">Администрирование</a></li>
+                    {% endif %}
+                </ul>
+                <div class="mobile-user-info">
+                    <a href="{% url 'profile' %}">Профиль</a>
+                    <a href="{% url 'logout' %}" class="logout">Выход</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Сообщения -->
+    {% if messages %}
+    <div class="messages-container">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {% if message.tags == 'success' %}<i class="fas fa-check-circle"></i>
+            {% elif message.tags == 'error' %}<i class="fas fa-exclamation-circle"></i>
+            {% elif message.tags == 'warning' %}<i class="fas fa-exclamation-triangle"></i>
+            {% elif message.tags == 'info' %}<i class="fas fa-info-circle"></i>{% endif %}
+            {{ message }}
+            <button type="button" class="btn-close" onclick="this.parentElement.remove()">&times;</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- CONTENT -->
+    <div class="scrollable">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+        // Мобильное меню
+        document.addEventListener('DOMContentLoaded', function () {
+            var btn = document.getElementById('navbar__menu__btn');
+            var menu = document.getElementById('navbar__menu');
+            if (btn && menu) {
+                btn.addEventListener('click', function () {
+                    menu.classList.toggle('active');
+                    btn.classList.toggle('active');
+                });
+            }
+            // Авто-скрытие сообщений
+            setTimeout(function () {
+                document.querySelectorAll('.alert').forEach(function (a) {
+                    a.style.opacity = '0';
+                    a.style.transform = 'translateX(100%)';
+                    setTimeout(function () { a.remove(); }, 300);
+                });
+            }, 5000);
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

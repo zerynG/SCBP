@@ -1,86 +1,92 @@
-{% extends 'base.html' %}
+{% extends 'base_app.html' %}
+{% load static %}
 
 {% block title %}Реестр услуг — IQNIX TECH{% endblock %}
 
-{% block extra_css %}
+{% block app_extra_css %}
 <style>
-    body { background: #1a1a1a; color: #e0e0e0; padding-top: 96px; }
-    main, .scrollable { background: #1a1a1a !important; min-height: calc(100vh - 96px); }
+    /* ============================================================
+       SERVICES — реестр услуг (глобальный по Workspace)
+       ============================================================ */
 
-    .svc-page { max-width: 1100px; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
+    .svc-page { max-width: 1100px; margin: 0 auto; }
 
     /* Header */
     .svc-page-header {
         display: flex; align-items: center; justify-content: space-between;
         margin-bottom: 1.5rem; flex-wrap: wrap; gap: .75rem;
     }
-    .svc-page-header h1 { font-size: 1.4rem; font-weight: 800; color: #fff; margin: 0; }
+    .svc-page-header h1 { font-size: 1.4rem; font-weight: 800; color: var(--text-strong); margin: 0; }
     .svc-page-header .back-link {
-        font-size: .82rem; color: #888; text-decoration: none; transition: color .15s;
+        font-size: .82rem; color: var(--text-soft); text-decoration: none; transition: color .15s;
     }
-    .svc-page-header .back-link:hover { color: #a78bfa; }
+    .svc-page-header .back-link:hover { color: var(--accent-soft); }
 
     /* Form panel */
     .svc-form-panel {
-        background: #1e1e1e; border: 1px solid rgba(255,255,255,.06);
-        border-radius: 14px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+        background: var(--surface-1); border: 1px solid var(--border-1);
+        border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
     }
     .svc-form-panel h3 {
         font-size: .72rem; font-weight: 700; text-transform: uppercase;
-        letter-spacing: .06em; color: #666; margin: 0 0 .75rem;
+        letter-spacing: .06em; color: var(--text-faint); margin: 0 0 .75rem;
     }
     .svc-form-row { display: flex; gap: .75rem; flex-wrap: wrap; align-items: flex-end; }
     .svc-fm { display: flex; flex-direction: column; gap: .25rem; }
     .svc-fm label {
         font-size: .68rem; font-weight: 600; text-transform: uppercase;
-        letter-spacing: .04em; color: #555;
+        letter-spacing: .04em; color: var(--text-soft);
     }
     .svc-fm input, .svc-fm textarea, .svc-fm select {
-        background: #111; border: 1px solid rgba(255,255,255,.08);
-        border-radius: 8px; color: #ddd; font-size: .82rem;
-        padding: .45rem .65rem; min-width: 0; font-family: 'Manrope', sans-serif;
+        background: var(--surface-2); border: 1px solid var(--border-2);
+        border-radius: 8px; color: var(--text); font-size: .82rem;
+        padding: .45rem .65rem; min-width: 0; font-family: var(--font);
+        color-scheme: dark;
     }
-    .svc-fm input:focus, .svc-fm textarea:focus, .svc-fm select:focus { outline: none; border-color: rgba(139,92,246,.4); }
+    .svc-fm input:focus, .svc-fm textarea:focus, .svc-fm select:focus {
+        outline: none; border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-tint);
+    }
     .svc-cat-head td {
-        background: #181818; font-size: .66rem; font-weight: 700; text-transform: uppercase;
-        letter-spacing: .05em; color: #8b8b8b; padding: .55rem .9rem !important;
-    }
-    .svc-applies-badge {
-        display: inline-block; font-size: .64rem; font-weight: 600; color: #999;
-        background: rgba(255,255,255,.05); padding: .1rem .45rem; border-radius: 5px;
+        background: var(--surface-3); font-size: .66rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .05em; color: var(--text-soft); padding: .55rem .9rem !important;
     }
     .svc-btn {
         display: inline-flex; align-items: center; gap: .35rem;
         padding: .45rem 1rem; border: none; border-radius: 8px;
         font-size: .82rem; font-weight: 600; cursor: pointer;
-        transition: all .15s; font-family: 'Manrope', sans-serif;
+        transition: all .15s; font-family: var(--font);
     }
-    .svc-btn-primary { background: rgba(139,92,246,.15); color: #a78bfa; }
+    .svc-btn-primary { background: rgba(139,92,246,.15); color: var(--accent-soft); }
     .svc-btn-primary:hover { background: rgba(139,92,246,.25); }
-    .svc-btn-ghost { background: rgba(255,255,255,.05); color: #aaa; }
-    .svc-btn-ghost:hover { background: rgba(255,255,255,.1); color: #ddd; }
-    .svc-form-error { color: #f87171; font-size: .75rem; margin-top: .5rem; min-height: 1rem; }
+    .svc-btn-ghost { background: var(--surface-2); color: var(--text-muted); }
+    .svc-btn-ghost:hover { background: var(--surface-3); color: var(--text-strong); }
+    .svc-form-error { color: var(--danger); font-size: .75rem; margin-top: .5rem; min-height: 1rem; }
 
     /* Table */
     .svc-table-wrap {
-        border-radius: 14px; background: #111;
-        border: 1px solid rgba(255,255,255,.06); overflow: hidden;
+        border-radius: var(--radius-lg); background: var(--surface-1);
+        border: 1px solid var(--border-1); overflow: hidden;
     }
     .svc-table { width: 100%; border-collapse: collapse; }
     .svc-table thead th {
         text-align: left; font-size: .66rem; font-weight: 700;
-        text-transform: uppercase; letter-spacing: .04em; color: #555;
-        padding: .7rem .9rem; border-bottom: 1px solid rgba(255,255,255,.06);
-        background: #151515;
+        text-transform: uppercase; letter-spacing: .04em; color: var(--text-soft);
+        padding: .7rem .9rem; border-bottom: 1px solid var(--border-1);
+        background: var(--surface-3);
     }
     .svc-table tbody td {
-        padding: .7rem .9rem; border-bottom: 1px solid rgba(255,255,255,.03);
-        font-size: .82rem; color: #ddd; vertical-align: middle;
+        padding: .7rem .9rem; border-bottom: 1px solid var(--border-1);
+        font-size: .82rem; color: var(--text); vertical-align: middle;
     }
     .svc-table tbody tr:last-child td { border-bottom: none; }
-    .svc-table tbody tr:hover { background: rgba(255,255,255,.02); }
-    .svc-name { font-weight: 600; color: #eee; }
-    .svc-desc { font-size: .72rem; color: #777; margin-top: .15rem; }
+    .svc-table tbody tr.svc-main-row { cursor: pointer; }
+    .svc-table tbody tr.svc-main-row:hover { background: rgba(255,255,255,.02); }
+    .svc-table tbody tr.svc-main-row.expanded { background: var(--accent-tint); }
+    .svc-name { font-weight: 600; color: var(--text-strong); display: flex; align-items: center; gap: .5rem; }
+    .svc-name .svc-expand-arrow { font-size: .7rem; color: var(--text-faint); transition: transform .2s; }
+    .svc-main-row.expanded .svc-expand-arrow { transform: rotate(90deg); color: var(--accent); }
+    .svc-desc { font-size: .72rem; color: var(--text-soft); margin-top: .15rem; }
 
     .svc-badge {
         display: inline-flex; align-items: center; gap: .3rem;
@@ -88,59 +94,160 @@
         font-size: .68rem; font-weight: 700;
     }
     .svc-badge.active { background: rgba(16,185,129,.12); color: #34d399; }
-    .svc-badge.hidden { background: rgba(255,255,255,.06); color: #888; }
-    .svc-usage { font-size: .72rem; color: #999; }
-    .svc-usage.none { color: #555; }
+    .svc-badge.hidden { background: rgba(255,255,255,.06); color: var(--text-faint); }
+    .svc-usage { font-size: .72rem; color: var(--text-soft); }
+    .svc-usage.none { color: var(--text-faint); }
 
     .svc-actions { display: flex; gap: .35rem; justify-content: flex-end; }
     .svc-icon-btn {
         width: 30px; height: 30px; display: inline-flex; align-items: center;
         justify-content: center; border: none; border-radius: 7px; cursor: pointer;
-        background: rgba(255,255,255,.05); color: #999; transition: all .15s; font-size: .8rem;
+        background: rgba(255,255,255,.05); color: var(--text-soft); transition: all .15s; font-size: .8rem;
     }
-    .svc-icon-btn:hover { background: rgba(255,255,255,.1); color: #ddd; }
-    .svc-icon-btn.danger:hover { background: rgba(248,113,113,.15); color: #f87171; }
-    .svc-icon-btn.toggle.on { color: #34d399; }
+    .svc-icon-btn:hover { background: rgba(255,255,255,.1); color: var(--text-strong); }
+    .svc-icon-btn.danger:hover { background: rgba(248,113,113,.15); color: var(--danger); }
+    .svc-icon-btn.toggle.on { color: var(--success); }
 
-    .svc-empty { text-align: center; padding: 3rem 1rem; color: #444; }
+    /* Expanded row — список ресурсов */
+    .svc-detail-row td {
+        padding: 0 !important;
+        background: var(--bg) !important;
+        border-bottom: 1px solid var(--border-1);
+    }
+    .svc-detail-wrap { padding: 1rem 1.5rem 1.25rem; }
+    .svc-detail-filters {
+        display: flex; gap: .35rem; flex-wrap: wrap;
+        margin-bottom: .9rem;
+    }
+    .svc-filter-chip {
+        padding: .35rem .75rem;
+        background: var(--surface-2);
+        border: 1px solid var(--border-2);
+        border-radius: 20px;
+        font-size: .74rem; font-weight: 600;
+        color: var(--text-muted);
+        cursor: pointer; transition: all .15s;
+        font-family: var(--font);
+    }
+    .svc-filter-chip:hover { background: var(--surface-3); color: var(--text-strong); }
+    .svc-filter-chip.active {
+        background: var(--accent-tint);
+        border-color: rgba(139,92,246,.4);
+        color: var(--accent);
+    }
+    .svc-filter-chip .count {
+        font-size: .66rem; font-weight: 700;
+        color: var(--text-faint); margin-left: .25rem;
+    }
+    .svc-filter-chip.active .count { color: var(--accent); }
+
+    .svc-detail-list { display: grid; gap: .5rem; }
+    .svc-detail-item {
+        display: flex; align-items: center; gap: .9rem;
+        background: var(--surface-1);
+        border: 1px solid var(--border-1);
+        border-radius: 10px;
+        padding: .8rem 1rem;
+    }
+    .svc-detail-item:hover { border-color: rgba(139,92,246,.3); }
+    .svc-detail-icon {
+        width: 36px; height: 36px; border-radius: 8px;
+        background: var(--accent-tint); color: var(--accent-soft);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .85rem; flex-shrink: 0;
+        border: 1px solid rgba(139,92,246,.22);
+    }
+    .svc-detail-info { flex: 1; min-width: 0; }
+    .svc-detail-name {
+        font-size: .9rem; font-weight: 600; color: var(--text-strong);
+        display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    }
+    .svc-detail-type {
+        font-size: .58rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .05em;
+        color: var(--accent-soft); background: var(--accent-tint);
+        border-radius: 5px; padding: .1rem .4rem;
+    }
+    .svc-detail-meta {
+        font-size: .76rem; color: var(--text-soft); margin-top: .2rem;
+    }
+    .svc-detail-meta a { color: var(--accent); }
+    .svc-detail-actions { display: flex; gap: .35rem; flex-shrink: 0; }
+
+    .svc-detail-empty {
+        text-align: center; padding: 1.5rem 1rem;
+        color: var(--text-faint); font-size: .82rem;
+        border: 1px dashed var(--border-2);
+        border-radius: var(--radius); background: var(--surface-3);
+    }
+    .svc-detail-loading {
+        text-align: center; padding: 1.5rem;
+        color: var(--text-soft); font-size: .82rem;
+    }
+
+    .svc-empty { text-align: center; padding: 3rem 1rem; color: var(--text-faint); }
     .svc-empty i { font-size: 2.5rem; margin-bottom: .75rem; display: block; }
     .svc-empty p { font-size: .85rem; margin: 0; }
 
-    /* Modal */
+    /* Модалки */
     .svc-modal-overlay {
-        position: fixed; inset: 0; background: rgba(0,0,0,.6);
-        display: none; align-items: center; justify-content: center; z-index: 1000;
-        padding: 1rem;
+        position: fixed; inset: 0; background: rgba(0,0,0,.72);
+        backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 2000; padding: 1rem;
+        opacity: 0; visibility: hidden;
+        transition: opacity .22s, visibility .22s;
     }
-    .svc-modal-overlay.open { display: flex; }
+    .svc-modal-overlay.open { opacity: 1; visibility: visible; }
     .svc-modal {
-        background: #1e1e1e; border: 1px solid rgba(255,255,255,.08);
-        border-radius: 14px; padding: 1.5rem; width: 100%; max-width: 460px;
+        background: linear-gradient(180deg, var(--surface-1), #171717);
+        border: 1px solid var(--border-3);
+        border-radius: 16px;
+        box-shadow: 0 24px 72px rgba(0,0,0,.65);
+        padding: 1.5rem 1.7rem;
+        width: 100%; max-width: 480px;
+        position: relative;
+        max-height: 92vh; overflow-y: auto;
     }
-    .svc-modal h3 { font-size: 1rem; font-weight: 700; color: #fff; margin: 0 0 1rem; }
+    .svc-modal::before {
+        content: ''; position: absolute;
+        left: 0; top: 0; bottom: 0; width: 4px;
+        background: linear-gradient(180deg, var(--accent), var(--accent-hover));
+        border-radius: 16px 0 0 16px;
+    }
+    .svc-modal.danger::before {
+        background: linear-gradient(180deg, var(--danger), #dc2626);
+    }
+    .svc-modal h3 {
+        font-size: 1rem; font-weight: 700; color: var(--text-strong);
+        margin: 0 0 1rem;
+    }
     .svc-modal .svc-fm { margin-bottom: .9rem; }
-    .svc-modal-check { display: flex; align-items: center; gap: .5rem; font-size: .82rem; color: #bbb; }
-    .svc-modal-actions { display: flex; gap: .6rem; justify-content: flex-end; margin-top: 1.25rem; }
+    .svc-modal-check {
+        display: flex; align-items: center; gap: .5rem;
+        font-size: .82rem; color: var(--text-muted);
+    }
+    .svc-modal-actions {
+        display: flex; gap: .6rem; justify-content: flex-end; margin-top: 1.25rem;
+    }
 
     @media (max-width: 720px) {
-        .svc-page { padding: 1rem; }
         .svc-form-row { flex-direction: column; align-items: stretch; }
         .svc-table thead { display: none; }
         .svc-table tbody td { display: block; border: none; padding: .35rem .9rem; }
-        .svc-table tbody tr { display: block; border-bottom: 1px solid rgba(255,255,255,.06); padding: .6rem 0; }
+        .svc-table tbody tr.svc-main-row { display: block; border-bottom: 1px solid var(--border-1); padding: .6rem 0; }
         .svc-actions { justify-content: flex-start; padding-top: .4rem; }
     }
 </style>
 {% endblock %}
 
-{% block content %}
+{% block app_content %}
 <div class="svc-page">
     <div class="svc-page-header">
         <div>
-            <h1><i class="fas fa-list-alt" style="color:#a78bfa;margin-right:.5rem;"></i>Реестр услуг</h1>
-            <span style="font-size:.82rem;color:#666;">Глобальный список услуг для назначения ресурсам проектов</span>
+            <h1><i class="fas fa-list-alt" style="color:var(--accent-soft);margin-right:.5rem;"></i>Реестр услуг</h1>
+            <span style="font-size:.82rem;color:var(--text-soft);">Глобальный список услуг для назначения ресурсам проектов</span>
         </div>
-        <a href="{% url 'index' %}" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
     </div>
 
     <!-- Add form -->
@@ -175,9 +282,9 @@
         <table class="svc-table" id="svc-table">
             <thead>
                 <tr>
-                    <th style="width:38%;">Услуга</th>
-                    <th style="width:18%;">Статус</th>
-                    <th style="width:26%;">Использование</th>
+                    <th style="width:42%;">Услуга</th>
+                    <th style="width:16%;">Статус</th>
+                    <th style="width:24%;">Использование</th>
                     <th style="width:18%;text-align:right;">Действия</th>
                 </tr>
             </thead>
@@ -190,7 +297,7 @@
     </div>
 </div>
 
-<!-- Edit modal -->
+<!-- Edit service modal -->
 <div class="svc-modal-overlay" id="svc-modal-overlay">
     <div class="svc-modal">
         <h3>Редактировать услугу</h3>
@@ -221,33 +328,107 @@
         </div>
     </div>
 </div>
+
+<!-- Edit override modal -->
+<div class="svc-modal-overlay" id="svc-override-modal-overlay">
+    <div class="svc-modal">
+        <h3>Редактировать параметры ресурса</h3>
+        <input type="hidden" id="svc-ov-id">
+        <div class="svc-fm">
+            <label>Маржинальность (%)</label>
+            <input type="number" id="svc-ov-margin" min="0" max="500" step="0.1">
+        </div>
+        <div class="svc-fm">
+            <label>Дата начала</label>
+            <input type="date" id="svc-ov-start">
+        </div>
+        <div class="svc-fm">
+            <label>Дата окончания</label>
+            <input type="date" id="svc-ov-end">
+        </div>
+        <div class="svc-fm">
+            <label>Рабочие часы</label>
+            <input type="number" id="svc-ov-hours" min="0" step="1">
+        </div>
+        <div class="svc-form-error" id="svc-ov-error"></div>
+        <div class="svc-modal-actions">
+            <button type="button" class="svc-btn svc-btn-ghost" id="svc-ov-cancel">Отмена</button>
+            <button type="button" class="svc-btn svc-btn-primary" id="svc-ov-save"><i class="fas fa-check"></i> Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete confirm -->
+<div class="svc-modal-overlay" id="svc-delete-overlay">
+    <div class="svc-modal danger" style="max-width:420px;">
+        <h3>Удалить ресурс из проекта?</h3>
+        <p style="color:var(--text-muted); font-size:.9rem; line-height:1.6; margin:0 0 1rem;" id="svc-delete-text">—</p>
+        <div class="svc-modal-actions">
+            <button type="button" class="svc-btn svc-btn-ghost" id="svc-delete-cancel">Отмена</button>
+            <button type="button" class="svc-btn svc-btn-primary" id="svc-delete-confirm" style="background:var(--danger-strong); color:#fff;">
+                <i class="fas fa-trash"></i> Удалить
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
-{% block extra_js %}
+{% block app_extra_js %}
+{{ services_json|json_script:'svc-data' }}
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const CSRF = '{{ csrf_token }}';
-    let services = JSON.parse('{{ services_json|escapejs }}');
+(function () {
+    'use strict';
 
-    const tbody = document.getElementById('svc-tbody');
-    const emptyEl = document.getElementById('svc-empty');
+    var CSRF = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+    var services = JSON.parse(document.getElementById('svc-data').textContent || '[]');
+    var currentExpandedId = null;    // id услуги, чья карточка раскрыта
+    var currentDetailFilter = 'all'; // фильтр по типу ресурса в раскрытой карточке
+    var currentDetailItems = [];     // кэш загруженных ресурсов
+    var deletingOverrideId = null;
 
+    var tbody = document.getElementById('svc-tbody');
+    var emptyEl = document.getElementById('svc-empty');
+
+    // ============================================================
+    // Утилиты
+    // ============================================================
     function escHtml(s) {
-        const d = document.createElement('div');
+        var d = document.createElement('div');
         d.textContent = s == null ? '' : s;
         return d.innerHTML;
     }
+    function getCookie(name) {
+        var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? m.pop() : '';
+    }
+    function csrf() { return CSRF || getCookie('csrftoken'); }
 
     function usageText(s) {
         if (!s.usage_resources) return '<span class="svc-usage none">не используется</span>';
-        const proj = s.usage_projects || 0;
-        const res = s.usage_resources || 0;
-        const pl = (n, a, b, c) => (n % 10 === 1 && n % 100 !== 11) ? a : ((n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? b : c);
-        return `<span class="svc-usage">${proj} ${pl(proj,'проект','проекта','проектов')} · ${res} ${pl(res,'ресурс','ресурса','ресурсов')}</span>`;
+        var proj = s.usage_projects || 0;
+        var res = s.usage_resources || 0;
+        var pl = function (n, a, b, c) {
+            return (n % 10 === 1 && n % 100 !== 11) ? a
+                : ((n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? b : c);
+        };
+        return '<span class="svc-usage">' + proj + ' ' + pl(proj, 'проект', 'проекта', 'проектов')
+            + ' · ' + res + ' ' + pl(res, 'ресурс', 'ресурса', 'ресурсов') + '</span>';
     }
 
+    var TYPE_META = {
+        employee:      { label: 'Сотрудник',    icon: 'fa-user-tie' },
+        contractor:    { label: 'Исполнитель',  icon: 'fa-user' },
+        subcontractor: { label: 'Субподрядчик', icon: 'fa-building' },
+        customer:      { label: 'Заказчик',     icon: 'fa-handshake' },
+        equipment:     { label: 'Оборудование', icon: 'fa-tools' }
+    };
+
+    // ============================================================
+    // Рендер таблицы
+    // ============================================================
     var APPLIES_ORDER = ['any', 'employee', 'contractor', 'subcontractor', 'equipment'];
     function appliesRank(v) { var i = APPLIES_ORDER.indexOf(v); return i < 0 ? 99 : i; }
+
     function sortServices() {
         services.sort(function (a, b) {
             var d = appliesRank(a.applies_to) - appliesRank(b.applies_to);
@@ -255,30 +436,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function rowHtml(s) {
-        return `
-            <tr data-id="${s.id}">
-                <td>
-                    <div class="svc-name">${escHtml(s.name)}</div>
-                    ${s.description ? `<div class="svc-desc">${escHtml(s.description)}</div>` : ''}
-                </td>
-                <td>
-                    <span class="svc-badge ${s.is_active ? 'active' : 'hidden'}">
-                        <i class="fas fa-${s.is_active ? 'check-circle' : 'eye-slash'}"></i>
-                        ${s.is_active ? 'Активна' : 'Скрыта'}
-                    </span>
-                </td>
-                <td>${usageText(s)}</td>
-                <td>
-                    <div class="svc-actions">
-                        <button class="svc-icon-btn toggle ${s.is_active ? 'on' : ''}" data-act="toggle" title="${s.is_active ? 'Скрыть' : 'Сделать активной'}">
-                            <i class="fas fa-${s.is_active ? 'eye' : 'eye-slash'}"></i>
-                        </button>
-                        <button class="svc-icon-btn" data-act="edit" title="Редактировать"><i class="fas fa-pen"></i></button>
-                        <button class="svc-icon-btn danger" data-act="delete" title="Удалить"><i class="fas fa-trash"></i></button>
-                    </div>
-                </td>
-            </tr>`;
+    function mainRowHtml(s) {
+        var expanded = currentExpandedId === s.id;
+        return ''
+            + '<tr class="svc-main-row ' + (expanded ? 'expanded' : '') + '" data-id="' + s.id + '">'
+            +   '<td>'
+            +     '<div class="svc-name">'
+            +       '<i class="fas fa-chevron-right svc-expand-arrow"></i>'
+            +       escHtml(s.name)
+            +     '</div>'
+            +     (s.description ? '<div class="svc-desc">' + escHtml(s.description) + '</div>' : '')
+            +   '</td>'
+            +   '<td>'
+            +     '<span class="svc-badge ' + (s.is_active ? 'active' : 'hidden') + '">'
+            +       '<i class="fas fa-' + (s.is_active ? 'check-circle' : 'eye-slash') + '"></i>'
+            +       (s.is_active ? 'Активна' : 'Скрыта')
+            +     '</span>'
+            +   '</td>'
+            +   '<td>' + usageText(s) + '</td>'
+            +   '<td>'
+            +     '<div class="svc-actions">'
+            +       '<button class="svc-icon-btn toggle ' + (s.is_active ? 'on' : '') + '" data-act="toggle" title="' + (s.is_active ? 'Скрыть' : 'Активировать') + '"><i class="fas fa-' + (s.is_active ? 'eye' : 'eye-slash') + '"></i></button>'
+            +       '<button class="svc-icon-btn" data-act="edit" title="Редактировать"><i class="fas fa-pen"></i></button>'
+            +       '<button class="svc-icon-btn danger" data-act="delete" title="Удалить"><i class="fas fa-trash"></i></button>'
+            +     '</div>'
+            +   '</td>'
+            + '</tr>';
+    }
+
+    function detailRowHtml(serviceId) {
+        return ''
+            + '<tr class="svc-detail-row" data-detail-for="' + serviceId + '">'
+            +   '<td colspan="4">'
+            +     '<div class="svc-detail-wrap">'
+            +       '<div class="svc-detail-loading"><i class="fas fa-spinner fa-spin"></i> Загрузка ресурсов…</div>'
+            +     '</div>'
+            +   '</td>'
+            + '</tr>';
     }
 
     function render() {
@@ -289,62 +483,172 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         emptyEl.style.display = 'none';
         sortServices();
-        // Группировка по «Применяется к»: заголовок категории + строки
+
         var html = '';
         var lastCat = null;
         services.forEach(function (s) {
             if (s.applies_to !== lastCat) {
                 lastCat = s.applies_to;
-                html += `<tr class="svc-cat-head"><td colspan="4"><i class="fas fa-layer-group"></i> ${escHtml(s.applies_to_display || 'Любой ресурс')}</td></tr>`;
+                html += '<tr class="svc-cat-head"><td colspan="4"><i class="fas fa-layer-group"></i> '
+                    + escHtml(s.applies_to_display || 'Любой ресурс') + '</td></tr>';
             }
-            html += rowHtml(s);
+            html += mainRowHtml(s);
+            if (currentExpandedId === s.id) {
+                html += detailRowHtml(s.id);
+            }
         });
         tbody.innerHTML = html;
+
+        // Если раскрыта карточка — догружаем ресурсы
+        if (currentExpandedId) {
+            loadServiceResources(currentExpandedId);
+        }
     }
 
-    function findService(id) { return services.find(s => String(s.id) === String(id)); }
+    // ============================================================
+    // Загрузка ресурсов услуги + раскрытая карточка
+    // ============================================================
+    function loadServiceResources(serviceId) {
+        var wrap = document.querySelector('.svc-detail-row[data-detail-for="' + serviceId + '"] .svc-detail-wrap');
+        if (!wrap) return;
 
-    // --- Add ---
-    const addName = document.getElementById('svc-add-name');
-    const addDesc = document.getElementById('svc-add-desc');
-    const addApplies = document.getElementById('svc-add-applies');
-    const addError = document.getElementById('svc-add-error');
-
-    function addService() {
-        const name = addName.value.trim();
-        addError.textContent = '';
-        if (!name) { addError.textContent = 'Название услуги обязательно'; addName.focus(); return; }
-        const fd = new FormData();
-        fd.append('name', name);
-        fd.append('description', addDesc.value.trim());
-        fd.append('applies_to', addApplies.value);
-        fd.append('csrfmiddlewaretoken', CSRF);
-        fetch('{% url "add_service" %}', {
-            method: 'POST',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            body: fd,
-        }).then(r => r.json()).then(data => {
-            if (data.success) {
-                services.push(data.service);
-                render();
-                addName.value = ''; addDesc.value = ''; addName.focus();
-            } else {
-                addError.textContent = data.error || 'Ошибка';
-            }
-        }).catch(() => { addError.textContent = 'Ошибка сети'; });
+        fetch('/api/services/' + serviceId + '/resources/', { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                currentDetailItems = data.items || [];
+                renderDetailContent(wrap, serviceId);
+            })
+            .catch(function () {
+                wrap.innerHTML = '<div class="svc-detail-empty"><i class="fas fa-exclamation-triangle"></i> Ошибка загрузки</div>';
+            });
     }
-    document.getElementById('svc-add-btn').addEventListener('click', addService);
-    addName.addEventListener('keydown', e => { if (e.key === 'Enter') addService(); });
-    addDesc.addEventListener('keydown', e => { if (e.key === 'Enter') addService(); });
 
-    // --- Edit modal ---
-    const overlay = document.getElementById('svc-modal-overlay');
-    const editId = document.getElementById('svc-edit-id');
-    const editName = document.getElementById('svc-edit-name');
-    const editDesc = document.getElementById('svc-edit-desc');
-    const editActive = document.getElementById('svc-edit-active');
-    const editApplies = document.getElementById('svc-edit-applies');
-    const editError = document.getElementById('svc-edit-error');
+    function renderDetailContent(wrap, serviceId) {
+        var items = currentDetailItems;
+
+        // Счётчики по типам
+        var counts = { all: items.length };
+        Object.keys(TYPE_META).forEach(function (t) { counts[t] = 0; });
+        items.forEach(function (it) { if (counts[it.resource_type] !== undefined) counts[it.resource_type]++; });
+
+        // Фильтры
+        var filtersHtml = '<div class="svc-detail-filters">'
+            + '<button class="svc-filter-chip ' + (currentDetailFilter === 'all' ? 'active' : '') + '" data-filter="all">Все <span class="count">' + counts.all + '</span></button>';
+        Object.keys(TYPE_META).forEach(function (t) {
+            if (counts[t] === 0) return;
+            filtersHtml += '<button class="svc-filter-chip ' + (currentDetailFilter === t ? 'active' : '') + '" data-filter="' + t + '">'
+                + escHtml(TYPE_META[t].label) + ' <span class="count">' + counts[t] + '</span></button>';
+        });
+        filtersHtml += '</div>';
+
+        // Список
+        var filtered = currentDetailFilter === 'all'
+            ? items
+            : items.filter(function (it) { return it.resource_type === currentDetailFilter; });
+
+        var listHtml;
+        if (!filtered.length) {
+            listHtml = '<div class="svc-detail-empty"><i class="fas fa-inbox"></i> '
+                + (items.length ? 'Нет ресурсов с этим типом' : 'К этой услуге пока не привязано ни одного ресурса')
+                + '</div>';
+        } else {
+            listHtml = '<div class="svc-detail-list">' + filtered.map(function (it) {
+                var meta = TYPE_META[it.resource_type] || { label: 'Ресурс', icon: 'fa-cube' };
+                var dates = '';
+                if (it.work_start_date || it.work_end_date) {
+                    dates = ' · <i class="fas fa-calendar-alt"></i> '
+                        + (it.work_start_date || '—') + ' — ' + (it.work_end_date || '—');
+                }
+                var margin = it.resource_margin != null ? ' · маржа ' + it.resource_margin + '%' : '';
+                return ''
+                    + '<div class="svc-detail-item" data-override-id="' + it.override_id + '">'
+                    +   '<div class="svc-detail-icon"><i class="fas ' + meta.icon + '"></i></div>'
+                    +   '<div class="svc-detail-info">'
+                    +     '<div class="svc-detail-name">'
+                    +       '<span class="svc-detail-type">' + escHtml(meta.label) + '</span>'
+                    +       escHtml(it.name)
+                    +     '</div>'
+                    +     '<div class="svc-detail-meta">'
+                    +       'Проект: <a href="/project/' + it.project_id + '/">' + escHtml(it.project_name) + '</a>'
+                    +       dates + margin
+                    +     '</div>'
+                    +   '</div>'
+                    +   '<div class="svc-detail-actions">'
+                    +     '<button class="svc-icon-btn" data-ov-act="edit" title="Редактировать"><i class="fas fa-pen"></i></button>'
+                    +     '<button class="svc-icon-btn danger" data-ov-act="delete" title="Удалить"><i class="fas fa-trash"></i></button>'
+                    +   '</div>'
+                    + '</div>';
+            }).join('') + '</div>';
+        }
+
+        wrap.innerHTML = filtersHtml + listHtml;
+
+        // Обработчики фильтров
+        wrap.querySelectorAll('.svc-filter-chip').forEach(function (chip) {
+            chip.addEventListener('click', function () {
+                currentDetailFilter = chip.dataset.filter;
+                renderDetailContent(wrap, serviceId);
+            });
+        });
+
+        // Обработчики действий над override
+        wrap.querySelectorAll('[data-ov-act]').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var item = btn.closest('.svc-detail-item');
+                var overrideId = parseInt(item.dataset.overrideId, 10);
+                if (btn.dataset.ovAct === 'edit') openOverrideEdit(overrideId);
+                else if (btn.dataset.ovAct === 'delete') openOverrideDelete(overrideId);
+            });
+        });
+    }
+
+    // ============================================================
+    // Разворачивание карточки
+    // ============================================================
+    function toggleService(serviceId) {
+        if (currentExpandedId === serviceId) {
+            currentExpandedId = null;
+        } else {
+            currentExpandedId = serviceId;
+            currentDetailFilter = 'all';
+        }
+        render();
+    }
+
+    // ============================================================
+    // Клик по строке (не по кнопкам)
+    // ============================================================
+    tbody.addEventListener('click', function (e) {
+        var actionBtn = e.target.closest('[data-act]');
+        if (actionBtn) {
+            var id = actionBtn.closest('tr').dataset.id;
+            var act = actionBtn.dataset.act;
+            if (act === 'edit') openEdit(findService(id));
+            else if (act === 'toggle') toggleActive(id);
+            else if (act === 'delete') deleteService(id);
+            return;
+        }
+        var row = e.target.closest('tr.svc-main-row');
+        if (row) {
+            toggleService(parseInt(row.dataset.id, 10));
+        }
+    });
+
+    function findService(id) {
+        return services.find(function (s) { return String(s.id) === String(id); });
+    }
+
+    // ============================================================
+    // МОДАЛКА: РЕДАКТИРОВАНИЕ УСЛУГИ
+    // ============================================================
+    var overlay = document.getElementById('svc-modal-overlay');
+    var editId = document.getElementById('svc-edit-id');
+    var editName = document.getElementById('svc-edit-name');
+    var editDesc = document.getElementById('svc-edit-desc');
+    var editActive = document.getElementById('svc-edit-active');
+    var editApplies = document.getElementById('svc-edit-applies');
+    var editError = document.getElementById('svc-edit-error');
 
     function openEdit(s) {
         editId.value = s.id;
@@ -354,96 +658,236 @@ document.addEventListener('DOMContentLoaded', () => {
         editActive.checked = !!s.is_active;
         editError.textContent = '';
         overlay.classList.add('open');
-        editName.focus();
+        setTimeout(function () { editName.focus(); }, 80);
     }
     function closeEdit() { overlay.classList.remove('open'); }
     document.getElementById('svc-edit-cancel').addEventListener('click', closeEdit);
-    overlay.addEventListener('click', e => { if (e.target === overlay) closeEdit(); });
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeEdit(); });
 
-    document.getElementById('svc-edit-save').addEventListener('click', () => {
-        const id = editId.value;
-        const name = editName.value.trim();
+    document.getElementById('svc-edit-save').addEventListener('click', function () {
+        var id = editId.value;
+        var name = editName.value.trim();
         editError.textContent = '';
         if (!name) { editError.textContent = 'Название обязательно'; return; }
-        const fd = new FormData();
+        var fd = new FormData();
         fd.append('name', name);
         fd.append('description', editDesc.value.trim());
         fd.append('applies_to', editApplies.value);
         fd.append('is_active', editActive.checked ? '1' : '0');
-        fd.append('csrfmiddlewaretoken', CSRF);
-        fetch(`/services/${id}/edit/`, {
+        fd.append('csrfmiddlewaretoken', csrf());
+        fetch('/services/' + id + '/edit/', {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             body: fd,
-        }).then(r => r.json()).then(data => {
+            credentials: 'same-origin',
+        }).then(function (r) { return r.json(); }).then(function (data) {
             if (data.success) {
-                const s = findService(id);
+                var s = findService(id);
                 if (s) {
-                    s.name = data.service.name; s.description = data.service.description;
+                    s.name = data.service.name;
+                    s.description = data.service.description;
                     s.is_active = data.service.is_active;
-                    s.applies_to = data.service.applies_to; s.applies_to_display = data.service.applies_to_display;
+                    s.applies_to = data.service.applies_to;
+                    s.applies_to_display = data.service.applies_to_display;
                 }
                 render();
                 closeEdit();
             } else {
                 editError.textContent = data.error || 'Ошибка';
             }
-        }).catch(() => { editError.textContent = 'Ошибка сети'; });
+        }).catch(function () { editError.textContent = 'Ошибка сети'; });
     });
 
-    // --- Toggle active ---
+    // ============================================================
+    // TOGGLE ACTIVE
+    // ============================================================
     function toggleActive(id) {
-        const fd = new FormData();
+        var fd = new FormData();
         fd.append('action', 'toggle_active');
-        fd.append('csrfmiddlewaretoken', CSRF);
-        fetch(`/services/${id}/edit/`, {
+        fd.append('csrfmiddlewaretoken', csrf());
+        fetch('/services/' + id + '/edit/', {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             body: fd,
-        }).then(r => r.json()).then(data => {
+            credentials: 'same-origin',
+        }).then(function (r) { return r.json(); }).then(function (data) {
             if (data.success) {
-                const s = findService(id);
+                var s = findService(id);
                 if (s) s.is_active = data.is_active;
                 render();
             }
         });
     }
 
-    // --- Delete ---
+    // ============================================================
+    // DELETE SERVICE
+    // ============================================================
     function deleteService(id) {
-        const s = findService(id);
-        let msg = `Удалить услугу «${s ? s.name : ''}»?`;
+        var s = findService(id);
+        var msg = 'Удалить услугу «' + (s ? s.name : '') + '»?';
         if (s && s.usage_resources) {
-            msg += `\n\nОна назначена ${s.usage_resources} ресурс(ам) в ${s.usage_projects} проект(ах). ` +
-                   `После удаления у этих ресурсов услуга будет очищена (расчёты не изменятся).`;
+            msg += '\n\nОна назначена ' + s.usage_resources + ' ресурс(ам) в '
+                + s.usage_projects + ' проект(ах). После удаления у этих ресурсов услуга будет очищена.';
         }
         if (!confirm(msg)) return;
-        const fd = new FormData();
-        fd.append('csrfmiddlewaretoken', CSRF);
-        fetch(`/services/delete/${id}/`, {
+        var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', csrf());
+        fetch('/services/delete/' + id + '/', {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             body: fd,
-        }).then(r => r.json()).then(data => {
+            credentials: 'same-origin',
+        }).then(function (r) { return r.json(); }).then(function (data) {
             if (data.success) {
-                services = services.filter(x => String(x.id) !== String(id));
+                services = services.filter(function (x) { return String(x.id) !== String(id); });
+                if (currentExpandedId === id) currentExpandedId = null;
                 render();
             }
         });
     }
 
-    // --- Event delegation for row actions ---
-    tbody.addEventListener('click', e => {
-        const btn = e.target.closest('[data-act]');
-        if (!btn) return;
-        const id = btn.closest('tr').dataset.id;
-        const act = btn.dataset.act;
-        if (act === 'edit') openEdit(findService(id));
-        else if (act === 'toggle') toggleActive(id);
-        else if (act === 'delete') deleteService(id);
+    // ============================================================
+    // МОДАЛКА: РЕДАКТИРОВАНИЕ OVERRIDE
+    // ============================================================
+    var ovOverlay = document.getElementById('svc-override-modal-overlay');
+    var ovId = document.getElementById('svc-ov-id');
+    var ovMargin = document.getElementById('svc-ov-margin');
+    var ovStart = document.getElementById('svc-ov-start');
+    var ovEnd = document.getElementById('svc-ov-end');
+    var ovHours = document.getElementById('svc-ov-hours');
+    var ovError = document.getElementById('svc-ov-error');
+
+    function openOverrideEdit(overrideId) {
+        var item = currentDetailItems.find(function (x) { return x.override_id === overrideId; });
+        if (!item) return;
+        ovId.value = overrideId;
+        ovMargin.value = item.resource_margin != null ? item.resource_margin : '';
+        ovStart.value = item.work_start_date || '';
+        ovEnd.value = item.work_end_date || '';
+        ovHours.value = item.working_hours != null ? item.working_hours : '';
+        ovError.textContent = '';
+        ovOverlay.classList.add('open');
+    }
+    function closeOverrideEdit() { ovOverlay.classList.remove('open'); }
+    document.getElementById('svc-ov-cancel').addEventListener('click', closeOverrideEdit);
+    ovOverlay.addEventListener('click', function (e) { if (e.target === ovOverlay) closeOverrideEdit(); });
+
+    document.getElementById('svc-ov-save').addEventListener('click', function () {
+        var overrideId = ovId.value;
+        var fd = new FormData();
+        fd.append('resource_margin', ovMargin.value);
+        fd.append('work_start_date', ovStart.value);
+        fd.append('work_end_date', ovEnd.value);
+        fd.append('working_hours', ovHours.value);
+        fd.append('csrfmiddlewaretoken', csrf());
+
+        fetch('/api/service-overrides/' + overrideId + '/update/', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd,
+            credentials: 'same-origin',
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data.success) {
+                // Обновляем локальный кэш
+                var item = currentDetailItems.find(function (x) { return x.override_id === parseInt(overrideId, 10); });
+                if (item) {
+                    item.resource_margin = ovMargin.value || null;
+                    item.work_start_date = ovStart.value;
+                    item.work_end_date = ovEnd.value;
+                    item.working_hours = ovHours.value || null;
+                }
+                closeOverrideEdit();
+                if (currentExpandedId) {
+                    var wrap = document.querySelector('.svc-detail-row[data-detail-for="' + currentExpandedId + '"] .svc-detail-wrap');
+                    if (wrap) renderDetailContent(wrap, currentExpandedId);
+                }
+            } else {
+                ovError.textContent = data.error || 'Ошибка';
+            }
+        }).catch(function () { ovError.textContent = 'Ошибка сети'; });
     });
 
+    // ============================================================
+    // DELETE OVERRIDE (ресурс из проекта)
+    // ============================================================
+    var delOverlay = document.getElementById('svc-delete-overlay');
+    var delText = document.getElementById('svc-delete-text');
+
+    function openOverrideDelete(overrideId) {
+        var item = currentDetailItems.find(function (x) { return x.override_id === overrideId; });
+        if (!item) return;
+        deletingOverrideId = overrideId;
+        delText.innerHTML = 'Ресурс <strong style="color:var(--text-strong)">' + escHtml(item.name)
+            + '</strong> будет удалён из проекта <strong>' + escHtml(item.project_name) + '</strong>.';
+        delOverlay.classList.add('open');
+    }
+    function closeOverrideDelete() { delOverlay.classList.remove('open'); deletingOverrideId = null; }
+    document.getElementById('svc-delete-cancel').addEventListener('click', closeOverrideDelete);
+    delOverlay.addEventListener('click', function (e) { if (e.target === delOverlay) closeOverrideDelete(); });
+
+    document.getElementById('svc-delete-confirm').addEventListener('click', function () {
+        if (!deletingOverrideId) return;
+        var id = deletingOverrideId;
+        var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', csrf());
+        fetch('/api/service-overrides/' + id + '/delete/', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd,
+            credentials: 'same-origin',
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data.success) {
+                currentDetailItems = currentDetailItems.filter(function (x) { return x.override_id !== id; });
+                closeOverrideDelete();
+                if (currentExpandedId) {
+                    var wrap = document.querySelector('.svc-detail-row[data-detail-for="' + currentExpandedId + '"] .svc-detail-wrap');
+                    if (wrap) renderDetailContent(wrap, currentExpandedId);
+                }
+            }
+        });
+    });
+
+    // ============================================================
+    // ADD SERVICE
+    // ============================================================
+    var addName = document.getElementById('svc-add-name');
+    var addDesc = document.getElementById('svc-add-desc');
+    var addApplies = document.getElementById('svc-add-applies');
+    var addError = document.getElementById('svc-add-error');
+
+    function addService() {
+        var name = addName.value.trim();
+        addError.textContent = '';
+        if (!name) { addError.textContent = 'Название услуги обязательно'; addName.focus(); return; }
+        var fd = new FormData();
+        fd.append('name', name);
+        fd.append('description', addDesc.value.trim());
+        fd.append('applies_to', addApplies.value);
+        fd.append('csrfmiddlewaretoken', csrf());
+        fetch('/services/add/', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd,
+            credentials: 'same-origin',
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data.success) {
+                services.push(data.service);
+                render();
+                addName.value = ''; addDesc.value = ''; addName.focus();
+            } else {
+                addError.textContent = data.error || 'Ошибка';
+            }
+        }).catch(function () { addError.textContent = 'Ошибка сети'; });
+    }
+    document.getElementById('svc-add-btn').addEventListener('click', addService);
+    addName.addEventListener('keydown', function (e) { if (e.key === 'Enter') addService(); });
+    addDesc.addEventListener('keydown', function (e) { if (e.key === 'Enter') addService(); });
+
+    // ============================================================
+    // INIT
+    // ============================================================
     render();
-});
+})();
 </script>
+
 {% endblock %}
